@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save"
+  echo "Launch script with: --start | --stop | --save | --input"
   exit 1
 fi
 
@@ -9,15 +9,19 @@ fi
 source /etc/environment
 
 function start() {
-  echo "start"
+  return
 }
 
 function stop() {
-  echo "stop"
+  return
 }
 
 function save() {
-  echo "save"
+  return
+}
+
+function input() {
+  return
 }
 
 #Read the argument values
@@ -33,6 +37,10 @@ while [ $# -gt 0 ]; do
     ;;
   --save)
     save
+    shift
+    ;;
+  --input)
+    input "$2"
     shift
     ;;
   *)

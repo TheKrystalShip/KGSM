@@ -1,5 +1,0 @@
-[Unit]
-PartOf=terraria.service
-
-[Socket]
-ListenFIFO=/home/cristian/servers/terraria/terraria.stdin
