@@ -3,6 +3,8 @@ Description=Factorio Dedicated Server
 StartLimitIntervalSec=10
 After=network.target
 
+Requires=factorio.socket
+
 [Service]
 User=cristian
 WorkingDirectory=/home/cristian/servers/factorio
@@ -11,6 +13,11 @@ ExecStart=/home/cristian/servers/factorio/start.sh
 Restart=on-failure
 RestartSec=5
 StartLimitBurst=1
+
+Sockets=factorio.socket
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+[Unit]
+PartOf=factorio.service
+
+[Socket]
+ListenFIFO=/home/cristian/servers/factorio/factorio.stdin
