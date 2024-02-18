@@ -25,8 +25,8 @@
 
 # Params
 if [ $# -eq 0 ]; then
-    echo "ERROR: Service name not supplied"
-    exit 2
+  echo "ERROR: Service name not supplied"
+  exit 2
 fi
 
 SERVICE=$1
@@ -40,16 +40,16 @@ export EXITSTATUS_ERROR=1
 result=$(sqlite3 "$DB_FILE" "SELECT * from services WHERE name = '$SERVICE'")
 
 if [ -z "$result" ]; then
-    echo "ERROR: Didn't get any result back from DB, exiting"
-    exit 2
+  echo "ERROR: Didn't get any result back from DB, exiting"
+  exit 2
 fi
 
 # Result is a string with all values glued together by a | character, split
 IFS='|' read -r -a COLS <<<"$result"
 
 if [ -z "${COLS[0]}" ]; then
-    echo "ERROR: Failed to parse result, exiting"
-    exit 2
+  echo "ERROR: Failed to parse result, exiting"
+  exit 2
 fi
 
 # $COLS is now an array, all indexes match the DB schema described above.
@@ -61,8 +61,8 @@ export SERVICE_APP_ID="${COLS[4]}"
 # 0 (false), 1 (true)
 # shellcheck disable=SC2155
 export IS_STEAM_GAME=$(
-    ! [ "$SERVICE_APP_ID" != "0" ]
-    echo $?
+  ! [ "$SERVICE_APP_ID" != "0" ]
+  echo $?
 )
 
 # Install dir
@@ -74,39 +74,39 @@ export SERVICE_SAVES_DIR="$SERVICE_WORKING_DIR"/saves
 
 export SERVICE_CUSTOM_SCRIPTS_FILE="$SERVICE_WORKING_DIR/custom_scripts.sh"
 
-export run_get_latest_version_result="$EXITSTATUS_ERROR"
+export func_get_latest_version_result="$EXITSTATUS_ERROR"
 
-function run_steam_version_check() {
-    run_get_latest_version_result=$(steamcmd +login anonymous +app_info_update 1 +app_info_print "$SERVICE_APP_ID" +quit | tr '\n' ' ' | grep --color=NEVER -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
+function func_steam_version_check() {
+  func_get_latest_version_result=$(steamcmd +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +app_info_update 1 +app_info_print "$SERVICE_APP_ID" +quit | tr '\n' ' ' | grep --color=NEVER -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
 }
 
-function run_custom_version_check() {
-    if ! test -f "$SERVICE_CUSTOM_SCRIPTS_FILE"; then
-        echo "ERROR: No custom_scripts file found for $SERVICE_NAME, exiting"
-        exit "$EXITSTATUS_ERROR"
-    fi
+function func_custom_version_check() {
+  if ! test -f "$SERVICE_CUSTOM_SCRIPTS_FILE"; then
+    echo ">>> ERROR: No custom_scripts file found for $SERVICE_NAME, exiting"
+    exit "$EXITSTATUS_ERROR"
+  fi
 
-    # Custom file exists, source it
-    # shellcheck source=/dev/null
-    source "$SERVICE_CUSTOM_SCRIPTS_FILE"
+  # Custom file exists, source it
+  # shellcheck source=/dev/null
+  source "$SERVICE_CUSTOM_SCRIPTS_FILE"
 
-    if ! type -t run_get_latest_version >/dev/null; then
-        echo "Error: No custom version check function found, exiting"
-        exit "$EXITSTATUS_ERROR"
-    fi
+  if ! type -t func_get_latest_version >/dev/null; then
+    echo ">>> Error: No custom version check function found, exiting"
+    exit "$EXITSTATUS_ERROR"
+  fi
 
-    run_get_latest_version
+  func_get_latest_version
 }
 
 if [ "$IS_STEAM_GAME" -eq '1' ]; then
-    run_steam_version_check
+  func_steam_version_check
 else
-    run_custom_version_check
+  func_custom_version_check
 fi
 
-if [ "$run_get_latest_version_result" != "$SERVICE_INSTALLED_VERSION" ]; then
-    echo "$run_get_latest_version_result" | tr -d '\n'
-    exit "$EXITSTATUS_SUCCESS"
+if [ "$func_get_latest_version_result" != "$SERVICE_INSTALLED_VERSION" ]; then
+  echo "$func_get_latest_version_result" | tr -d '\n'
+  exit "$EXITSTATUS_SUCCESS"
 fi
 
 exit "$EXITSTATUS_ERROR"

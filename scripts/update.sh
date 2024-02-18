@@ -32,20 +32,19 @@
 
 export EXITSTATUS_SUCCESS=0
 export EXITSTATUS_ERROR=1
+SEPARATOR="================================================================================"
 
 ################################################################################
 # > Init checks
 ################################################################################
 
 if [ -z "$USER" ]; then
-    echo ">>> ERROR: \$USER var not set, cannot run script without it. Exiting"
-    exit "$EXITSTATUS_ERROR"
+  func_exit_error ">>> ERROR: \$USER var not set, cannot run script without it. Exiting"
 fi
 
 # Params
-if [ $# -eq 0 ]; then
-    echo ">>> ERROR: Game name not supplied. Run script like this: ./${0##*/} \"GAME\""
-    exit "$EXITSTATUS_ERROR"
+if [ $# == 0 ]; then
+  func_exit_error ">>> ERROR: Game name not supplied. Run script like this: ./${0##*/} \"GAME\""
 fi
 
 SERVICE_NAME=$1
@@ -56,16 +55,14 @@ export DB_FILE="/home/$USER/servers/info.db"
 result=$(sqlite3 "$DB_FILE" "SELECT * from services WHERE name = '${SERVICE_NAME//\'/\'\'}';")
 
 if [ -z "$result" ]; then
-    echo ">>> ERROR: Didn't get any result back from DB, exiting"
-    exit "$EXITSTATUS_ERROR"
+  func_exit_error ">>> ERROR: Didn't get any result back from DB, exiting"
 fi
 
 # Result is a string with all values glued together by a | character, split
 IFS='|' read -r -a COLS <<<"$result"
 
 if [ -z "${COLS[0]}" ]; then
-    echo ">>> ERROR: Failed to parse result, exiting"
-    exit "$EXITSTATUS_ERROR"
+  func_exit_error ">>> ERROR: Failed to parse result, exiting"
 fi
 
 ################################################################################
@@ -80,42 +77,42 @@ export SERVICE_APP_ID="${COLS[4]}"
 # 0 (false), 1 (true)
 # shellcheck disable=SC2155
 export IS_STEAM_GAME=$(
-    ! [ "$SERVICE_APP_ID" != "0" ]
-    echo $?
+  ! [ "$SERVICE_APP_ID" != "0" ]
+  echo $?
 )
 
 export BASE_DIR=/home/"$USER"/servers
 export GLOBAL_SCRIPTS_DIR="$BASE_DIR"/scripts
-export GLOBAL_VERSION_CHECK_FILE="$BASE_DIR"/version_check.sh
+export GLOBAL_VERSION_CHECK_FILE="$GLOBAL_SCRIPTS_DIR"/version_check.sh
 
 # Install dir
 export SERVICE_INSTALL_DIR="$SERVICE_WORKING_DIR"/install
 if [ ! -d "$SERVICE_INSTALL_DIR" ]; then
-    mkdir -p "$SERVICE_INSTALL_DIR"
+  mkdir -p "$SERVICE_INSTALL_DIR"
 fi
 
 # Temp dir
 export SERVICE_TEMP_DIR="$SERVICE_WORKING_DIR"/temp
 if [ ! -d "$SERVICE_TEMP_DIR" ]; then
-    mkdir -p "$SERVICE_TEMP_DIR"
+  mkdir -p "$SERVICE_TEMP_DIR"
 fi
 
 # Backup dir
 export SERVICE_BACKUPS_DIR="$SERVICE_WORKING_DIR"/backups
 if [ ! -d "$SERVICE_BACKUPS_DIR" ]; then
-    mkdir -p "$SERVICE_BACKUPS_DIR"
+  mkdir -p "$SERVICE_BACKUPS_DIR"
 fi
 
 # Config dir
 export SERVICE_CONFIG_DIR="$SERVICE_WORKING_DIR"/config
 if [ ! -d "$SERVICE_CONFIG_DIR" ]; then
-    mkdir -p "$SERVICE_CONFIG_DIR"
+  mkdir -p "$SERVICE_CONFIG_DIR"
 fi
 
 # Saves dir
 export SERVICE_SAVES_DIR="$SERVICE_WORKING_DIR"/saves
 if [ ! -d "$SERVICE_SAVES_DIR" ]; then
-    mkdir -p "$SERVICE_SAVES_DIR"
+  mkdir -p "$SERVICE_SAVES_DIR"
 fi
 
 export SERVICE_CUSTOM_SCRIPTS_FILE="$SERVICE_WORKING_DIR/custom_scripts.sh"
@@ -124,262 +121,293 @@ export SERVICE_CUSTOM_SCRIPTS_FILE="$SERVICE_WORKING_DIR/custom_scripts.sh"
 # > Function return vars
 ################################################################################
 
-export run_get_latest_version_result="$EXITSTATUS_ERROR"
-export run_download_result="$EXITSTATUS_ERROR"
-export run_get_service_status_result="inactive" # active / inactive
-export run_create_backup_result="$EXITSTATUS_ERROR"
-export run_deploy_result="$EXITSTATUS_ERROR"
-export run_restore_service_state_result="$EXITSTATUS_ERROR"
-export run_update_version_result="$EXITSTATUS_ERROR"
+export func_get_latest_version_result="$EXITSTATUS_ERROR"
+export func_download_result="$EXITSTATUS_ERROR"
+export func_get_service_status_result="inactive" # active / inactive
+export func_create_backup_result="$EXITSTATUS_ERROR"
+export func_deploy_result="$EXITSTATUS_ERROR"
+export func_restore_service_state_result="$EXITSTATUS_ERROR"
+export func_update_version_result="$EXITSTATUS_ERROR"
 
 ################################################################################
 # > Functions
 ################################################################################
 
-function init() {
+function func_main() {
 
-    # shellcheck disable=SC1091
-    source "/etc/environment"
+  # shellcheck disable=SC1091
+  source "/etc/environment"
 
-    echo "Update process started for $SERVICE_NAME."
-    sleep 1
+  func_print_title "> Update process started for $SERVICE_NAME <"
 
-    ############################################################################
-    #### Check for new version
-    ############################################################################
+  sleep 1
 
-    echo "1- Checking for new version..."
-    run_get_latest_version "$SERVICE_NAME"
+  ############################################################################
+  #### Check for new version
+  ############################################################################
 
-    if [ "$run_get_latest_version_result" -eq "$EXITSTATUS_ERROR" ]; then
-        printf "\t>>> ERROR: No new version found, exiting.\n"
-        exit "$EXITSTATUS_ERROR"
+  func_print_title "> 1/7 Version check"
+  printf "\n\tChecking for latest version...\n"
+  func_get_latest_version "$SERVICE_NAME"
+
+  if [ "$func_get_latest_version_result" == "$EXITSTATUS_ERROR" ]; then
+    func_exit_error ">>> ERROR: No new version found, exiting.\n"
+  fi
+
+  printf "\tInstalled version:\t%s\n" "$SERVICE_INSTALLED_VERSION"
+  printf "\tNew version found:\t%s\n" "$func_get_latest_version_result"
+
+  if [ "$func_get_latest_version_result" == "$EXITSTATUS_ERROR" ] || [ -z "$func_get_latest_version_result" ]; then
+    func_exit_error ">>> ERROR: new version number is empty, exiting"
+  fi
+
+  sleep 1
+
+  if [ "$SERVICE_INSTALLED_VERSION" == "$func_get_latest_version_result" ]; then
+    printf "\tWARNING: latest version already installed\n"
+    printf "\tContinuing would overwrite existing install\n"
+
+    if ! func_confirm "Continue? [Y/n]"; then
+      func_exit_error
     fi
+  fi
 
-    printf "\tNew version found: %s\n" "$run_get_latest_version_result"
-    sleep 1
+  ############################################################################
+  #### Download new version
+  ############################################################################
 
-    ############################################################################
-    #### Download new version
-    ############################################################################
+  # Download new version in temp folder
 
-    # Download new version in temp folder
-    echo "2- Downloading version $run_get_latest_version_result..."
+  func_print_title "> 2/7 Download"
+  printf "\n\tDownloading version %s\n\n" "$func_get_latest_version_result"
 
-    run_download "$run_get_latest_version_result"
+  func_download "$func_get_latest_version_result"
 
-    if [ "$run_download_result" -eq "$EXITSTATUS_ERROR" ]; then
-        printf "\t>>> ERROR: Failed to download new version, exiting.\n"
-        exit "$EXITSTATUS_ERROR"
-    fi
+  if [ "$func_download_result" == "$EXITSTATUS_ERROR" ]; then
+    func_exit_error ">>> ERROR: Failed to download new version, exiting.\n"
+  fi
 
-    printf "\tDownload completed\n"
-    sleep 1
+  printf "\n\tDownload completed\n\n"
+  sleep 1
 
-    ############################################################################
-    #### Check if service is currently running and shut it down if needed
-    ############################################################################
+  ############################################################################
+  #### Check if service is currently running and shut it down if needed
+  ############################################################################
 
-    echo "3- Checking service running status"
-    run_get_service_status "$SERVICE_NAME"
+  func_print_title "> 3/7 Service status"
+  printf "\n\tChecking current service status\n\n"
 
-    if [ "$run_get_service_status_result" = "active" ]; then
-        printf "\tWARNING: Service currently running, shutting down first...\n"
+  func_get_service_status "$SERVICE_NAME"
 
-        local service_shutdown_exit_code="$EXITSTATUS_ERROR"
-        service_shutdown_exit_code=$(exec "$GLOBAL_SCRIPTS_DIR/stop.sh" "$SERVICE_NAME")
+  if [ "$func_get_service_status_result" = "active" ]; then
+    printf "\n\tWARNING: Service currently running, shutting down first...\n"
 
-        if [ "$service_shutdown_exit_code" -eq "$EXITSTATUS_ERROR" ]; then
-            printf "\t>>> ERROR: Failed to shutdown service, exiting\n"
-            exit "$EXITSTATUS_ERROR"
-        else
-            printf "\tService shutdown complete, continuing\n"
-        fi
+    local service_shutdown_exit_code="$EXITSTATUS_ERROR"
+    service_shutdown_exit_code=$(exec "$GLOBAL_SCRIPTS_DIR/stop.sh" "$SERVICE_NAME")
+
+    if [ "$service_shutdown_exit_code" == "$EXITSTATUS_ERROR" ]; then
+      func_exit_error ">>> ERROR: Failed to shutdown service, exiting"
     else
-        printf "\tService status %s, continuing\n" "$run_get_service_status_result"
+      printf "\n\tService shutdown complete, continuing\n\n"
+    fi
+  else
+    printf "\n\tService status %s, continuing\n\n" "$func_get_service_status_result"
+  fi
+
+  sleep 1
+
+  ############################################################################
+  #### Backup existing install if it exists
+  ############################################################################
+
+  func_print_title "> 4/7 Backup"
+
+  if [ -z "$(ls -A "$SERVICE_INSTALL_DIR")" ]; then
+    # Dir is empty
+    printf "\n\tNo installation found, skipping backup step\n\n"
+    sleep 1
+  else
+    # Dir is not empty, backup exiting release
+    printf "\n\tCreating backup of current version\n\n"
+    sleep 1
+    func_create_backup "$SERVICE_INSTALL_DIR"
+
+    if [ "$func_create_backup_result" == "$EXITSTATUS_ERROR" ]; then
+      func_exit_error ">>> ERROR: Failed to create backup, exiting"
     fi
 
+    printf "\n\tBackup complete in folder: %s\n\n" "$func_create_backup_result"
+    sleep 1
+  fi
+
+  ############################################################################
+  #### Deploy newly downloaded version
+  ############################################################################
+
+  func_print_title "> 5/7 Deployment"
+  printf "\n\tDeploying %s...\n\n" "$func_get_latest_version_result"
+  sleep 1
+
+  func_deploy
+
+  if [ "$func_deploy_result" == "$EXITSTATUS_ERROR" ]; then
+    func_exit_error ">>> ERROR: Failed to deploy $func_get_latest_version_result, exiting" "$func_get_latest_version_result"
+  fi
+
+  printf "\n\tDeployment complete.\n\n"
+  sleep 1
+
+  ############################################################################
+  #### Restore service state if needed
+  ############################################################################
+
+  func_print_title "> 6/7 Service restore"
+
+  if [ "$func_get_service_status_result" = "active" ]; then
+    echo $SEPARATOR
+    printf "\n\tStarting the service back up\n\n"
     sleep 1
 
-    ############################################################################
-    #### Backup existing install if it exists
-    ############################################################################
-
-    if [ -z "$(ls -A "$SERVICE_INSTALL_DIR")" ]; then
-        # Dir is empty
-        echo "4- No installation found, skipping backup step"
-    else
-        # Dir is not empty, backup exiting release
-        echo "4- Creating backup of current version..."
-        run_create_backup "$SERVICE_INSTALL_DIR"
-
-        if [ "$run_create_backup_result" -eq "$EXITSTATUS_ERROR" ]; then
-            printf "\t>>> ERROR: Failed to create backup, exiting.\n"
-            exit "$EXITSTATUS_ERROR"
-        fi
-
-        printf "\tBackup complete in folder: %s\n" "$run_create_backup_result"
+    func_restore_service_state "$SERVICE_NAME"
+    if [ "$func_restore_service_state_result" == "$EXITSTATUS_ERROR" ]; then
+      func_exit_error ">>> ERROR: Failed to restore service to running state, exiting"
     fi
 
+    printf "\n\tService started successfully\n\n"
     sleep 1
-
-    ############################################################################
-    #### Deploy newly downloaded version
-    ############################################################################
-
-    echo "5- Deploying $run_get_latest_version_result..."
-
-    run_deploy
-
-    if [ "$run_deploy_result" -eq "$EXITSTATUS_ERROR" ]; then
-        printf "\t>>> ERROR: Failed to deploy %s, exiting.\n" "$run_get_latest_version_result"
-        exit "$EXITSTATUS_ERROR"
-    fi
-
-    printf "\tDeployment complete.\n"
+  else
+    printf "\n\tService was %s, skipping restore step\n\n" "$func_get_service_status_result"
     sleep 1
+  fi
 
-    ############################################################################
-    #### Restore service state if needed
-    ############################################################################
+  sleep 1
 
-    if [ "$run_get_service_status_result" = "active" ]; then
-        echo "5.5- Starting the service back up"
+  ############################################################################
+  #### Save the new installed version number
+  ############################################################################
 
-        run_restore_service_state "$SERVICE_NAME"
-        if [ "$run_restore_service_state_result" -eq "$EXITSTATUS_ERROR" ]; then
-            printf "\t>>> ERROR: Failed to restore service to running state, exiting.\n"
-            exit "$EXITSTATUS_ERROR"
-        fi
+  func_print_title "> 7/7 Updating version record"
+  sleep 1
 
-        printf "\tService started successfully\n"
-    fi
+  printf "\n\t Saving new version %s\n\n" "$func_get_latest_version_result"
+  func_update_version "$func_get_latest_version_result"
 
-    sleep 1
+  if [ "$func_update_version_result" == "$EXITSTATUS_ERROR" ]; then
+    printf ">>> ERROR: Failed to update version number in DB, however the update has been deployed"
+  fi
 
-    ############################################################################
-    #### Save the new installed version number
-    ############################################################################
-
-    run_update_version "$run_get_latest_version_result"
-
-    if [ "$run_update_version_result" -eq "$EXITSTATUS_ERROR" ]; then
-        printf "\t>>> ERROR: Failed to update version number in DB, however the update has been deployed\n"
-    fi
-
-    echo "6- Update finished, exiting"
-    exit "$EXITSTATUS_SUCCESS"
+  func_print_title "> Update finished <"
+  exit "$EXITSTATUS_SUCCESS"
 }
 
-function run_get_latest_version() {
-    local service=$1
-    local latest_version_available="$EXITSTATUS_ERROR"
-
-    latest_version_available=$(exec "$GLOBAL_VERSION_CHECK_FILE" "$service")
-
-    # $EXITSTATUS_ERROR if there's no new version.
-    if [ "$latest_version_available" -eq "$EXITSTATUS_ERROR" ]; then
-        run_get_latest_version_result="$EXITSTATUS_ERROR"
-    else
-        # New version number will be saved
-        run_get_latest_version_result="$latest_version_available"
-    fi
+function func_get_latest_version() {
+  func_get_latest_version_result=$(steamcmd +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +app_info_update 1 +app_info_print "$SERVICE_APP_ID" +quit | tr '\n' ' ' | grep --color=NEVER -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
 }
 
-# function run_download() {
-#     local version=$1
-#     run_download_result="$EXITSTATUS_ERROR"
+function func_download() {
+  local version=$1
+  func_download_result="$EXITSTATUS_ERROR"
 
-#     steamcmd +@sSteamCmdForcePlatformType linux +force_install_dir "$SERVICE_TEMP_DIR" +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +app_update "$SERVICE_APP_ID" -beta none validate +quit
-#     run_download_result=$?
+  steamcmd +@sSteamCmdForcePlatformType linux +force_install_dir "$SERVICE_TEMP_DIR" +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +app_update "$SERVICE_APP_ID" -beta none validate +quit
+  func_download_result=$?
+}
+
+# # Debugging, skip downloading
+# function func_download() {
+#     func_download_result="$EXITSTATUS_SUCCESS"
 # }
 
-# Debugging, skip downloading
-function run_download() {
-    run_download_result="$EXITSTATUS_SUCCESS"
+function func_get_service_status() {
+  # Possible output: "active" / "inactive"
+  func_get_service_status_result=$(exec "$GLOBAL_SCRIPTS_DIR/is-active.sh" "$SERVICE_NAME")
 }
 
-function run_get_service_status() {
-    # Possible output: "active" / "inactive"
-    run_get_service_status_result=$(exec "$GLOBAL_SCRIPTS_DIR/is-active.sh" "$SERVICE_NAME")
-}
+function func_create_backup() {
+  # shellcheck disable=SC2155
+  local datetime=$(exec date +"%Y-%m-%d%T")
+  local output_dir="${SERVICE_BACKUPS_DIR}/${SERVICE_NAME}-${SERVICE_INSTALLED_VERSION}-${datetime}.backup"
 
-function run_create_backup() {
-    # shellcheck disable=SC2155
-    local datetime=$(exec date +"%Y-%m-%d%T")
-    local output_dir="${SERVICE_BACKUPS_DIR}/${SERVICE_NAME}-${SERVICE_INSTALLED_VERSION}-${datetime}.backup"
-
-    # Create backup folder if it doesn't exit
-    if [ ! -d "$output_dir" ]; then
-        if ! mkdir -p "$output_dir"; then
-            printf "\tERROR: Error creating backup folder %s" "$output_dir"
-            return
-        fi
+  # Create backup folder if it doesn't exit
+  if [ ! -d "$output_dir" ]; then
+    if ! mkdir -p "$output_dir"; then
+      printf "\tERROR: Error creating backup folder %s" "$output_dir"
+      return
     fi
+  fi
 
-    if ! mv -v "$SERVICE_INSTALL_DIR"/* "$output_dir"/; then
-        echo ">>> ERROR: Failed to move contents from $SERVICE_INSTALL_DIR into $output_dir"
-        return
-    fi
+  if ! mv -v "$SERVICE_INSTALL_DIR"/* "$output_dir"/; then
+    echo ">>> ERROR: Failed to move contents from $SERVICE_INSTALL_DIR into $output_dir"
+    return
+  fi
 
-    run_create_backup_result="$output_dir"
+  func_create_backup_result="$output_dir"
 }
 
-function run_deploy() {
-    # Ensure 'latest' folder actually exists
-    if [ ! -d "$SERVICE_INSTALL_DIR" ]; then
-        if ! mkdir -p "$SERVICE_INSTALL_DIR"; then
-            echo ">>> ERROR: Error creating $SERVICE_INSTALL_DIR folder"
-            return
-        fi
-    fi
+function func_deploy() {
+  # Move everything from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR
+  if ! mv -v "$SERVICE_TEMP_DIR"/* "$SERVICE_INSTALL_DIR"/; then
+    echo ">>> ERROR: Failed to move contents from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR"
+    return
+  fi
 
-    # Move everything from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR
-    if ! mv -v "$SERVICE_TEMP_DIR"/* "$SERVICE_INSTALL_DIR"/; then
-        echo ">>> ERROR: Failed to move contents from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR"
-        return
-    fi
-
-    run_deploy_result="$EXITSTATUS_SUCCESS"
+  func_deploy_result="$EXITSTATUS_SUCCESS"
 }
 
-function run_restore_service_state() {
-    run_restore_service_state_result=$(exec "$GLOBAL_SCRIPTS_DIR/start.sh" "$SERVICE_NAME")
+function func_restore_service_state() {
+  func_restore_service_state_result=$(exec "$GLOBAL_SCRIPTS_DIR/start.sh" "$SERVICE_NAME")
 }
 
-function run_update_version() {
-    # Save new version number in DB
-    local version=$1
-    local sql_script="UPDATE services \
+function func_update_version() {
+  # Save new version number in DB
+  local version=$1
+  local sql_script="UPDATE services \
                       SET installed_version = '${version}' \
                       WHERE name = '${SERVICE_NAME}';"
 
-    sqlite3 "$DB_FILE" "$sql_script"
-    run_update_version_result=$?
+  sqlite3 "$DB_FILE" "$sql_script"
+  func_update_version_result=$?
 }
 
-function run_ctrl_c() {
-    # shellcheck disable=SC2317
-    echo "*** Update process cancelled ***"
+function func_exit_error() {
+  printf "\t%s\n" "${*:- Update process cancelled}"
+  exit "$EXITSTATUS_ERROR"
+}
+
+function func_confirm() {
+  # call with a prompt string or use a default
+  read -r -p "${1:-Are you sure? [Y/n]} " response
+  case "$response" in
+  [nN][oO] | [nN])
+    false
+    ;;
+  *)
+    true
+    ;;
+  esac
+}
+
+function func_print_title() {
+  echo "$SEPARATOR"
+  echo "$1"
+  echo "$SEPARATOR"
 }
 
 # Trap CTRL-C
-trap run_ctrl_c INT
+trap func_exit_error INT
 
 # Check if the game is from steam or not, check for a custom_scripts.sh
 # file and if it exists, source it
-if [ "$IS_STEAM_GAME" -eq "$EXITSTATUS_SUCCESS" ]; then
-    # Dealing with a non-steam game, source the custom scripts
-    printf "Non-Steam game detected, importing custom scripts file\n"
+if [ "$IS_STEAM_GAME" == "$EXITSTATUS_SUCCESS" ]; then
+  # Dealing with a non-steam game, source the custom scripts
+  printf "Non-Steam game detected, importing custom scripts file\n"
 
-    if ! test -f "$SERVICE_CUSTOM_SCRIPTS_FILE"; then
-        printf "\t>>> ERROR: Could not locate custom_scripts.sh file for %s, exiting.\n" "$SERVICE_NAME"
-        exit "$EXITSTATUS_ERROR"
-    fi
+  if ! test -f "$SERVICE_CUSTOM_SCRIPTS_FILE"; then
+    func_exit_error ">>> ERROR: Could not locate custom_scripts.sh file for $SERVICE_NAME, exiting"
+  fi
 
-    # shellcheck source=/dev/null
-    source "$SERVICE_CUSTOM_SCRIPTS_FILE"
+  # shellcheck source=/dev/null
+  source "$SERVICE_CUSTOM_SCRIPTS_FILE"
 fi
 
 # Start the script
-init
+func_main "$@"

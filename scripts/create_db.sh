@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS services ( \
 );"
 
 if [ "$1" = "--populate" ]; then
-    sqlite3 "$DB_FILE" "\
+  sqlite3 "$DB_FILE" "\
     INSERT INTO \
         services (name, working_dir, installed_version, app_id) \
     VALUES \
