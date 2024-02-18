@@ -1,0 +1,16 @@
+[Unit]
+Description=Discord Admiral Bot Service
+StartLimitIntervalSec=10
+After=network.target
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/discord/admiral
+ExecStart=/home/cristian/servers/discord/admiral/start.sh
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+[Install]
+WantedBy=multi-user.target

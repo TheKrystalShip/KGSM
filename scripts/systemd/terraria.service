@@ -1,0 +1,23 @@
+[Unit]
+Description=Terraria Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+# Socket required for STDIN commands
+Requires=terraria.socket
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/terraria
+ExecStart=/home/cristian/servers/terraria/start.sh
+ExecStop=/home/cristian/servers/terraria/stop.sh
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+Sockets=terraria.socket
+StandardInput=socket
+
+[Install]
+WantedBy=multi-user.target

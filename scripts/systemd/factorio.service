@@ -1,0 +1,16 @@
+[Unit]
+Description=Factorio Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/factorio
+ExecStart=/home/cristian/servers/factorio/start.sh
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+[Install]
+WantedBy=multi-user.target
