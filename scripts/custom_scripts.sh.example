@@ -1,0 +1,76 @@
+#!/bin/bash
+
+################################################################################
+# Main file: /home/$USER/servers/update.sh
+#
+# These are the functions available in the main script that can be overwritten.
+# Each function should write it's output to the corresponding var
+#
+# run_get_latest_version        => run_get_latest_version_result
+# run_download                  => run_download_result
+# run_get_service_status        => run_get_service_status_result
+# run_create_backup             => run_create_backup_result
+# run_deploy                    => run_deploy_result
+# run_restore_service_state     => run_restore_service_state_result
+# run_update_version            => run_update_version_result
+#
+# Available global vars:
+#
+# EXITSTATUS_SUCCESS
+# EXITSTATUS_ERROR
+# DB_FILE
+# SERVICE_NAME
+# SERVICE_WORKING_DIR
+# SERVICE_INSTALLED_VERSION
+# SERVICE_APP_ID
+# IS_STEAM_GAME
+# BASE_DIR
+# GLOBAL_SCRIPTS_DIR
+# GLOBAL_VERSION_CHECK_FILE
+# SERVICE_LATEST_DIR
+# SERVICE_TEMP_DIR
+# SERVICE_BACKUPS_FOLDER
+################################################################################
+
+run_get_latest_version() {
+    local installed_version=$1
+    local new_version=$1
+
+    # Get new version
+
+    if [ "$new_version" != "$installed_version" ]; then
+        run_get_latest_version_result="$new_version"
+    else
+        run_get_latest_version_result="$EXITSTATUS_ERROR"
+    fi
+}
+
+run_download() {
+    ############################################################################
+    # INPUT:
+    # - $1: New version
+    ############################################################################
+    local new_version=$1
+
+    # Download new version in $SERVICE_TEMP_DIR
+
+    run_download_result="$EXITSTATUS_SUCCESS"
+}
+
+run_deploy() {
+    ############################################################################
+    # INPUT:
+    # - $1: Source folder, absolute path
+    # - $2: Destination folder, absolute path
+    #
+    # OUTPUT:
+    # - 0: Success
+    # - 1: Error
+    ############################################################################
+    local source=$1
+    local destination=$2
+
+    # Deploy new version from $SERVICE_TEMP_DIR into $SERVICE_LATEST_DIR
+
+    run_deploy_result="$EXITSTATUS_SUCCESS"
+}

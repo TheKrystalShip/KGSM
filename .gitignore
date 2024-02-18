@@ -1,0 +1,17 @@
+!.gitignore
+*.db
+*.stdin
+
+# Keep folders
+!/**/backups/.gitignore
+!/**/config/.gitignore
+!/**/install/.gitignore
+!/**/saves/.gitignore
+!/**/temp/.gitignore
+
+# Ignore everything else inside folders
+/**/backups/*
+/**/config/*
+/**/install/*
+/**/saves/*
+/**/temp/*
