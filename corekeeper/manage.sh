@@ -8,24 +8,22 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR=/home/"$USER"/servers/factorio
+WORKING_DIR=/home/"$USER"/servers/corekeeper/install
 
 function start() {
-  exec "$WORKING_DIR"/install/bin/x64/factorio --start-server "$WORKING_DIR"/saves/tks.zip
+  (cd "$WORKING_DIR" && exec ./_launch.sh)
 }
 
 function stop() {
-  save
-  sleep 10
-  echo "/quit" >./factorio.stdin
+  return
 }
 
 function save() {
-  echo "/save" >./factorio.stdin
+  return
 }
 
 function input() {
-  echo "$1" >./factorio.stdin
+  return
 }
 
 #Read the argument values
@@ -44,7 +42,7 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   --input)
-    input "$2"
+    input
     shift
     ;;
   *)

@@ -8,24 +8,24 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR=/home/"$USER"/servers/factorio
+WORKING_DIR=/home/"$USER"/servers/projectzomboid/install
 
 function start() {
-  exec "$WORKING_DIR"/install/bin/x64/factorio --start-server "$WORKING_DIR"/saves/tks.zip
+  exec "$WORKING_DIR"/start-server.sh -servername "TKS"
 }
 
 function stop() {
   save
   sleep 10
-  echo "/quit" >./factorio.stdin
+  echo "quit" >./projectzomboid.stdin
 }
 
 function save() {
-  echo "/save" >./factorio.stdin
+  echo "save" >./projectzomboid.stdin
 }
 
 function input() {
-  echo "$1" >./factorio.stdin
+  echo "$1" >./projectzomboid.stdin
 }
 
 #Read the argument values
