@@ -77,7 +77,7 @@ export SERVICE_CUSTOM_SCRIPTS_FILE="$SERVICE_WORKING_DIR/custom_scripts.sh"
 export func_get_latest_version_result="$EXITSTATUS_ERROR"
 
 function func_steam_version_check() {
-  func_get_latest_version_result=$(steamcmd +login "$STEAM_USERNAME" "$STEAM_PASSWORD" +app_info_update 1 +app_info_print "$SERVICE_APP_ID" +quit | tr '\n' ' ' | grep --color=NEVER -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
+  func_get_latest_version_result=$(steamcmd +login anonymous +app_info_update 1 +app_info_print "$SERVICE_APP_ID" +quit | tr '\n' ' ' | grep --color=NEVER -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
 }
 
 function func_custom_version_check() {
