@@ -5,23 +5,19 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-WORKING_DIR=/home/"$USER"/servers/terraria
-
 # shellcheck disable=SC1091
 source /etc/environment
 
 function start() {
-  exec "$WORKING_DIR"/install/TerrariaServer.bin.x86_64 -config "$WORKING_DIR"/install/serverconfig.txt
+  echo "start"
 }
 
 function stop() {
-  save
-  sleep 10s
-  echo "exit" >./terraria.stdin
+  echo "stop"
 }
 
 function save() {
-  echo "save" >"$WORKING_DIR/terraria.stdin"
+  echo "save"
 }
 
 #Read the argument values
