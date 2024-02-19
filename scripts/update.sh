@@ -47,6 +47,12 @@ if [ $# == 0 ]; then
   func_exit_error ">>> ERROR: Game name not supplied. Run script like this: ./${0##*/} \"GAME\""
 fi
 
+# Force an install regardless if the latest version is already installed
+FORCE_INSTALL=0
+if [ -n "$2" ] && [ "$2" == "--force" ]; then
+  FORCE_INSTALL=1
+fi
+
 SERVICE_NAME=$1
 export DB_FILE="/home/$USER/servers/info.db"
 
@@ -167,8 +173,13 @@ function func_main() {
     printf "\tWARNING: latest version already installed\n"
     printf "\tContinuing would overwrite existing install\n"
 
-    if ! func_confirm "Continue? [Y/n]"; then
-      func_exit_error
+    if [ $FORCE_INSTALL -ne 1 ]; then
+      if ! func_confirm "Continue? [Y/n]"; then
+        func_exit_error
+      fi
+    else
+      printf "\tForced installation was specified, continuing\n\n"
+      sleep 1
     fi
   fi
 
