@@ -17,12 +17,12 @@ if [ "$1" = "--populate" ]; then
     INSERT INTO \
         services (name, working_dir, installed_version, app_id) \
     VALUES \
-        ('7dtd', '/home/cristian/servers/7dtd', '0', '294420'), \
-        ('corekeeper', '/home/cristian/servers/corekeeper', '0', '1963720'), \
-        ('factorio', '/home/cristian/servers/factorio', '0', '0'), \
-        ('minecraft', '/home/cristian/servers/minecraft', '0', '0'), \
-        ('projectzomboid', '/home/cristian/servers/projectzomboid', '0', '380870'), \
-        ('starbound', '/home/cristian/servers/starbound', '0', '211820'), \
-        ('terraria', '/home/cristian/servers/terraria', '0', '0'), \
-        ('valheim', '/home/cristian/servers/valheim', '0', '896660');"
+        ('7dtd', '/home/$USER/servers/7dtd', '0', '294420'), \
+        ('corekeeper', '/home/$USER/servers/corekeeper', '0', '1963720'), \
+        ('factorio', '/home/$USER/servers/factorio', '0', '0'), \
+        ('minecraft', '/home/$USER/servers/minecraft', '0', '0'), \
+        ('projectzomboid', '/home/$USER/servers/projectzomboid', '0', '380870'), \
+        ('starbound', '/home/$USER/servers/starbound', '0', '211820'), \
+        ('terraria', '/home/$USER/servers/terraria', '0', '0'), \
+        ('valheim', '/home/$USER/servers/valheim', '0', '896660');"
 fi
