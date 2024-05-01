@@ -37,6 +37,11 @@
 function func_get_latest_version() {
   local mc_versions_cache="$SERVICE_TEMP_DIR/version_cache.json"
 
+  # Create file if it doesn't exist before writing to it
+  if [ ! -f "$mc_versions_cache" ]; then
+    touch "$mc_versions_cache"
+  fi
+
   # Fetch latest version manifest
   if ! curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >"$mc_versions_cache"; then
     echo ">>> ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
@@ -45,12 +50,6 @@ function func_get_latest_version() {
 
   # shellcheck disable=SC2034
   func_get_latest_version_result=$(cat "$mc_versions_cache" | jq -r '{latest: .latest.release} | .[]')
-
-  # Cleanup
-  if ! rm "$mc_versions_cache"; then
-    echo ">>> ERROR: rm $mc_versions_cache"
-    return
-  fi
 }
 
 function func_download() {
@@ -96,6 +95,12 @@ function func_deploy() {
   if ! mv -f -v "$SERVICE_TEMP_DIR"/*.jar "$SERVICE_INSTALL_DIR"/release.jar; then
     echo ">>> ERROR: mv -f -v $SERVICE_TEMP_DIR/* $SERVICE_INSTALL_DIR/"
     return
+  fi
+
+  local eula_file="$SERVICE_TEMP_DIR"/eula.txt
+
+  if ! echo "eula=true">"$eula_file"; then
+    echo ">>> WARNING: Failed to configure eula.txt file, continuing"
   fi
 
   # shellcheck disable=SC2034
