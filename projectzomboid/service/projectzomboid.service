@@ -1,0 +1,24 @@
+[Unit]
+Description=Project Zomboid Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+Requires=projectzomboid.socket
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/projectzomboid
+ExecStart=/home/cristian/servers/projectzomboid/manage.sh --start
+ExecStop=/home/cristian/servers/projectzomboid/manage.sh --stop
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+Sockets=projectzomboid.socket
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

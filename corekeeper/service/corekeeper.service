@@ -1,0 +1,17 @@
+[Unit]
+Description=Core Keeper Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/corekeeper
+ExecStart=/home/cristian/servers/corekeeper/manage.sh --start
+ExecStop=/home/cristian/servers/corekeeper/manage.sh --stop
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+[Install]
+WantedBy=multi-user.target

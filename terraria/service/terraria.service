@@ -1,0 +1,24 @@
+[Unit]
+Description=Terraria Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+Requires=terraria.socket
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/terraria
+ExecStart=/home/cristian/servers/terraria/manage.sh --start
+ExecStop=/home/cristian/servers/terraria/manage.sh --stop
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+Sockets=terraria.socket
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

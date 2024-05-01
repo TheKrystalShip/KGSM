@@ -1,0 +1,16 @@
+[Unit]
+Description=Veloren Dedicated Server
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/veloren
+ExecStart=/home/cristian/servers/veloren/manage.sh --start
+ExecStop=/home/cristian/servers/veloren/manage.sh --stop
+NonBlocking=true
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+[Install]
+WantedBy=multi-user.target

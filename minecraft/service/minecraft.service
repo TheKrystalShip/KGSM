@@ -1,0 +1,24 @@
+[Unit]
+Description=Minecraft Dedicated Server
+StartLimitIntervalSec=10
+After=network.target
+
+Requires=minecraft.socket
+
+[Service]
+User=cristian
+WorkingDirectory=/home/cristian/servers/minecraft/install
+ExecStart=/home/cristian/servers/minecraft/manage.sh --start
+ExecStop=/home/cristian/servers/minecraft/manage-sh --stop
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+Sockets=minecraft.socket
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
