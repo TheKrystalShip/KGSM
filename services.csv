@@ -1,7 +1,7 @@
 7dtd;INF Loaded (local): worldglobal;Stopped 7 Days To Die Dedicated Server
 corekeeper;Game ID:;Stopped Core Keeper Dedicated Server
 factorio;Hosting game at IP ADDR;Stopped Factorio Dedicated Server
-minecraft;For help, type help;Stopped Minecraft Dedicated Server
+minecraft;For help, type "help";Stopped Minecraft Dedicated Server
 projectzomboid;SERVER STARTED;Stopped Project Zomboid Dedicated Server
 starbound;UniverseServer: listening for incoming TCP connections;Stopped Starbound Dedicated Server
 terraria;Server started;Stopped Terraria Dedicated Server
