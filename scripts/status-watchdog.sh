@@ -4,4 +4,4 @@ echo "==============================="
 echo "*** Status Watchdog Started ***"
 echo "==============================="
 
-log-reader "/home/$USER/servers/services.csv"
+exec log-reader "/home/$USER/servers/services.csv"
