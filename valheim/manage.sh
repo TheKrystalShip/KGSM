@@ -8,7 +8,7 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR=/home/"$USER"/servers/valheim/install
+WORKING_DIR=/opt/valheim/install
 
 function start() {
   (cd "$WORKING_DIR" && exec "$WORKING_DIR"/start_server_bepinex.sh)

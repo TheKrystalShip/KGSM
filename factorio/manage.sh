@@ -8,7 +8,7 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR=/home/"$USER"/servers/factorio
+WORKING_DIR=/opt/factorio
 
 function start() {
   exec "$WORKING_DIR"/install/bin/x64/factorio --start-server "$WORKING_DIR"/saves/tks.zip

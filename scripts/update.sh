@@ -54,7 +54,7 @@ if [ -n "$2" ] && [ "$2" == "--force" ]; then
 fi
 
 SERVICE_NAME=$1
-export DB_FILE="/home/$USER/servers/info.db"
+export DB_FILE="/opt/info.db"
 
 # Select the entire row, each service only has one row so no need to check
 # for multiple rows being returned
@@ -87,7 +87,7 @@ export IS_STEAM_GAME=$(
   echo $?
 )
 
-export BASE_DIR=/home/"$USER"/servers
+export BASE_DIR=/opt
 export GLOBAL_SCRIPTS_DIR="$BASE_DIR"/scripts
 export GLOBAL_VERSION_CHECK_FILE="$GLOBAL_SCRIPTS_DIR"/version_check.sh
 

@@ -7,9 +7,9 @@ Requires=projectzomboid.socket
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/projectzomboid
-ExecStart=/home/cristian/servers/projectzomboid/manage.sh --start
-ExecStop=/home/cristian/servers/projectzomboid/manage.sh --stop
+WorkingDirectory=/opt/projectzomboid
+ExecStart=/opt/projectzomboid/manage.sh --start
+ExecStop=/opt/projectzomboid/manage.sh --stop
 
 Restart=on-failure
 RestartSec=5

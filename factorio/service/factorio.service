@@ -4,9 +4,9 @@ Requires=factorio.socket
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/factorio
-ExecStart=/home/cristian/servers/factorio/manage.sh --start
-ExecStop=/home/cristian/servers/factorio/manage.sh --stop
+WorkingDirectory=/opt/factorio
+ExecStart=/opt/factorio/manage.sh --start
+ExecStop=/opt/factorio/manage.sh --stop
 NonBlocking=true
 
 Restart=on-failure

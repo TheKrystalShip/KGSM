@@ -11,7 +11,7 @@ source /etc/environment
 MAX_HEAP_ALLOCATION="4096M"
 INITIAL_HEAP_ALLOCATION="$MAX_HEAP_ALLOCATION"
 
-WORKING_DIR="/home/cristian/servers/minecraft/install"
+WORKING_DIR="/opt/minecraft/install"
 STARTUP_FILE="release.jar"
 
 function start() {

@@ -4,8 +4,8 @@ StartLimitIntervalSec=10
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/discord/admiral
-ExecStart=/home/cristian/servers/discord/admiral/manage.sh --start
+WorkingDirectory=/opt/discord/admiral
+ExecStart=/opt/discord/admiral/manage.sh --start
 
 Restart=on-failure
 RestartSec=5

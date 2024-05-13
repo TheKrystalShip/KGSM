@@ -2,4 +2,4 @@
 PartOf=minecraft.service
 
 [Socket]
-ListenFIFO=/home/cristian/servers/minecraft/minecraft.stdin
+ListenFIFO=/opt/minecraft/minecraft.stdin

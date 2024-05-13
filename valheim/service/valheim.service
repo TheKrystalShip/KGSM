@@ -5,9 +5,9 @@ After=network.target
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/valheim/install
-ExecStart=/home/cristian/servers/valheim/manage.sh --start
-ExecStop=/home/cristian/servers/valheim/manage.sh --stop
+WorkingDirectory=/opt/valheim/install
+ExecStart=/opt/valheim/manage.sh --start
+ExecStop=/opt/valheim/manage.sh --stop
 
 Restart=on-failure
 RestartSec=5

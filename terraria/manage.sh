@@ -5,7 +5,7 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-WORKING_DIR=/home/"$USER"/servers/terraria
+WORKING_DIR=/opt/terraria
 
 # shellcheck disable=SC1091
 source /etc/environment

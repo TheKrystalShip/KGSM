@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DB_FILE="/home/$USER/servers/info.db"
+DB_FILE="/opt/info.db"
 
 sqlite3 "$DB_FILE" "\
 DROP TABLE IF EXISTS services; \
@@ -17,12 +17,12 @@ if [ "$1" = "--populate" ]; then
     INSERT INTO \
         services (name, working_dir, installed_version, app_id) \
     VALUES \
-        ('7dtd', '/home/$USER/servers/7dtd', '0', '294420'), \
-        ('corekeeper', '/home/$USER/servers/corekeeper', '0', '1963720'), \
-        ('factorio', '/home/$USER/servers/factorio', '0', '0'), \
-        ('minecraft', '/home/$USER/servers/minecraft', '0', '0'), \
-        ('projectzomboid', '/home/$USER/servers/projectzomboid', '0', '380870'), \
-        ('starbound', '/home/$USER/servers/starbound', '0', '211820'), \
-        ('terraria', '/home/$USER/servers/terraria', '0', '0'), \
-        ('valheim', '/home/$USER/servers/valheim', '0', '896660');"
+        ('7dtd', '/opt/7dtd', '0', '294420'), \
+        ('corekeeper', '/opt/corekeeper', '0', '1963720'), \
+        ('factorio', '/opt/factorio', '0', '0'), \
+        ('minecraft', '/opt/minecraft', '0', '0'), \
+        ('projectzomboid', '/opt/projectzomboid', '0', '380870'), \
+        ('starbound', '/opt/starbound', '0', '211820'), \
+        ('terraria', '/opt/terraria', '0', '0'), \
+        ('valheim', '/opt/valheim', '0', '896660');"
 fi

@@ -5,7 +5,7 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-WORKING_DIR=/home/"$USER"/servers/veloren
+WORKING_DIR=/opt/veloren
 
 # shellcheck disable=SC1091
 source /etc/environment

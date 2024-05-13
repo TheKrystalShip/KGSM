@@ -8,7 +8,7 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR="/home/$USER/servers/discord/admiral"
+WORKING_DIR="/opt/discord/admiral"
 
 function start() {
   exec "$WORKING_DIR"/install/Admiral --rabbitmq

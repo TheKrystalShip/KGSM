@@ -7,9 +7,9 @@ Requires=terraria.socket
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/terraria
-ExecStart=/home/cristian/servers/terraria/manage.sh --start
-ExecStop=/home/cristian/servers/terraria/manage.sh --stop
+WorkingDirectory=/opt/terraria
+ExecStart=/opt/terraria/manage.sh --start
+ExecStop=/opt/terraria/manage.sh --stop
 
 Restart=on-failure
 RestartSec=5

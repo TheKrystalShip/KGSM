@@ -35,9 +35,9 @@ Description=${SERVICE_NAME^} Dedicated Server
 
 [Service]
 User=$USER
-WorkingDirectory=/home/$USER/servers/$SERVICE_NAME
-ExecStart=/home/$USER/servers/$SERVICE_NAME/manage.sh --start
-ExecStop=/home/$USER/servers/$SERVICE_NAME/manage.sh --stop
+WorkingDirectory=/opt/$SERVICE_NAME
+ExecStart=/opt/$SERVICE_NAME/manage.sh --start
+ExecStop=/opt/$SERVICE_NAME/manage.sh --stop
 NonBlocking=true
 
 Restart=on-failure
@@ -59,9 +59,9 @@ Requires=$SERVICE_NAME.socket
 
 [Service]
 User=$USER
-WorkingDirectory=/home/$USER/servers/$SERVICE_NAME
-ExecStart=/home/$USER/servers/$SERVICE_NAME/manage.sh --start
-ExecStop=/home/$USER/servers/$SERVICE_NAME/manage.sh --stop
+WorkingDirectory=/opt/$SERVICE_NAME
+ExecStart=/opt/$SERVICE_NAME/manage.sh --start
+ExecStop=/opt/$SERVICE_NAME/manage.sh --stop
 NonBlocking=true
 
 Restart=on-failure
@@ -87,7 +87,7 @@ Description=Socket for $SERVICE_NAME.stdin
 PartOf=$SERVICE_NAME.service
 
 [Socket]
-ListenFIFO=/home/$USER/servers/$SERVICE_NAME/$SERVICE_NAME.stdin
+ListenFIFO=/opt/$SERVICE_NAME/$SERVICE_NAME.stdin
 EOF
 }
 
@@ -138,7 +138,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-BASE_DIR="/home/$USER/servers/$SERVICE_NAME/service"
+BASE_DIR="/opt/$SERVICE_NAME/service"
 
 SERVICE_FILE="$BASE_DIR/$SERVICE_NAME.service"
 SOCKET_FILE="$BASE_DIR/$SERVICE_NAME.socket"

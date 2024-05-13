@@ -3,4 +3,4 @@ Description=Socket for terraria.service
 PartOf=terraria.service
 
 [Socket]
-ListenFIFO=/home/cristian/servers/terraria/terraria.stdin
+ListenFIFO=/opt/terraria/terraria.stdin

@@ -6,43 +6,27 @@ if [ $# -eq 0 ]; then
 fi
 
 SERVICE_NAME="unset"
-BASE_DIR="/home/cristian/servers"
-MANAGE_SCRIPT_EXAMPLE_PATH="/home/cristian/servers/scripts/manage.sh.example"
+BASE_DIR=/opt
+MANAGE_SCRIPT_EXAMPLE_PATH=/opt/scripts/manage.sh.example
 
 function init() {
-    if ! mkdir "$BACKUP_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$BACKUP_DIR"
+    for dir in $DIR_ARRAY; do
+        if ! mkdir "$dir"; then
+            printf ">>> ERROR: Failed to create %s" "$dir"
+        exit 1
+    fi
+    done
+
+    # Copy the manage.sh script
+    if ! cp "$MANAGE_SCRIPT_EXAMPLE_PATH" "$MANAGE_SCRIPT_PATH"; then
+        printf ">>> ERROR: Failed to copy %s to %s" "$MANAGE_SCRIPT_EXAMPLE_PATH" "$MANAGE_SCRIPT_PATH"
         exit 1
     fi
 
-    if ! mkdir "$CONFIG_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$CONFIG_DIR"
-        exit 2
-    fi
-
-    if ! mkdir "$INSTALL_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$INSTALL_DIR"
-        exit 3
-    fi
-
-    if ! mkdir "$SAVES_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$SAVES_DIR"
-        exit 4
-    fi
-
-    if ! mkdir "$TEMP_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$TEMP_DIR"
-        exit 5
-    fi
-
-    if ! mkdir "$SERVICE_DIR"; then
-        printf ">>> ERROR: Failed to create %s" "$SERVICE_DIR"
-        exit 5
-    fi
-
-    if ! cp "$MANAGE_SCRIPT_EXAMPLE_PATH" "$MANAGE_SCRIPT_PATH"; then
-        printf ">>> ERROR: Failed to copy %s to %s" "$MANAGE_SCRIPT_EXAMPLE_PATH" "$MANAGE_SCRIPT_PATH"
-        exit 6
+    # Ensure the manage.sh script file has execution permissions
+    if ! chmod +x "$MANAGE_SCRIPT_PATH"; then
+        printf ">>> ERROR: Failed to assign +x permissions to %s file" "$MANAGE_SCRIPT_PATH"
+        exit 1
     fi
 
     exit 0
@@ -69,5 +53,7 @@ SAVES_DIR="$BASE_DIR/$SERVICE_NAME/saves"
 TEMP_DIR="$BASE_DIR/$SERVICE_NAME/temp"
 SERVICE_DIR="$BASE_DIR/$SERVICE_NAME/service"
 MANAGE_SCRIPT_PATH="$BASE_DIR/$SERVICE_NAME"/manage.sh
+
+DIR_ARRAY=("$BACKUP_DIR" "$CONFIG_DIR" "$INSTALL_DIR" "$SAVES_DIR" "$TEMP_DIR" "$SERVICE_DIR")
 
 init

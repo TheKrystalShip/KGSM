@@ -7,9 +7,9 @@ Requires=minecraft.socket
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/minecraft/install
-ExecStart=/home/cristian/servers/minecraft/manage.sh --start
-ExecStop=/home/cristian/servers/minecraft/manage-sh --stop
+WorkingDirectory=/opt/minecraft/install
+ExecStart=/opt/minecraft/manage.sh --start
+ExecStop=/opt/minecraft/manage-sh --stop
 
 Restart=on-failure
 RestartSec=5

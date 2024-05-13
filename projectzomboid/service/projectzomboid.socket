@@ -3,4 +3,4 @@ Description=Socket for projectzomboid.service
 PartOf=projectzomboid.service
 
 [Socket]
-ListenFIFO=/home/cristian/servers/projectzomboid/projectzomboid.stdin
+ListenFIFO=/opt/projectzomboid/projectzomboid.stdin

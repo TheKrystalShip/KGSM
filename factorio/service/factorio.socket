@@ -3,4 +3,4 @@ Description=Socket for factorio.service
 PartOf=factorio.service
 
 [Socket]
-ListenFIFO=/home/cristian/servers/factorio/factorio.stdin
+ListenFIFO=/opt/factorio/factorio.stdin

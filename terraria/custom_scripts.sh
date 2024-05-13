@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ################################################################################
-# Main file: /home/$USER/servers/update.sh
+# Main file: /opt/scripts/update.sh
 #
 # These are the functions available in the main script that can be overwritten.
 # Each function should write it's output to the corresponding var

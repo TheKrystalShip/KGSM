@@ -5,9 +5,9 @@ After=network.target
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/corekeeper
-ExecStart=/home/cristian/servers/corekeeper/manage.sh --start
-ExecStop=/home/cristian/servers/corekeeper/manage.sh --stop
+WorkingDirectory=/opt/corekeeper
+ExecStart=/opt/corekeeper/manage.sh --start
+ExecStop=/opt/corekeeper/manage.sh --stop
 
 Restart=on-failure
 RestartSec=5

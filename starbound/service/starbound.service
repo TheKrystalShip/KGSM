@@ -5,9 +5,9 @@ After=network.target
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/starbound
-ExecStart=/home/cristian/servers/starbound/manage.sh --start
-ExecStop=/home/cristian/servers/starbound/manage.sh --stop
+WorkingDirectory=/opt/starbound
+ExecStart=/opt/starbound/manage.sh --start
+ExecStop=/opt/starbound/manage.sh --stop
 
 Restart=on-failure
 RestartSec=5

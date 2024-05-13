@@ -1,0 +1,18 @@
+[Unit]
+Description=Status Watchdog
+StartLimitIntervalSec=10
+
+[Service]
+User=cristian
+WorkingDirectory=/opt/status-watchdog
+ExecStart=/opt/status-watchdog/manage.sh --start
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -8,7 +8,7 @@ fi
 # shellcheck disable=SC1091
 source /etc/environment
 
-WORKING_DIR=/home/"$USER"/servers/projectzomboid/install
+WORKING_DIR=/opt/projectzomboid/install
 
 function start() {
   exec "$WORKING_DIR"/start-server.sh -servername "TKS"

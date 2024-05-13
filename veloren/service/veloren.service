@@ -3,9 +3,9 @@ Description=Veloren Dedicated Server
 
 [Service]
 User=cristian
-WorkingDirectory=/home/cristian/servers/veloren
-ExecStart=/home/cristian/servers/veloren/manage.sh --start
-ExecStop=/home/cristian/servers/veloren/manage.sh --stop
+WorkingDirectory=/opt/veloren
+ExecStart=/opt/veloren/manage.sh --start
+ExecStop=/opt/veloren/manage.sh --stop
 NonBlocking=true
 
 Restart=on-failure
