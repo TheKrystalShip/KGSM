@@ -214,7 +214,7 @@ function func_main() {
     printf "\n\tWARNING: Service currently running, shutting down first...\n"
 
     local service_shutdown_exit_code="$EXITSTATUS_ERROR"
-    service_shutdown_exit_code=$(exec "$GLOBAL_SCRIPTS_DIR/stop.sh" "$SERVICE_NAME")
+    service_shutdown_exit_code=$(systemctl stop "$SERVICE_NAME")
 
     if [ "$service_shutdown_exit_code" == "$EXITSTATUS_ERROR" ]; then
       func_exit_error ">>> ERROR: Failed to shutdown service, exiting"
@@ -329,8 +329,8 @@ function func_download() {
 # }
 
 function func_get_service_status() {
-  # Possible output: "active" / "inactive"
-  func_get_service_status_result=$(exec "$GLOBAL_SCRIPTS_DIR/is-active.sh" "$SERVICE_NAME")
+  # Possible output: "active" / "inactive" / "failed"
+  func_get_service_status_result=$(systemctl is-active "$SERVICE_NAME")
 }
 
 function func_create_backup() {
@@ -365,7 +365,7 @@ function func_deploy() {
 }
 
 function func_restore_service_state() {
-  func_restore_service_state_result=$(exec "$GLOBAL_SCRIPTS_DIR/start.sh" "$SERVICE_NAME")
+  func_restore_service_state_result=$(systemctl start "$SERVICE_NAME")
 }
 
 function func_update_version() {
