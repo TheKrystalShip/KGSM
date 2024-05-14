@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input"
+  echo "Launch script with: --start | --stop | --save | --input | --setup"
   exit 1
 fi
 
@@ -55,6 +55,11 @@ function input() {
   echo "$1" >./minecraft.stdin
 }
 
+function setup() {
+  sudo ln -s /opt/minecraft/service/minecraft.service /etc/systemd/system/minecraft.service
+  sudo ln -s /opt/minecraft/service/minecraft.socket /etc/systemd/system/minecraft.socket
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -72,6 +77,10 @@ while [ $# -gt 0 ]; do
     ;;
   --input)
     input "$2"
+    shift
+    ;;
+  --setup)
+    setup
     shift
     ;;
   *)

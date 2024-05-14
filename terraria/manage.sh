@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save"
+  echo "Launch script with: --start | --stop | --save | --setup"
   exit 1
 fi
 
@@ -24,6 +24,11 @@ function save() {
   echo "save" >"$WORKING_DIR/terraria.stdin"
 }
 
+function setup() {
+  sudo ln -s /opt/terraria/service/terraria.service /etc/systemd/system/terraria.service
+  sudo ln -s /opt/terraria/service/terraria.socket /etc/systemd/system/terraria.socket
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -37,6 +42,10 @@ while [ $# -gt 0 ]; do
     ;;
   --save)
     save
+    shift
+    ;;
+  --setup)
+    setup
     shift
     ;;
   *)

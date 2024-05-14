@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input"
+  echo "Launch script with: --start | --stop | --save | --input | --setup"
   exit 1
 fi
 
@@ -28,6 +28,11 @@ function input() {
   echo "$1" >./projectzomboid.stdin
 }
 
+function setup() {
+  sudo ln -s /opt/projectzomboid/service/projectzomboid.service /etc/systemd/system/projectzomboid.service
+  sudo ln -s /opt/projectzomboid/service/projectzomboid.socket /etc/systemd/system/projectzomboid.socket
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,6 +50,10 @@ while [ $# -gt 0 ]; do
     ;;
   --input)
     input "$2"
+    shift
+    ;;
+  --setup)
+    setup
     shift
     ;;
   *)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-    echo "Launch script with: --start | --stop | --save | --input"
+    echo "Launch script with: --start | --stop | --save | --input | --setup"
     exit 1
 fi
 
@@ -31,6 +31,10 @@ function input() {
     return
 }
 
+function setup() {
+    sudo ln -s /opt/status-watchdog/service/status-watchdog.service /etc/systemd/system/status-watchdog.service
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -48,6 +52,10 @@ while [ $# -gt 0 ]; do
         ;;
     --input)
         input "$2"
+        shift
+        ;;
+    --setup)
+        setup
         shift
         ;;
     *)

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input"
+  echo "Launch script with: --start | --stop | --save | --input | --setup"
   exit 1
 fi
 
@@ -28,6 +28,11 @@ function input() {
   echo "$1" >./factorio.stdin
 }
 
+function setup() {
+  sudo ln -s /opt/factorio/service/factorio.service /etc/systemd/system/factorio.service
+  sudo ln -s /opt/factorio/service/factorio.socket /etc/systemd/system/factorio.socket
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,6 +50,10 @@ while [ $# -gt 0 ]; do
     ;;
   --input)
     input "$2"
+    shift
+    ;;
+  --setup)
+    setup
     shift
     ;;
   *)
