@@ -9,6 +9,7 @@ fi
 source /etc/environment
 
 WORKING_DIR=/opt/projectzomboid/install
+SOCKET_FILE=/opt/projectzomboid/projectzomboid.stdin
 
 function start() {
   exec "$WORKING_DIR"/start-server.sh -servername "TKS"
@@ -17,20 +18,27 @@ function start() {
 function stop() {
   save
   sleep 10
-  echo "quit" >./projectzomboid.stdin
+  echo "quit" >"$SOCKET_FILE"
 }
 
 function save() {
-  echo "save" >./projectzomboid.stdin
+  echo "save" >"$SOCKET_FILE"
 }
 
 function input() {
-  echo "$1" >./projectzomboid.stdin
+  echo "$1" >"$SOCKET_FILE"
 }
 
 function setup() {
-  sudo ln -s /opt/projectzomboid/service/projectzomboid.service /etc/systemd/system/projectzomboid.service
-  sudo ln -s /opt/projectzomboid/service/projectzomboid.socket /etc/systemd/system/projectzomboid.socket
+  local service_symlink=/etc/systemd/system/projectzomboid.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/projectzomboid/service/projectzomboid.service "$service_symlink"
+  fi
+
+  local socket_symlink=/etc/systemd/system/projectzomboid.socket
+  if [ ! -e "$socket_symlink" ]; then
+    sudo ln -s /opt/projectzomboid/service/projectzomboid.socket "$socket_symlink"
+  fi
 }
 
 #Read the argument values

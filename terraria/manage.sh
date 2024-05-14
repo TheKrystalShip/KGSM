@@ -6,6 +6,7 @@ if [ $# -eq 0 ]; then
 fi
 
 WORKING_DIR=/opt/terraria
+SOCKET_FILE=/opt/terraria/terraria.stdin
 
 # shellcheck disable=SC1091
 source /etc/environment
@@ -17,16 +18,27 @@ function start() {
 function stop() {
   save
   sleep 10s
-  echo "exit" >./terraria.stdin
+  echo "exit" >"$SOCKET_FILE"
 }
 
 function save() {
-  echo "save" >"$WORKING_DIR/terraria.stdin"
+  echo "save" >"$SOCKET_FILE"
+}
+
+function input() {
+  echo "$1" >"$$SOCKET_FILE"
 }
 
 function setup() {
-  sudo ln -s /opt/terraria/service/terraria.service /etc/systemd/system/terraria.service
-  sudo ln -s /opt/terraria/service/terraria.socket /etc/systemd/system/terraria.socket
+  local service_symlink=/etc/systemd/system/terraria.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/terraria/service/terraria.service "$service_symlink"
+  fi
+
+  local socket_symlink=/etc/systemd/system/terraria.socket
+  if [ ! -e "$socket_symlink" ]; then
+    sudo ln -s /opt/terraria/service/terraria.socket "$socket_symlink"
+  fi
 }
 
 #Read the argument values
@@ -42,6 +54,10 @@ while [ $# -gt 0 ]; do
     ;;
   --save)
     save
+    shift
+    ;;
+  --input)
+    input "$2"
     shift
     ;;
   --setup)

@@ -12,6 +12,7 @@ MAX_HEAP_ALLOCATION="4096M"
 INITIAL_HEAP_ALLOCATION="$MAX_HEAP_ALLOCATION"
 
 WORKING_DIR="/opt/minecraft/install"
+SOCKET_FILE="/opt/minecraft/minecraft.stdin"
 STARTUP_FILE="release.jar"
 
 function start() {
@@ -44,20 +45,27 @@ function start() {
 function stop() {
   save
   sleep 10
-  echo "/stop" >./minecraft.stdin
+  echo "/stop" >$SOCKET_FILE
 }
 
 function save() {
-  echo "/save-all" >./minecraft.stdin
+  echo "/save-all" >$SOCKET_FILE
 }
 
 function input() {
-  echo "$1" >./minecraft.stdin
+  echo "$1" >$SOCKET_FILE
 }
 
 function setup() {
-  sudo ln -s /opt/minecraft/service/minecraft.service /etc/systemd/system/minecraft.service
-  sudo ln -s /opt/minecraft/service/minecraft.socket /etc/systemd/system/minecraft.socket
+  local service_symlink=/etc/systemd/system/minecraft.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/minecraft/service/minecraft.service "$service_symlink"
+  fi
+
+  local socket_symlink=/etc/systemd/system/minecraft.socket
+  if [ ! -e "$socket_symlink" ]; then
+    sudo ln -s /opt/minecraft/service/minecraft.socket "$socket_symlink"
+  fi
 }
 
 #Read the argument values

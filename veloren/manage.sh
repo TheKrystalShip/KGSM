@@ -27,7 +27,10 @@ function input() {
 }
 
 function setup() {
-  sudo ln -s /opt/veloren/service/veloren.service /etc/systemd/system/veloren.service
+  local service_symlink=/etc/systemd/system/veloren.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/veloren/service/veloren.service "$service_symlink"
+  fi
 }
 
 #Read the argument values

@@ -27,7 +27,10 @@ function input() {
 }
 
 function setup() {
-  sudo ln -s /opt/starbound/service/starbound.service /etc/systemd/system/starbound.service
+  local service_symlink=/etc/systemd/system/starbound.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/starbound/service/starbound.service "$service_symlink"
+  fi
 }
 
 #Read the argument values

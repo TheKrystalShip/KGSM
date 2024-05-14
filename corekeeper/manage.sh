@@ -27,7 +27,10 @@ function input() {
 }
 
 function setup() {
-  sudo ln -s /opt/corekeeper/service/corekeeper.service /etc/systemd/system/corekeeper.service
+  local symlink=/etc/systemd/system/corekeeper.service
+  if [ ! -e "$symlink" ]; then
+    sudo ln -s /opt/corekeeper/service/corekeeper.service "$symlink"
+  fi
 }
 
 #Read the argument values

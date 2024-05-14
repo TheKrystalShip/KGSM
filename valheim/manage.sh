@@ -27,7 +27,10 @@ function input() {
 }
 
 function setup() {
-  sudo ln -s /opt/valheim/service/valheim.service /etc/systemd/system/valheim.service
+  local service_symlink=/etc/systemd/system/valheim.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/valheim/service/valheim.service "$service_symlink"
+  fi
 }
 
 #Read the argument values

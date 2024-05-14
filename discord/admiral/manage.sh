@@ -27,7 +27,10 @@ function input() {
 }
 
 function setup() {
-  sudo ln -s /opt/discord/admiral/service/admiral.service /etc/systemd/system/admiral.service
+  local symlink=/etc/systemd/system/admiral.service
+  if [ ! -e "$symlink" ]; then
+    sudo ln -s /opt/discord/admiral/service/admiral.service "$symlink"
+  fi
 }
 
 #Read the argument values

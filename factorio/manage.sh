@@ -9,6 +9,7 @@ fi
 source /etc/environment
 
 WORKING_DIR=/opt/factorio
+SOCKET_FILE=/opt/factorio/factorio.stdin
 
 function start() {
   exec "$WORKING_DIR"/install/bin/x64/factorio --start-server "$WORKING_DIR"/saves/tks.zip
@@ -17,20 +18,27 @@ function start() {
 function stop() {
   save
   sleep 10
-  echo "/quit" >./factorio.stdin
+  echo "/quit" >"$SOCKET_FILE"
 }
 
 function save() {
-  echo "/save" >./factorio.stdin
+  echo "/save" >"$SOCKET_FILE"
 }
 
 function input() {
-  echo "$1" >./factorio.stdin
+  echo "$1" >"$SOCKET_FILE"
 }
 
 function setup() {
-  sudo ln -s /opt/factorio/service/factorio.service /etc/systemd/system/factorio.service
-  sudo ln -s /opt/factorio/service/factorio.socket /etc/systemd/system/factorio.socket
+  local service_symlink=/etc/systemd/system/factorio.service
+  if [ ! -e "$service_symlink" ]; then
+    sudo ln -s /opt/factorio/service/factorio.service "$service_symlink"
+  fi
+
+  local socket_symlink=/etc/systemd/system/factorio.socket
+  if [ ! -e "$socket_symlink" ]; then
+    sudo ln -s /opt/factorio/service/factorio.socket "$socket_symlink"
+  fi
 }
 
 #Read the argument values
