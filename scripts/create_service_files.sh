@@ -17,7 +17,7 @@ REQUIRES_INPUT_SOCKET=0
 function help() {
     printf "Launch script with: --name NAME --port PORT [--input-socket]\n"
     printf "\n"
-    printf "\t--name NAME\t\tThe name of the service, preferably in lowercase with no empty spaces\n"
+    printf "\t--name NAME\t\tThe name of the service, in lowercase with no empty spaces\n"
     printf "\n"
     printf "\t--port PORT\t\tThe port the service will use\n"
     printf "\n"
@@ -102,10 +102,11 @@ function init() {
         createBaseService
     fi
 
-    printf "Created service files:\n"
+    printf "Created service file:\n"
     printf "\t%s\n" "$SERVICE_FILE"
 
     if [ $REQUIRES_INPUT_SOCKET -eq 1 ]; then
+        printf "Created socket file:\n"
         printf "\t%s\n" "$SOCKET_FILE"
     fi
 
@@ -143,4 +144,4 @@ BASE_DIR="/opt/$SERVICE_NAME/service"
 SERVICE_FILE="$BASE_DIR/$SERVICE_NAME.service"
 SOCKET_FILE="$BASE_DIR/$SERVICE_NAME.socket"
 
-init
+init "$@"
