@@ -53,6 +53,12 @@ function init() {
   # shellcheck disable=SC2155
   local game_index=$(show_dialog GAMES)
 
+  # If dialog was cancelled
+  if [ -z "$game_index" ]; then
+    clear
+    return 0
+  fi
+
   # Clear the screen, otherwise the dialog background stays
   clear
 
