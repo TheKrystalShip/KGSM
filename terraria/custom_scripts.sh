@@ -57,6 +57,12 @@ function func_download() {
   local version=$1
   func_download_result="$EXITSTATUS_ERROR"
 
+  # If no version is given, get the latest
+  if [ -z "$version" ]; then
+    func_get_latest_version
+    version="$func_get_latest_version_result"
+  fi
+
   # Download zip file in $SERVICE_TEMP_DIR
   if ! wget -P "$SERVICE_TEMP_DIR" "https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"; then
     echo ">>> ERROR: wget https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"
@@ -87,14 +93,39 @@ function func_download() {
     return
   fi
 
+  # Terraria server comes in 3 subfolders for Windows, Mac & Linux
+  # Only want the contents of the Linux folder, so move all of that outside
+  if ! mv -v "$SERVICE_TEMP_DIR"/Linux/* "$SERVICE_TEMP_DIR"/; then
+    echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/Linux/* $SERVICE_INSTALL_DIR/"
+    return
+  fi
+
+  # Remove the Windows dir
+  if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Windows; then
+    echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Windows"
+    return
+  fi
+
+  # Remove the Mac dir
+  if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Mac; then
+    echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Mac"
+    return
+  fi
+
+  # Remove the empty Linux dir
+  if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Linux; then
+    echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Linux"
+    return
+  fi
+
   func_download_result="$EXITSTATUS_SUCCESS"
 }
 
 function func_deploy() {
 
-  # Terraria server comes in 3 subfolders for Windows, Mac & Linux
-  if ! mv -v "$SERVICE_TEMP_DIR"/Linux/* "$SERVICE_INSTALL_DIR"/; then
-    echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/Linux/* $SERVICE_INSTALL_DIR/"
+  # Just move everything from the SERVICE_TEMP_DIR dir to SERVICE_INSTALL_DIR
+  if ! mv -v "$SERVICE_TEMP_DIR"/* "$SERVICE_INSTALL_DIR"/; then
+    echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/* $SERVICE_INSTALL_DIR/"
     return
   fi
 
