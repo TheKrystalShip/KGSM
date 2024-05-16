@@ -6,13 +6,13 @@
 # These are the functions available in the main script that can be overwritten.
 # Each function should write it's output to the corresponding var
 #
-# func_get_latest_version        => func_get_latest_version_result
-# func_download                  => func_download_result
-# func_get_service_status        => func_get_service_status_result
-# func_create_backup             => func_create_backup_result
-# func_deploy                    => func_deploy_result
-# func_restore_service_state     => func_restore_service_state_result
-# func_update_version            => func_update_version_result
+# func_get_latest_version
+# func_download
+# func_get_service_state
+# func_create_backup
+# func_deploy
+# func_restore_service_state
+# func_update_version
 #
 # Available global vars:
 #
@@ -21,7 +21,6 @@
 # GLOBAL_SCRIPTS_DIR
 # GLOBAL_VERSION_CHECK_FILE
 # BASE_DIR
-# DB_FILE
 # IS_STEAM_GAME
 # SERVICE_NAME
 # SERVICE_WORKING_DIR
@@ -45,18 +44,20 @@ function func_get_latest_version() {
   # Fetch latest version manifest
   if ! curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >"$mc_versions_cache"; then
     echo ">>> ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # shellcheck disable=SC2034
-  func_get_latest_version_result=$(cat "$mc_versions_cache" | jq -r '{latest: .latest.release} | .[]')
+  result=$(cat "$mc_versions_cache" | jq -r '{latest: .latest.release} | .[]')
+  echo "$result"
 }
 
+############################################################################
+# INPUT:
+# - $1: Version
+############################################################################
 function func_download() {
-  ############################################################################
-  # INPUT:
-  # - $1: Version
-  ############################################################################
+
   # Download new version in $SERVICE_TEMP_DIR
   local version=$1
 
@@ -66,27 +67,22 @@ function func_download() {
   # Pick URL
   # shellcheck disable=SC2155
   local release_url="$(cat "$mc_versions_cache" | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
-  # echo "Release URL: $release_url"
 
   if ! curl -sS "$release_url" >"$release_json"; then
     echo ">>> ERROR: curl -sS $release_url >$release_json"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # shellcheck disable=SC2155
   local release_server_jar_url="$(cat "$release_json" | jq -r '{url: .downloads.server.url} | .[]')"
-
-  # echo "Release .jar URL:  $release_server_jar_url"
 
   local local_release_jar="$SERVICE_TEMP_DIR/minecraft_server.$version.jar"
 
   if [ ! -f "$local_release_jar" ]; then
     curl -sS "$release_server_jar_url" -o "$local_release_jar"
   fi
-  # echo "Release .jar:  $local_release_jar"
 
-  # shellcheck disable=SC2034
-  func_download_result="$EXITSTATUS_SUCCESS"
+  return "$EXITSTATUS_SUCCESS"
 }
 
 function func_deploy() {
@@ -94,7 +90,7 @@ function func_deploy() {
 
   if ! mv -f -v "$SERVICE_TEMP_DIR"/*.jar "$SERVICE_INSTALL_DIR"/release.jar; then
     echo ">>> ERROR: mv -f -v $SERVICE_TEMP_DIR/* $SERVICE_INSTALL_DIR/"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   local eula_file="$SERVICE_TEMP_DIR"/eula.txt
@@ -103,6 +99,5 @@ function func_deploy() {
     echo ">>> WARNING: Failed to configure eula.txt file, continuing"
   fi
 
-  # shellcheck disable=SC2034
-  func_deploy_result="$EXITSTATUS_SUCCESS"
+  return "$EXITSTATUS_SUCCESS"
 }

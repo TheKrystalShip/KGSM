@@ -6,13 +6,10 @@
 # These are the functions available in the main script that can be overwritten.
 # Each function should write it's output to the corresponding var
 #
-# func_get_latest_version        => func_get_latest_version_result
-# func_download                  => func_download_result
-# func_get_service_status        => func_get_service_status_result
-# func_create_backup             => func_create_backup_result
-# func_deploy                    => func_deploy_result
-# func_restore_service_state     => func_restore_service_state_result
-# func_update_version            => func_update_version_result
+# func_get_latest_version
+# func_download
+# func_create_backup
+# func_deploy
 #
 # Available global vars:
 #
@@ -21,7 +18,6 @@
 # GLOBAL_SCRIPTS_DIR
 # GLOBAL_VERSION_CHECK_FILE
 # BASE_DIR
-# DB_FILE
 # IS_STEAM_GAME
 # SERVICE_NAME
 # SERVICE_WORKING_DIR
@@ -36,6 +32,7 @@
 
 function func_get_latest_version() {
   # Fetch latest version
+  # shellcheck disable=SC2155
   local newest_version_full_name=$(curl -s 'https://terraria.org/api/get/dedicated-servers-names' | python3 -c "import sys, json; print(json.load(sys.stdin)[0])")
   # Expected: terraria-server-1449.zip
   IFS='-' read -r -a new_version_unformatted <<<"$newest_version_full_name "
@@ -46,105 +43,102 @@ function func_get_latest_version() {
   local newest_version=${version_number[0]}
   # Expected: 1449
 
-  func_get_latest_version_result="$newest_version"
+  echo "$newest_version"
 }
 
+############################################################################
+# INPUT:
+# - $1: Version
+############################################################################
 function func_download() {
-  ############################################################################
-  # INPUT:
-  # - $1: Version
-  ############################################################################
   local version=$1
-  func_download_result="$EXITSTATUS_ERROR"
 
   # If no version is given, get the latest
   if [ -z "$version" ]; then
-    func_get_latest_version
-    version="$func_get_latest_version_result"
+    version=$(func_get_latest_version)
   fi
 
   # Download zip file in $SERVICE_TEMP_DIR
   if ! wget -P "$SERVICE_TEMP_DIR" "https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"; then
     echo ">>> ERROR: wget https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Extract zipped contents in the same $SERVICE_TEMP_DIR
   if ! unzip "$SERVICE_TEMP_DIR"/"terraria-server-${version}.zip" -d "$SERVICE_TEMP_DIR"; then
     echo ">>> ERROR: unzip terraria-server-${version}.zip -d $SERVICE_TEMP_DIR"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove zip file
   if ! rm "$SERVICE_TEMP_DIR"/"terraria-server-${version}.zip"; then
     echo ">>> ERROR: 'rm terraria-server-${version}.zip'"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Terraria extracts with the version name as the base folder, we don't want that
   if ! mv -v "$SERVICE_TEMP_DIR"/"$version"/* "$SERVICE_TEMP_DIR"/; then
     echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/$version/* $SERVICE_TEMP_DIR/"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove trailing empty folder
   if ! rm -rf "${SERVICE_TEMP_DIR:?}"/"$version"; then
     echo ">>> ERROR: rm -rf $SERVICE_TEMP_DIR/$version"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Terraria server comes in 3 subfolders for Windows, Mac & Linux
   # Only want the contents of the Linux folder, so move all of that outside
   if ! mv -v "$SERVICE_TEMP_DIR"/Linux/* "$SERVICE_TEMP_DIR"/; then
     echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/Linux/* $SERVICE_INSTALL_DIR/"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove the Windows dir
   if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Windows; then
     echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Windows"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove the Mac dir
   if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Mac; then
     echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Mac"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove the empty Linux dir
   if ! rm -rf "${SERVICE_TEMP_DIR:?}"/Linux; then
     echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/Linux"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
-  func_download_result="$EXITSTATUS_SUCCESS"
+  return "$EXITSTATUS_SUCCESS"
 }
 
 function func_deploy() {
-
   # Just move everything from the SERVICE_TEMP_DIR dir to SERVICE_INSTALL_DIR
   if ! mv -v "$SERVICE_TEMP_DIR"/* "$SERVICE_INSTALL_DIR"/; then
     echo ">>> ERROR: mv -v $SERVICE_TEMP_DIR/* $SERVICE_INSTALL_DIR/"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   if ! chmod +x "$SERVICE_INSTALL_DIR"/TerrariaServer*; then
     echo ">>> ERROR: chmod +x $SERVICE_INSTALL_DIR/TerrariaServer*"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Remove everything else left behind in $SERVICE_TEMP_DIR
   if ! rm -rf "${SERVICE_TEMP_DIR:?}"/*; then
     echo ">>> ERROR: rm -rf ${SERVICE_TEMP_DIR:?}/*"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
   # Config file must be in the same dir as executable, copy it
   if ! cp "$SERVICE_CONFIG_DIR"/* "$SERVICE_INSTALL_DIR"/; then
     echo ">>> ERROR: cp $SERVICE_CONFIG_DIR/* $SERVICE_INSTALL_DIR/"
-    return
+    return "$EXITSTATUS_ERROR"
   fi
 
-  func_deploy_result=$EXITSTATUS_SUCCESS
+  return "$EXITSTATUS_SUCCESS"
 }

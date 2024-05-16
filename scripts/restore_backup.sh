@@ -1,16 +1,9 @@
 #!/bin/bash
 
-export EXITSTATUS_SUCCESS=0
-export EXITSTATUS_ERROR=1
-
-function func_exit_error() {
-  printf "\t%s\n" "${*:- Update process cancelled}"
-  exit "$EXITSTATUS_ERROR"
-}
-
 # Params
-if [ $# == 0 ]; then
-  func_exit_error ">>> ERROR: Game name not supplied. Run script like this: ./${0##*/} \"GAME\""
+if [ $# -eq 0 ]; then
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  exit 1
 fi
 
 # shellcheck disable=SC1091
@@ -45,18 +38,13 @@ function print_menu() {
   # that contains Exit and all the subdirectories of $SERVICE_BACKUPS_DIR
   # (except the omitted ones)
   # You should check that you have at least one directory in there:
-  if ((${#cdarray[@]} <= 1)); then
+  if ((${#cdarray[@]} < 1)); then
     printf 'No subdirectories found. Exiting.\n'
-    exit $EXITSTATUS_SUCCESS
+    exit 0
   fi
 
-  options=()
-  for i in "${!cdarray[@]}"; do
-    options+=("$i" "${cdarray[$i]}")
-  done
-
   # shellcheck disable=SC2155
-  local choice_index=$(show_dialog options)
+  local choice_index=$(show_dialog cdarray)
 
   echo "${cdarray_copy[$choice_index]}"
 }
@@ -76,12 +64,18 @@ function restore() {
   fi
 
   # Remove empty backup directory
-  if ! rm -rf "${source:?}"; then
-    echo "WARNING: Failed to remove empty backup directory $source"
+  remove_backup_dir "$source"
+}
+
+function remove_backup_dir() {
+  local dir=$1
+  if ! rm -rf "${dir:?}"; then
+    echo ">>> WARNING: Failed to remove $dir"
   fi
 }
 
 # shellcheck disable=SC2155
+set -e
 choice=$(print_menu)
 clear
 # shellcheck disable=SC2155
