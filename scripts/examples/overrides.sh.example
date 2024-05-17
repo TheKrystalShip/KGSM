@@ -1,80 +1,130 @@
 #!/bin/bash
 
 ################################################################################
-# Main file: /opt/scripts/update.sh
+# Uncomment and use any of the following functions, they will be called from
+# other scripts at various stages of the install/update/backup/setup process.
+################################################################################
 #
-# These are the functions available in the main script that can be overwritten.
+# Brief description of each:
 #
-# func_get_latest_version
-# func_download
-# func_deploy
-# func_create_backup
-# func_restore_backup
+# func_get_latest_version       Should always return the latest available
+#                               version, or EXITSTATUS_ERROR in case there's
+#                               any problem fetching the latest version nr.
+#
+# func_download                 In charge of downloading all the required files
+#                               for the service, extract any zips, move, copy,
+#                               rename, remove, etc. It should leave the
+#                               SERVICE_TEMP_DIR with a fully working setup that
+#                               can be called and executed as if it was a full
+#                               install.
+#
+# func_deploy                   Will move everything from the SERVICE_TEMP_DIR
+#                               into SERVICE_INSTALL_DIR, do any more cleanup
+#                               that couldn't be done by func_download.
+#
+# func_create_backup            The default implementation will simply move all
+#                               content from SERVICE_INSTALL_DIR into a new
+#                               directory created under SERVICE_BACKUPS_DIR.
+#                               The naming of the new directory is not used for
+#                               any sort of automation, so it can be set to
+#                               anything, but it should be descriptive enough
+#                               to understand when the backup was made and what
+#                               it contains.
+#
+# func_restore_backup           Responsible for restoring an existing backup
+#                               back into a functioning state, and moved into
+#                               SERVICE_INSTALL_DIR ready to use.
+#
+# func_setup                    Will set up any system config needed in order to
+#                               run the service, like systemd files, firewall
+#                               rules or anything else that's needed.
+#
+################################################################################
 #
 # Available global vars:
 #
 # EXITSTATUS_SUCCESS
 # EXITSTATUS_ERROR
+#
 # SERVICE_NAME
 # SERVICE_WORKING_DIR
 # SERVICE_INSTALLED_VERSION
 # SERVICE_APP_ID
-# IS_STEAM_GAME
-# BASE_DIR
-# GLOBAL_SCRIPTS_DIR
-# GLOBAL_VERSION_CHECK_FILE
-# SERVICE_LATEST_DIR
+# SERVICE_STEAM_AUTH_LEVEL
+# IS_STEAM_GAME # 0 (false), 1 (true)
+# SERVICE_BACKUPS_DIR
+# SERVICE_CONFIG_DIR
+# SERVICE_INSTALL_DIR
+# SERVICE_SAVES_DIR
+# SERVICE_SERVICE_DIR
 # SERVICE_TEMP_DIR
-# SERVICE_BACKUPS_FOLDER
+#
+# SERVICE_OVERRIDES_SCRIPT_FILE
+# SERVICE_MANAGE_SCRIPT_FILE
 ################################################################################
 
-############################################################################
-# OUTPUT:
-# - 0: Success (echo "$new_version")
-# - 1: Error
-############################################################################
-function func_get_latest_version() {
-  # Get new version
-  new_version=""
+# # INPUT:
+# # - void
+# #
+# # OUTPUT:
+# # - 0: Success (echo "$new_version")
+# # - 1: Error
+# function func_get_latest_version() {
+#   echo ""
+#   return "$EXITSTATUS_SUCCESS"
+# }
 
-  if [ -n "$new_version" ]; then
-    echo "$new_version"
-    return "$EXITSTATUS_SUCCESS"
-  else
-    return "$EXITSTATUS_ERROR"
-  fi
-}
-
-############################################################################
-# INPUT:
-# - $1: Version
+# # INPUT:
+# # - $1: Version
+# # - $2: Destination directory, absolute path
+# #
+# # OUTPUT:
+# # - 0: Success
+# # - 1: Error
+# function func_download() {
+#   local version=$1
+#   local dest=$2
 #
-# OUTPUT:
-# - 0: Success
-# - 1: Error
-############################################################################
-function func_download() {
-  local version=$1
+#   return "$EXITSTATUS_SUCCESS"
+# }
 
-  # Download new version in $SERVICE_TEMP_DIR
+# # INPUT:
+# # - $1: Source directory, absolute path
+# # - $2: Destination directory, absolute path
+# #
+# # OUTPUT:
+# # - 0: Success
+# # - 1: Error
+# function func_deploy() {
+#   return "$EXITSTATUS_SUCCESS"
+# }
 
-  return "$EXITSTATUS_SUCCESS"
-}
+# # INPUT:
+# # - $1: Source directory, absolute path
+# # - $2: Destination directory, absolute path. Create subdirectory in here
+# #
+# # OUTPUT:
+# # - 0: Success
+# # - 1: Error
+# # - 2: Skipped, not error
+# function func_create_backup() {
+#   return 2
+# }
 
-############################################################################
-# INPUT:
-# - $1: Source folder, absolute path
-# - $2: Destination folder, absolute path
+# # INPUT:
+# # - $1: Name of the backup directory to restore, not a path
+# #
+# # OUTPUT:
+# # - void
+# function func_restore_backup() {
 #
-# OUTPUT:
-# - 0: Success
-# - 1: Error
-############################################################################
-function func_deploy() {
-  local source=$1
-  local destination=$2
+# }
 
-  # Deploy new version from $SERVICE_TEMP_DIR into $SERVICE_LATEST_DIR
-
-  return "$EXITSTATUS_SUCCESS"
-}
+# # INPUT:
+# # - void
+# #
+# # OUTPUT:
+# # - void
+# function func_setup() {
+#
+# }
