@@ -51,3 +51,16 @@ function db_get_working_dir() {
 function db_delete_by_name() {
   db_query "DELETE FROM $TABLE WHERE name = '$1';"
 }
+
+function db_insert() {
+  local name=$1
+  local working_dir=$2
+  local installed_version=$3
+  local app_id=$4
+  local steam_auth_level=$5
+
+  db_query "INSERT INTO \
+            services(name, working_dir, installed_version, app_id, steam_auth_level) \
+          VALUES \
+            ('$name', '$working_dir', '$installed_version', $app_id, $steam_auth_level);"
+}
