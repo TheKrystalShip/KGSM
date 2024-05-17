@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input | --setup"
+  echo "Launch script with: --start | --stop | --save | --input"
   exit 1
 fi
 
@@ -29,18 +29,6 @@ function input() {
   echo "$1" >"$SOCKET_FILE"
 }
 
-function setup() {
-  local service_symlink=/etc/systemd/system/projectzomboid.service
-  if [ ! -e "$service_symlink" ]; then
-    sudo ln -s /opt/projectzomboid/service/projectzomboid.service "$service_symlink"
-  fi
-
-  local socket_symlink=/etc/systemd/system/projectzomboid.socket
-  if [ ! -e "$socket_symlink" ]; then
-    sudo ln -s /opt/projectzomboid/service/projectzomboid.socket "$socket_symlink"
-  fi
-}
-
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -58,10 +46,6 @@ while [ $# -gt 0 ]; do
     ;;
   --input)
     input "$2"
-    shift
-    ;;
-  --setup)
-    setup
     shift
     ;;
   *)

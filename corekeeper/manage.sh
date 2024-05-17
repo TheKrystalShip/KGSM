@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input | --setup"
+  echo "Launch script with: --start | --stop | --save | --input"
   exit 1
 fi
 
@@ -26,13 +26,6 @@ function input() {
   return
 }
 
-function setup() {
-  local symlink=/etc/systemd/system/corekeeper.service
-  if [ ! -e "$symlink" ]; then
-    sudo ln -s /opt/corekeeper/service/corekeeper.service "$symlink"
-  fi
-}
-
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -50,10 +43,6 @@ while [ $# -gt 0 ]; do
     ;;
   --input)
     input
-    shift
-    ;;
-  --setup)
-    setup
     shift
     ;;
   *)
