@@ -12,9 +12,12 @@ SERVICE=$1
 source /opt/scripts/service_vars.sh "$SERVICE"
 
 function func_create_backup() {
+  local source=$1
+  local dest=$2
+
   # shellcheck disable=SC2155
   local datetime=$(exec date +"%Y-%m-%d%T")
-  local output_dir="${SERVICE_BACKUPS_DIR}/${SERVICE_NAME}-${SERVICE_INSTALLED_VERSION}-${datetime}.backup"
+  local output_dir="${dest}/${SERVICE_NAME}-${SERVICE_INSTALLED_VERSION}-${datetime}.backup"
 
   # Create backup folder if it doesn't exit
   if [ ! -d "$output_dir" ]; then
@@ -26,16 +29,16 @@ function func_create_backup() {
 
   # Check for content inside the install directory before attempting to
   # create a backup. If empty, skip
-  if [ -z "$(ls -A -I .gitignore "$SERVICE_INSTALL_DIR")" ]; then
-    # $SERVICE_INSTALL_DIR is empty, nothing to back up
-    echo ">>> WARNING: $SERVICE_INSTALL_DIR is empty, skipping backup"
+  if [ -z "$(ls -A -I .gitignore "$source")" ]; then
+    # $source is empty, nothing to back up
+    echo ">>> WARNING: $source is empty, skipping backup"
     remove_backup_dir "$output_dir"
     return 2
   fi
 
   # Move everything from the install directory into a backup folder
-  if ! mv -v "$SERVICE_INSTALL_DIR"/* "$output_dir"/; then
-    echo ">>> ERROR: Failed to move contents from $SERVICE_INSTALL_DIR into $output_dir"
+  if ! mv -v "$source"/* "$output_dir"/; then
+    echo ">>> ERROR: Failed to move contents from $source into $output_dir"
     remove_backup_dir "$output_dir"
     return "$EXITSTATUS_ERROR"
   fi
@@ -54,4 +57,4 @@ function remove_backup_dir() {
 # shellcheck disable=SC1091
 source /opt/scripts/overrides.sh "$SERVICE_NAME"
 
-func_create_backup
+func_create_backup "$SERVICE_INSTALL_DIR" "$SERVICE_BACKUPS_DIR"

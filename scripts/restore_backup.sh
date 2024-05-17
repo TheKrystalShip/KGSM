@@ -2,54 +2,21 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\""
+  exit 1
+fi
+if [ $# -eq 1 ]; then
+  echo ">>> ERROR: Source directory not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\""
   exit 1
 fi
 
+SERVICE=$1
+SOURCE_DIR=$2
+
 # shellcheck disable=SC1091
-source /opt/scripts/dialog.sh
-# shellcheck disable=SC2034
-DIALOG_TITLE="Backup Restorer v0.1"
+source /opt/scripts/service_vars.sh "$SERVICE"
 
-SERVICE_WORKING_DIR=/opt
-SERVICE_NAME=$1
-SERVICE_BACKUPS_DIR=$SERVICE_WORKING_DIR/$SERVICE_NAME/backups
-SERVICE_INSTALL_DIR=$SERVICE_WORKING_DIR/$SERVICE_NAME/install
-
-function print_menu() {
-  shopt -s extglob nullglob
-
-  # Create array
-  cdarray=("$SERVICE_BACKUPS_DIR"/*/)
-  # shellcheck disable=SC2206
-
-  # Make a copy of the directory array since it contains the absolute
-  # directory path, used later on when restoring the backup
-  cdarray_copy=(${cdarray[@]})
-  # Remove trailing backslash
-  cdarray_copy=("${cdarray_copy[@]%/}")
-
-  # remove leading SERVICE_BACKUPS_DIR:
-  cdarray=("${cdarray[@]#"$SERVICE_BACKUPS_DIR/"}")
-  # remove trailing backslash
-  cdarray=("${cdarray[@]%/}")
-
-  # At this point you have a nice array cdarray, indexed from 0 (for Exit)
-  # that contains Exit and all the subdirectories of $SERVICE_BACKUPS_DIR
-  # (except the omitted ones)
-  # You should check that you have at least one directory in there:
-  if ((${#cdarray[@]} < 1)); then
-    printf 'No subdirectories found. Exiting.\n'
-    exit 0
-  fi
-
-  # shellcheck disable=SC2155
-  local choice_index=$(show_dialog cdarray)
-
-  echo "${cdarray_copy[$choice_index]}"
-}
-
-function restore() {
+function func_restore_backup() {
   local source=$1
 
   if [ -n "$(ls -A -I .gitignore "$SERVICE_INSTALL_DIR")" ]; then
@@ -58,25 +25,18 @@ function restore() {
   fi
 
   # $SERVICE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
-  if ! mv -v "$source"/* "$SERVICE_INSTALL_DIR"/; then
+  if ! mv -v "$SERVICE_BACKUPS_DIR/$source"/* "$SERVICE_INSTALL_DIR"/; then
     echo ">>> ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR"
     return
   fi
 
   # Remove empty backup directory
-  remove_backup_dir "$source"
-}
-
-function remove_backup_dir() {
-  local dir=$1
-  if ! rm -rf "${dir:?}"; then
-    echo ">>> WARNING: Failed to remove $dir"
+  if ! rm -rf "${source:?}"; then
+    echo ">>> WARNING: Failed to remove $source"
   fi
 }
 
-# shellcheck disable=SC2155
-set -e
-choice=$(print_menu)
-clear
-# shellcheck disable=SC2155
-restore "$choice"
+# shellcheck disable=SC1091
+source /opt/scripts/overrides.sh "$SERVICE_NAME"
+
+func_restore_backup "$SOURCE_DIR"

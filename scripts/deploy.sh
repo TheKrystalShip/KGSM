@@ -1,7 +1,8 @@
 #!/bin/bash
 
+# Params
 if [ $# -eq 0 ]; then
-  echo "ERROR: Service name not supplied"
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
   exit 1
 fi
 
@@ -11,21 +12,24 @@ SERVICE=$1
 source /opt/scripts/service_vars.sh "$SERVICE"
 
 function func_deploy() {
-  # Check if SERVICE_TEMP_DIR is empty
-  if [ -z "$(ls -A -I .gitignore "$SERVICE_TEMP_DIR")" ]; then
-    echo ">>> WARNING: $SERVICE_TEMP_DIR is empty, nothing to deploy. Exiting"
+  local source=$1
+  local dest=$2
+
+  # Check if $source is empty
+  if [ -z "$(ls -A -I .gitignore "$source")" ]; then
+    echo ">>> WARNING: $source is empty, nothing to deploy. Exiting"
     return 1
   fi
 
-  # Check if SERVICE_INSTALL_DIR is empty
-  if [ -n "$(ls -A -I .gitignore "$SERVICE_INSTALL_DIR")" ]; then
-    # $SERVICE_INSTALL_DIR is not empty
-    read -r -p ">>> WARNING: $SERVICE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+  # Check if $dest is empty
+  if [ -n "$(ls -A -I .gitignore "$dest")" ]; then
+    # $dest is not empty
+    read -r -p ">>> WARNING: $dest is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
   fi
 
-  # Move everything from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR
-  if ! mv -v "$SERVICE_TEMP_DIR"/* "$SERVICE_INSTALL_DIR"/; then
-    echo ">>> ERROR: Failed to move contents from $SERVICE_TEMP_DIR into $SERVICE_INSTALL_DIR"
+  # Move everything from $source into $dest
+  if ! mv -v "$source"/* "$dest"/; then
+    echo ">>> ERROR: Failed to move contents from $source into $dest"
     return 1
   fi
 
@@ -35,4 +39,4 @@ function func_deploy() {
 # shellcheck disable=SC1091
 source /opt/scripts/overrides.sh "$SERVICE_NAME"
 
-func_deploy
+func_deploy "$SERVICE_TEMP_DIR" "$SERVICE_INSTALL_DIR"
