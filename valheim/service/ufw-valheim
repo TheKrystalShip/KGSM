@@ -1,0 +1,4 @@
+[valheim]
+title=Valheim Dedicated Server
+description=Valheim Dedicated Server
+ports=2456:2458/tcp|2456:2458/udp
