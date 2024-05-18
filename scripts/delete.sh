@@ -9,10 +9,10 @@ fi
 SERVICE=$1
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # shellcheck disable=SC1091
-source /opt/scripts/db.sh
+source /opt/scripts/includes/db.sh
 
 db_delete_by_name "$SERVICE_NAME"
 

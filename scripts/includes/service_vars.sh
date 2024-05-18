@@ -37,7 +37,7 @@ fi
 SERVICE=$1
 
 # shellcheck disable=SC1091
-source /opt/scripts/db.sh
+source /opt/scripts/includes/db.sh
 
 # Select the entire row, each service only has one row so no need to check
 # for multiple rows being returned

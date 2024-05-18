@@ -24,7 +24,7 @@ SERVICE=$1
 source /etc/environment
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # shellcheck disable=SC2155
 latest_version=$(/opt/scripts/version.sh "$SERVICE")

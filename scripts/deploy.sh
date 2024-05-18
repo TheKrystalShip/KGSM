@@ -9,7 +9,7 @@ fi
 SERVICE=$1
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 function func_deploy() {
   local source=$1
@@ -37,6 +37,6 @@ function func_deploy() {
 }
 
 # shellcheck disable=SC1091
-source /opt/scripts/overrides.sh "$SERVICE_NAME"
+source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
 
 func_deploy "$SERVICE_TEMP_DIR" "$SERVICE_INSTALL_DIR"

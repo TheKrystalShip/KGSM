@@ -6,10 +6,10 @@ SERVICE_APP_ID=""
 SERVICE_STEAM_AUTH_LEVEL="0"
 
 # shellcheck disable=SC1091
-source /opt/scripts/dialog.sh
+source /opt/scripts/includes/dialog.sh
 
 # shellcheck disable=SC1091
-source /opt/scripts/db.sh
+source /opt/scripts/includes/db.sh
 
 # shellcheck disable=SC2034
 DIALOG_TITLE="Service installer v0.1"
@@ -54,14 +54,14 @@ fi
 clear
 
 db_insert \
-  "$SERVICE_NAME" \             # name
-  "/opt/$SERVICE_NAME" \        # working_dir
-  "0" \                         # installed_version
-  "$SERVICE_APP_ID" \           # app_id
-  "$SERVICE_STEAM_AUTH_LEVEL"   # steam_auth_level
+  "$SERVICE_NAME" \         # name
+"/opt/$SERVICE_NAME" \      # working_dir
+"0" \                       # installed_version
+"$SERVICE_APP_ID" \         # app_id
+"$SERVICE_STEAM_AUTH_LEVEL" # steam_auth_level
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE_NAME"
+source /opt/scripts/includes/service_vars.sh "$SERVICE_NAME"
 
 /opt/scripts/create_dir_structure.sh "$SERVICE_NAME"
 /opt/scripts/create_service_files.sh "$SERVICE_NAME"

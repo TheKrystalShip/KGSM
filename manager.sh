@@ -4,10 +4,10 @@
 source /etc/environment
 
 # shellcheck disable=SC1091
-source /opt/scripts/db.sh
+source /opt/scripts/includes/db.sh
 
 # shellcheck disable=SC1091
-source /opt/scripts/dialog.sh
+source /opt/scripts/includes/dialog.sh
 
 VERSION_CHECK_SCRIPT=/opt/scripts/version_check.sh
 INSTALL_SCRIPT=/opt/scripts/install.sh
@@ -107,7 +107,7 @@ function process_choice() {
 
 function restore_backup_menu() {
   local service=$1
-  source /opt/scripts/service_vars.sh "$service"
+  source /opt/scripts/includes/service_vars.sh "$service"
   shopt -s extglob nullglob
 
   # Create array

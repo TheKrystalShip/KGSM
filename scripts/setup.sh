@@ -9,7 +9,7 @@ fi
 SERVICE=$1
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # Safe to run multiple times.
 # Ensures symlinks for .service/.socket/ufw
@@ -50,6 +50,6 @@ function func_setup() {
 }
 
 # shellcheck disable=SC1091
-source /opt/scripts/overrides.sh "$SERVICE_NAME"
+source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
 
 func_setup

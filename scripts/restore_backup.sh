@@ -14,7 +14,7 @@ SERVICE=$1
 SOURCE_DIR=$2
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 function func_restore_backup() {
   local source=$1
@@ -37,6 +37,6 @@ function func_restore_backup() {
 }
 
 # shellcheck disable=SC1091
-source /opt/scripts/overrides.sh "$SERVICE_NAME"
+source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
 
 func_restore_backup "$SOURCE_DIR"

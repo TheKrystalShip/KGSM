@@ -9,7 +9,7 @@ fi
 SERVICE=$1
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 BASE_DIR="/opt/$SERVICE_NAME/service"
 

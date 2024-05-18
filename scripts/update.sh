@@ -30,10 +30,10 @@ SERVICE=$1
 source "/etc/environment"
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # shellcheck disable=SC1091
-source /opt/scripts/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
+source /opt/scripts/includes/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
 
 ################################################################################
 # > Functions

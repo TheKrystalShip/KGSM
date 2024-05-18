@@ -25,18 +25,18 @@ source /etc/environment
 # CRITICAL: This imports all the required vars
 # $SERVICE is given as an argument to the script
 # shellcheck source=/dev/null
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # $SERVICE_STEAM_AUTH_LEVEL comes from service_vars.sh
 # shellcheck disable=SC1091
-source /opt/scripts/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
+source /opt/scripts/includes/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
 
 function func_get_latest_version() {
   steamcmd_get_latest_version "$SERVICE_APP_ID"
 }
 
 # shellcheck disable=SC1091
-source /opt/scripts/overrides.sh "$SERVICE"
+source /opt/scripts/includes/overrides.sh "$SERVICE"
 
 func_get_latest_version
 

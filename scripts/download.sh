@@ -13,10 +13,10 @@ VERSION=${2:-0}
 source /etc/environment
 
 # shellcheck disable=SC1091
-source /opt/scripts/service_vars.sh "$SERVICE"
+source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
 # shellcheck disable=SC1091
-source /opt/scripts/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
+source /opt/scripts/includes/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
 
 # If no version is passed, just fetch the latest
 if [ "$VERSION" -eq 0 ]; then
@@ -33,6 +33,6 @@ function func_download() {
 }
 
 # shellcheck disable=SC1091
-source /opt/scripts/overrides.sh "$SERVICE_NAME"
+source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
 
 func_download "$VERSION" "$SERVICE_TEMP_DIR"
