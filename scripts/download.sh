@@ -9,18 +9,24 @@ fi
 SERVICE=$1
 VERSION=${2:-0}
 
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
+OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
+
 # shellcheck disable=SC1091
 source /etc/environment
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
+# shellcheck disable=SC1090
+source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
 
 # If no version is passed, just fetch the latest
 if [ "$VERSION" -eq 0 ]; then
-  VERSION=$(/opt/scripts/version.sh "$SERVICE_NAME")
+  VERSION=$("$VERSION_SCRIPT" "$SERVICE_NAME")
 fi
 
 # Calls SteamCMD to handle the download
@@ -32,7 +38,7 @@ function func_download() {
   steamcmd_download "$SERVICE_APP_ID" "$dest"
 }
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
+# shellcheck disable=SC1090
+source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
 
 func_download "$VERSION" "$SERVICE_TEMP_DIR"

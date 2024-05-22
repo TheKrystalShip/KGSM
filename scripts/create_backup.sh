@@ -8,8 +8,12 @@ fi
 
 SERVICE=$1
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+PWD=$(pwd)
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 function func_create_backup() {
   local source=$1
@@ -33,14 +37,18 @@ function func_create_backup() {
     # $source is empty, nothing to back up
     echo ">>> WARNING: $source is empty, skipping backup"
     remove_backup_dir "$output_dir"
-    return 2
+    return 0
   fi
 
   # Move everything from the install directory into a backup folder
-  if ! mv -v "$source"/* "$output_dir"/; then
+  if ! mv "$source"/* "$output_dir"/; then
     echo ">>> ERROR: Failed to move contents from $source into $output_dir"
     remove_backup_dir "$output_dir"
     return "$EXITSTATUS_ERROR"
+  fi
+
+  if ! echo "0" >"$SERVICE_VERSION_FILE"; then
+    echo ">>> WARNING: Failed to reset version in $SERVICE_VERSION_FILE"
   fi
 
   echo "$output_dir"
@@ -54,7 +62,7 @@ function remove_backup_dir() {
   fi
 }
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
+# shellcheck disable=SC1090
+source "$OVERRIDES_SCRIPT" "$SERVICE_NAME"
 
 func_create_backup "$SERVICE_INSTALL_DIR" "$SERVICE_BACKUPS_DIR"

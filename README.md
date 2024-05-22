@@ -1,13 +1,24 @@
-# Game server script backups
+# KGSM - Krystal Game Server Manager
 
-This repo servers as a simple backup and version control for all the custom scripts and config files used to host game servers on a linux computer.
+A collection of bash scripts used to automate the creation/installation/updating/backups and management of game servers on Linux
+
+![manager.sh](kgsm_manager.png)
+
+## Requirements
+
+- A few scripts use `dialog` in order to create a simple TUI to interact with the scripts. It's also possible to call the scripts under `/scripts` individually as most of them are made to work standalone, but the `manager.sh` makes life a little bit easier.
+
+- `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `manager.sh` is located. Example: `KGSM_ROOT=/opt/meta` / `KGSM_ROOT=/home/myuser/servers`
+
+## Workflow
+
+Game servers are built from blueprint files (`/blueprints/*.bp`) and optionally override scripts (`/overrides/*.overrides.sh`)
+
+The blueprint file is the source of configuration for the game servers, meaning all configuration will be read from there and scaffolded further.
+Check the existing blueprints for working examples.
+
+The `/scripts/create_from_blueprint.sh [BLUEPRINT_NAME]` script will take a blueprint and scaffold all the necessary directories & files needed for a game server.
 
 # LICENSE
 
-Copyright 2024 TheKrystalShip
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+KGSM © 2024 by Cristian Moraru is licensed under CC BY-NC 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/

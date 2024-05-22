@@ -5,27 +5,28 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-SERVICE_NAME=$1
+SERVICE=$1
+
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 declare -a DIR_ARRAY=(
-  "/opt/$SERVICE_NAME"
-  "/opt/$SERVICE_NAME/backups"
-  "/opt/$SERVICE_NAME/config"
-  "/opt/$SERVICE_NAME/install"
-  "/opt/$SERVICE_NAME/saves"
-  "/opt/$SERVICE_NAME/temp"
-  "/opt/$SERVICE_NAME/service"
+  "$SERVICE_WORKING_DIR"
+  "$SERVICE_BACKUPS_DIR"
+  "$SERVICE_CONFIG_DIR"
+  "$SERVICE_INSTALL_DIR"
+  "$SERVICE_SAVES_DIR"
+  "$SERVICE_SERVICE_DIR"
+  "$SERVICE_TEMP_DIR"
 )
 
-function init() {
-  for dir in "${DIR_ARRAY[@]}"; do
-    # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
-    if ! mkdir -p "$dir"; then
-      printf ">>> ERROR: Failed to create %s\n" "$dir"
-      exit 1
-    fi
-  done
-  exit 0
-}
-
-init
+for dir in "${DIR_ARRAY[@]}"; do
+  # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
+  if ! mkdir -p "$dir"; then
+    printf ">>> ERROR: Failed to create %s\n" "$dir"
+    exit 1
+  fi
+done

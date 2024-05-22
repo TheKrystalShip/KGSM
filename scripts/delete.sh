@@ -8,12 +8,10 @@ fi
 
 SERVICE=$1
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/db.sh
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
-db_delete_by_name "$SERVICE_NAME"
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 rm -rf "${SERVICE_WORKING_DIR:?}"

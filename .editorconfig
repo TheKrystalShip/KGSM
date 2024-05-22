@@ -19,6 +19,7 @@ indent_style = space
 [{**.*sh,test/run,**.bats}]
 indent_size = space
 indent_style = space
+indent_size = 2
 
 shell_variant      = bash
 binary_next_line   = true  # like -bn

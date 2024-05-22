@@ -26,14 +26,22 @@ fi
 
 SERVICE=$1
 
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
+VERSION_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name version.sh)"
+DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
+CREATE_BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name create_backup.sh)"
+DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
+
 # shellcheck disable=SC1091
 source "/etc/environment"
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/steamcmd.sh "$SERVICE_STEAM_AUTH_LEVEL"
+# shellcheck disable=SC1090
+source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
 
 ################################################################################
 # > Functions
@@ -46,6 +54,7 @@ function func_exit_error() {
 
 # Trap CTRL-C
 trap func_exit_error INT
+trap func_exit_error EXIT
 
 function func_print_title() {
   echo "================================================================================"
@@ -67,7 +76,7 @@ function func_main() {
   sleep 1
 
   # shellcheck disable=SC2155
-  local latest_version=$(/opt/scripts/version.sh "$SERVICE_NAME")
+  local latest_version=$("$VERSION_SCRIPT_FILE" "$SERVICE_NAME")
 
   printf "\tInstalled version:\t%s\n" "$SERVICE_INSTALLED_VERSION"
 
@@ -93,7 +102,7 @@ function func_main() {
   func_print_title "2/7 Download"
   printf "\n\tDownloading version %s\n\n" "$latest_version"
 
-  if ! /opt/scripts/download.sh "$SERVICE_NAME"; then
+  if ! "$DOWNLOAD_SCRIPT_FILE" "$SERVICE_NAME"; then
     func_exit_error ">>> ERROR: Failed to download new version, exiting.\n"
   fi
 
@@ -134,7 +143,7 @@ function func_main() {
   printf "\n\tCreating backup of current version\n\n"
   sleep 1
 
-  if ! /opt/scripts/create_backup.sh "$SERVICE_NAME"; then
+  if ! "$CREATE_BACKUP_SCRIPT_FILE" "$SERVICE_NAME"; then
     func_exit_error ">>> ERROR: Failed to create backup, exiting"
   fi
 
@@ -149,7 +158,7 @@ function func_main() {
   printf "\n\tDeploying %s...\n\n" "$latest_version"
   sleep 1
 
-  if ! /opt/scripts/deploy.sh "$SERVICE_NAME"; then
+  if ! "$DEPLOY_SCRIPT_FILE" "$SERVICE_NAME"; then
     func_exit_error ">>> ERROR: Failed to deploy $latest_version, exiting" "$latest_version"
   fi
 
@@ -188,8 +197,12 @@ function func_main() {
   printf "\n\t Saving new version %s\n\n" "$latest_version"
   sleep 1
 
-  # Save new version to DB
-  db_set_version "$SERVICE_NAME" "$latest_version"
+  # Save new version to SERVICE_VERSION_FILE
+  if [ ! -f "$SERVICE_VERSION_FILE" ]; then
+    touch "$SERVICE_VERSION_FILE"
+  fi
+
+  echo "$latest_version" >"$SERVICE_VERSION_FILE"
 
   func_print_title "Update finished"
   exit "$EXITSTATUS_SUCCESS"

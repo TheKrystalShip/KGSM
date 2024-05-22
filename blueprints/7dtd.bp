@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Service name, lowercase with no spaces
+SERVICE_NAME=7dtd
+
+# Port(s), used by UFW
+# Values: 1111:2222/tcp|1111:2222/udp
+SERVICE_PORT=26900
+
+# Working directory
+SERVICE_WORKING_DIR="/opt/7dtd"
+
+# Steam APP_ID
+# Values: 0 if not applicable, Valid Steam app id otherwise
+# Default: 0
+SERVICE_APP_ID=294420
+
+# (Optional)
+# Only used if SERVICE_APP_ID != 0
+# Values: 0 for anonymous, 1 for account required
+SERVICE_STEAM_AUTH_LEVEL=0
+
+# Name of the executable that will start the service
+# Values: start.sh / my_game.x86_64 / start_server
+SERVICE_LAUNCH_BIN=7DaysToDieServer.x86_64
+
+# (Optional)
+# If the executable happens to be in a subdirectory from the main install
+# and needs to be ran from inside that subdirectory
+# Values: Relative path from inside install directory: $INSTALL_DIR/bin
+SERVICE_INSTALL_SUBDIRECTORY=
+
+# Any args passed onto the executable
+# $WORKING_DIR can be used as an absolute path to the service directory
+# $WORKING_DIR/install is the complete path to where the service is installed
+SERVICE_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated"
+
+# Socket used as command input for the service if applicable
+# Values: 0, 1
+SERVICE_USES_INPUT_SOCKET=0
+
+# (Optional)
+# Only used if SERVICE_USES_INPUT_SOCKET=1
+# Stop command sent to the input socket
+SERVICE_SOCKET_STOP_COMMAND=
+
+# (Optional)
+# Only used if SERVICE_USES_INPUT_SOCKET=1
+# Save command sent to the input socket
+SERVICE_SOCKET_SAVE_COMMAND=

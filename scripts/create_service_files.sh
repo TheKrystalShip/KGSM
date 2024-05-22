@@ -8,26 +8,29 @@ fi
 
 SERVICE=$1
 
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+
 # shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+source /etc/environment
 
-BASE_DIR="/opt/$SERVICE_NAME/service"
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
-SERVICE_FILE="$BASE_DIR/$SERVICE_NAME.service"
-SOCKET_FILE="$BASE_DIR/$SERVICE_NAME.socket"
+# These don't exist yet, just creating a path for later creation
+SERVICE_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
+SOCKET_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
 
 function createBaseService() {
-    printf "Creating %s...\n" "$SERVICE_FILE"
-
     cat >"$SERVICE_FILE" <<-EOF
 [Unit]
-Description=${SERVICE_NAME^} Dedicated Server
+Description=$SERVICE_NAME
 
 [Service]
 User=$USER
-WorkingDirectory=/opt/$SERVICE_NAME
-ExecStart=/opt/$SERVICE_NAME/manage.sh --start
-ExecStop=/opt/$SERVICE_NAME/manage.sh --stop
+WorkingDirectory=$SERVICE_WORKING_DIR
+ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
+ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
 NonBlocking=true
 
 Restart=on-failure
@@ -40,8 +43,6 @@ EOF
 }
 
 function createBaseServiceWithSocket() {
-    printf "Creating %s...\n" "$SERVICE_FILE"
-
     cat >"$SERVICE_FILE" <<-EOF
 [Unit]
 Description=${SERVICE_NAME^} Dedicated Server
@@ -49,9 +50,9 @@ Requires=$SERVICE_NAME.socket
 
 [Service]
 User=$USER
-WorkingDirectory=/opt/$SERVICE_NAME
-ExecStart=/opt/$SERVICE_NAME/manage.sh --start
-ExecStop=/opt/$SERVICE_NAME/manage.sh --stop
+WorkingDirectory=$SERVICE_WORKING_DIR
+ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
+ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
 NonBlocking=true
 
 Restart=on-failure
@@ -69,16 +70,19 @@ EOF
 }
 
 function createBaseSocket() {
-    printf "Creating %s...\n" "$SOCKET_FILE"
-
     cat >"$SOCKET_FILE" <<-EOF
 [Unit]
 Description=Socket for $SERVICE_NAME.stdin
 PartOf=$SERVICE_NAME.service
 
 [Socket]
-ListenFIFO=/opt/$SERVICE_NAME/$SERVICE_NAME.stdin
+ListenFIFO=$SERVICE_WORKING_DIR/$SERVICE_NAME.stdin
 EOF
 }
 
-createBaseService
+if [ "$SERVICE_USES_INPUT_SOCKET" != "1" ]; then
+    createBaseService
+else
+    createBaseServiceWithSocket
+    createBaseSocket
+fi

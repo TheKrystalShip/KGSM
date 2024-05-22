@@ -8,8 +8,12 @@ fi
 
 SERVICE=$1
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 function func_deploy() {
   local source=$1
@@ -36,7 +40,7 @@ function func_deploy() {
   return 0
 }
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/overrides.sh "$SERVICE_NAME"
+# shellcheck disable=SC1090
+source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
 
 func_deploy "$SERVICE_TEMP_DIR" "$SERVICE_INSTALL_DIR"

@@ -13,11 +13,14 @@ fi
 SERVICE=$1
 PORT=$2
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 FIREWALL_FILE="ufw-$SERVICE_NAME"
-OUTPUT_FILE="$SERVICE_WORKING_DIR/service/$FIREWALL_FILE"
+OUTPUT_FILE="$SERVICE_SERVICE_DIR/$FIREWALL_FILE"
 
 function create_firewall_rule_file() {
   cat >"$OUTPUT_FILE" <<-EOF

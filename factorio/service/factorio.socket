@@ -1,6 +1,0 @@
-[Unit]
-Description=Socket for factorio.service
-PartOf=factorio.service
-
-[Socket]
-ListenFIFO=/opt/factorio/factorio.stdin

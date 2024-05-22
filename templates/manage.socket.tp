@@ -1,0 +1,57 @@
+#!/bin/bash
+
+if [ \$# -eq 0 ]; then
+  echo "Launch script with: --start | --stop | --save | --input"
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source /etc/environment
+
+WORKING_DIR="$SERVICE_WORKING_DIR"
+INSTALL_DIR="$SERVICE_INSTALL_DIR"
+SOCKET_FILE="\$WORKING_DIR/$SERVICE_NAME.stdin"
+
+function start() {
+  (cd "\$INSTALL_DIR" && exec ${SERVICE_INSTALL_SUBDIRECTORY:-.}/$SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS)
+}
+
+function stop() {
+  save
+  sleep 10
+  echo "$SERVICE_SOCKET_STOP_COMMAND" >"\$SOCKET_FILE"
+}
+
+function save() {
+  echo "$SERVICE_SOCKET_SAVE_COMMAND" >"\$SOCKET_FILE"
+}
+
+function input() {
+  echo "\$1" >"\$SOCKET_FILE"
+}
+
+#Read the argument values
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+  --start)
+    start
+    shift
+    ;;
+  --stop)
+    stop
+    shift
+    ;;
+  --save)
+    save
+    shift
+    ;;
+  --input)
+    input "\$2"
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done

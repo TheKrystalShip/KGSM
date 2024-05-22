@@ -1,4 +1,0 @@
-[projectzomboid]
-title=Project Zomboid Dedicated Server
-description=Project Zomboid Dedicated Server
-ports=16261:16262/tcp|16261:16262/udp

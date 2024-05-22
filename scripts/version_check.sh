@@ -20,14 +20,22 @@ fi
 
 SERVICE=$1
 
+
+COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
+
 # shellcheck disable=SC1091
 source /etc/environment
 
-# shellcheck disable=SC1091
-source /opt/scripts/includes/service_vars.sh "$SERVICE"
+# shellcheck disable=SC1090
+source "$COMMON_SCRIPT" || exit 1
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
 # shellcheck disable=SC2155
-latest_version=$(/opt/scripts/version.sh "$SERVICE")
+latest_version=$("$VERSION_SCRIPT" "$SERVICE")
 
 if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
   exit "$EXITSTATUS_ERROR"

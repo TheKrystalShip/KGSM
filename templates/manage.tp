@@ -1,0 +1,38 @@
+#!/bin/bash
+
+if [ \$# -eq 0 ]; then
+  echo "Launch script with: --start | --stop"
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source /etc/environment
+
+WORKING_DIR="$SERVICE_WORKING_DIR"
+INSTALL_DIR="$SERVICE_INSTALL_DIR"
+
+function start() {
+  (cd "\$INSTALL_DIR" && exec ${SERVICE_INSTALL_SUBDIRECTORY:-.}/$SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS)
+}
+
+function stop() {
+  return
+}
+
+#Read the argument values
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+  --start)
+    start
+    shift
+    ;;
+  --stop)
+    stop
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
