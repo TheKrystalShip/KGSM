@@ -24,6 +24,14 @@ if [ $# == 0 ]; then
   func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
 fi
 
+# shellcheck disable=SC1091
+source /etc/environment
+
+if [ -z "$KGSM_ROOT" ]; then
+  echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
+  exit 1
+fi
+
 SERVICE=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"

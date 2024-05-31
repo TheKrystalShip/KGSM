@@ -6,6 +6,14 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
+# shellcheck disable=SC1091
+source /etc/environment
+
+if [ -z "$KGSM_ROOT" ]; then
+  echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
+  exit 1
+fi
+
 SERVICE=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"

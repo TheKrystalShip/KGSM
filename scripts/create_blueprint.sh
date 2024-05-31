@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
+source /etc/environment
+
+if [ -z "$KGSM_ROOT" ]; then
+  echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
+  exit 1
+fi
+
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 TEMPLATE_INPUT_FILE="$(find "$KGSM_ROOT" -type f -name blueprint.tp)"
 
