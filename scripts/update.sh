@@ -53,7 +53,6 @@ function func_exit_error() {
 
 # Trap CTRL-C
 trap func_exit_error INT
-trap func_exit_error EXIT
 
 function func_print_title() {
   echo "================================================================================"
@@ -204,6 +203,8 @@ function func_main() {
   echo "$latest_version" >"$SERVICE_VERSION_FILE"
 
   func_print_title "Update finished"
+
+  return 0
 }
 
 func_main "$@"
