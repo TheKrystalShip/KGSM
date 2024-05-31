@@ -28,7 +28,7 @@ SERVICE_LAUNCH_BIN=starbound_server
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-SERVICE_INSTALL_SUBDIRECTORY=/linux
+SERVICE_INSTALL_SUBDIRECTORY=linux
 
 # Any args passed onto the executable
 # $WORKING_DIR can be used as an absolute path to the service directory
