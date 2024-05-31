@@ -187,10 +187,12 @@ function func_deploy() {
     return 1
   fi
 
-  # Config file must be in the same dir as executable, copy it
-  if ! cp "$SERVICE_CONFIG_DIR"/* "$dest"/; then
-    echo ">>> ERROR: cp $SERVICE_CONFIG_DIR/* $dest/"
-    return 1
+  if [ -n "$(ls -A "$SERVICE_CONFIG_DIR")" ]; then
+    # Config file must be in the same dir as executable, copy it
+    if ! cp "$SERVICE_CONFIG_DIR"/* "$dest"/; then
+      echo ">>> ERROR: cp $SERVICE_CONFIG_DIR/* $dest/"
+      return 1
+    fi
   fi
 
   return 0
