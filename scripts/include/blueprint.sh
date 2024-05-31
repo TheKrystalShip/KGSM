@@ -24,7 +24,6 @@ if [[ "$BLUEPRINT" != *.bp ]]; then
   BLUEPRINT="${BLUEPRINT}.bp"
 fi
 
-PWD=$(pwd)
 BLUEPRINT_FILE="$(find "$KGSM_ROOT" -type f -name "$BLUEPRINT")"
 
 if [ ! -f "$BLUEPRINT_FILE" ]; then
