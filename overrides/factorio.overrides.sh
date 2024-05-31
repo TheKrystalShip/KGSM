@@ -109,5 +109,5 @@ function func_download() {
   fi
 
   # shellcheck disable=SC2034
-  return "$EXITSTATUS_SUCCESS"
+  return 0
 }

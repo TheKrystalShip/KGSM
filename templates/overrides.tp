@@ -84,7 +84,7 @@
 #   local version=$1
 #   local dest=$2
 #
-#   return "$EXITSTATUS_SUCCESS"
+#   return 0
 # }
 
 # INPUT:
@@ -97,7 +97,7 @@
 # function func_deploy() {
 #   local source=$1
 #   local dest=$2
-#   return "$EXITSTATUS_SUCCESS"
+#   return 0
 # }
 
 # INPUT:
@@ -111,7 +111,7 @@
 # function func_create_backup() {
 #   local source=$1
 #   local dest=$2
-#   return "$EXITSTATUS_SUCCESS"
+#   return 0
 # }
 
 # INPUT:

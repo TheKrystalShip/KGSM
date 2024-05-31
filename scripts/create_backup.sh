@@ -27,7 +27,7 @@ function func_create_backup() {
   if [ ! -d "$output_dir" ]; then
     if ! mkdir -p "$output_dir"; then
       printf "\tERROR: Error creating backup folder %s" "$output_dir"
-      return "$EXITSTATUS_ERROR"
+      return 1
     fi
   fi
 
@@ -44,7 +44,7 @@ function func_create_backup() {
   if ! mv "$source"/* "$output_dir"/; then
     echo ">>> ERROR: Failed to move contents from $source into $output_dir"
     remove_backup_dir "$output_dir"
-    return "$EXITSTATUS_ERROR"
+    return 1
   fi
 
   if ! echo "0" >"$SERVICE_VERSION_FILE"; then
@@ -52,7 +52,7 @@ function func_create_backup() {
   fi
 
   echo "$output_dir"
-  return "$EXITSTATUS_SUCCESS"
+  return 0
 }
 
 function remove_backup_dir() {

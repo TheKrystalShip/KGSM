@@ -80,7 +80,7 @@ function func_get_latest_version() {
   # Fetch latest version manifest
   if ! curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >"$mc_versions_cache"; then
     echo ">>> ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
-    return "$EXITSTATUS_ERROR"
+    return 1
   fi
 
   # shellcheck disable=SC2034
@@ -108,7 +108,7 @@ function func_download() {
 
   if ! curl -sS "$release_url" >"$release_json"; then
     echo ">>> ERROR: curl -sS $release_url >$release_json"
-    return "$EXITSTATUS_ERROR"
+    return 1
   fi
 
   # shellcheck disable=SC2155
@@ -120,7 +120,7 @@ function func_download() {
     curl -sS "$release_server_jar_url" -o "$local_release_jar"
   fi
 
-  return "$EXITSTATUS_SUCCESS"
+  return 0
 }
 
 # INPUT:
@@ -136,7 +136,7 @@ function func_deploy() {
 
   if ! mv -f "$source"/*.jar "$dest"/release.jar; then
     echo ">>> ERROR: mv -f $source/* $dest/"
-    return "$EXITSTATUS_ERROR"
+    return 1
   fi
 
   local eula_file="$source"/eula.txt
@@ -145,5 +145,5 @@ function func_deploy() {
     echo ">>> WARNING: Failed to configure eula.txt file, continuing"
   fi
 
-  return "$EXITSTATUS_SUCCESS"
+  return 0
 }

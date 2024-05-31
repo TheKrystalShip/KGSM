@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z "$KGSM_ROOT" ]; then
+  echo ""
+fi
+
 VERSION="0.1"
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
