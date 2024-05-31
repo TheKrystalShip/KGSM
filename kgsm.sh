@@ -112,7 +112,6 @@ function _run_install() {
   done
 
   local choice=$(choose_service service_names)
-  if [ "$choice" -eq -1 ]; then return; fi
 
   "$UPDATE_SCRIPT" "$choice"
 }
@@ -131,7 +130,6 @@ function _check_for_update() {
   done
 
   local choice=$(choose_service service_names)
-  if [[ "$choice" == "-1" ]]; then return; fi
 
   "$VERSION_CHECK_SCRIPT" "$choice"
 }
@@ -173,7 +171,6 @@ function _restore_backup() {
   done
 
   local service=$(choose_service service_names)
-  if [ "$service" = "-1" ]; then return; fi
 
   local service_backup_dir="${services[$service]}/backups"
 

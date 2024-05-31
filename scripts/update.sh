@@ -26,7 +26,6 @@ fi
 
 SERVICE=$1
 
-
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
 VERSION_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name version.sh)"
@@ -205,7 +204,6 @@ function func_main() {
   echo "$latest_version" >"$SERVICE_VERSION_FILE"
 
   func_print_title "Update finished"
-  exit "$EXITSTATUS_SUCCESS"
 }
 
 func_main "$@"

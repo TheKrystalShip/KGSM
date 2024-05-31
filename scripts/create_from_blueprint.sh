@@ -7,7 +7,6 @@ fi
 
 BLUEPRINT=$1
 
-
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 CREATE_DIR_STRUCTURE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_dir_structure.sh)"
@@ -15,6 +14,7 @@ CREATE_SERVICE_FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_service_fi
 CREATE_FIREWALL_RULE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_firewall_rule.sh)"
 CREATE_MANAGE_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_manage_file.sh)"
 CREATE_OVERRIDES_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_overrides_file.sh)"
+SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name setup.sh)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
@@ -41,4 +41,5 @@ source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 "$CREATE_MANAGE_FILE_SCRIPT" "$SERVICE_NAME"
 "$CREATE_OVERRIDES_FILE_SCRIPT" "$SERVICE_NAME"
 
-# "$SCRIPTS_SOURCE_DIR/setup.sh" "$SERVICE_NAME"
+# This will create symlinks
+"$SETUP_SCRIPT" "$SERVICE_NAME"
