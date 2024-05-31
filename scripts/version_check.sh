@@ -18,7 +18,7 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
+if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
@@ -27,10 +27,7 @@ if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
     echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
-    if [ -z "$KGSM_ROOT_FOUND" ]; then
-      echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-      export KGSM_ROOT_FOUND=1
-    fi
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
   fi
 fi
 
@@ -39,9 +36,6 @@ SERVICE=$1
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-
-# shellcheck disable=SC1091
-source /etc/environment
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1

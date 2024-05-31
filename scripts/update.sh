@@ -24,7 +24,7 @@ if [ $# == 0 ]; then
   func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
 fi
 
-if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
+if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
@@ -33,10 +33,7 @@ if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
     echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
-    if [ -z "$KGSM_ROOT_FOUND" ]; then
-      echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-      export KGSM_ROOT_FOUND=1
-    fi
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
   fi
 fi
 
@@ -48,9 +45,6 @@ VERSION_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name version.sh)"
 DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
 CREATE_BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name create_backup.sh)"
 DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
-
-# shellcheck disable=SC1091
-source "/etc/environment"
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1

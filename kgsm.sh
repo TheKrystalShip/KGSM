@@ -76,7 +76,7 @@ function _create_blueprint() {
 
   echo "$title"
 
-  "$CREATE_BLUEPRINT_SCRIPT"
+  ("$CREATE_BLUEPRINT_SCRIPT")
 }
 
 function _build_blueprint() {
@@ -99,9 +99,9 @@ function _build_blueprint() {
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
     else
-      "$BUILD_SCRIPT" "$blueprint"
+      ("$BUILD_SCRIPT" "$blueprint")
       local service=${blueprint::-3}
-      "$UPDATE_SCRIPT" "$service"
+      ("$UPDATE_SCRIPT" "$service")
       return
     fi
   done
@@ -122,7 +122,7 @@ function _run_install() {
 
   local choice=$(choose_service service_names)
 
-  "$UPDATE_SCRIPT" "$choice"
+  ("$UPDATE_SCRIPT" "$choice")
 }
 
 function _check_for_update() {
@@ -140,7 +140,7 @@ function _check_for_update() {
 
   local choice=$(choose_service service_names)
 
-  "$VERSION_CHECK_SCRIPT" "$choice"
+  ("$VERSION_CHECK_SCRIPT" "$choice")
 }
 
 function _create_backup() {
@@ -161,7 +161,7 @@ function _create_backup() {
   local choice=$(choose_service service_names)
   if [ "$choice" = "-1" ]; then return; fi
 
-  "$CREATE_BACKUP_SCRIPT" "$choice"
+  ("$CREATE_BACKUP_SCRIPT" "$choice")
 }
 
 function _restore_backup() {
@@ -224,7 +224,7 @@ function _run_setup() {
 
   local choice=$(choose_service service_names)
 
-  "$SETUP_SCRIPT" "$choice"
+  ("$SETUP_SCRIPT" "$choice")
 }
 
 function _delete() {
@@ -246,7 +246,7 @@ function _delete() {
 
   local choice=$(choose_service service_names)
 
-  "$DELETE_SCRIPT" "$choice"
+  ("$DELETE_SCRIPT" "$choice")
 }
 
 function choose_service() {
