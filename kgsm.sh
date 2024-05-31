@@ -3,16 +3,12 @@
 VERSION="0.1"
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-DIALOG_SCRIPT="$(find "$KGSM_ROOT" -type f -name dialog.sh)"
 
 # shellcheck disable=SC1091
 source /etc/environment
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
-
-# shellcheck disable=SC1090
-source "$DIALOG_SCRIPT" || exit 1
 
 VERSION_CHECK_SCRIPT="$(find "$KGSM_ROOT" -type f -name version_check.sh)"
 if [ -z "$VERSION_CHECK_SCRIPT" ]; then

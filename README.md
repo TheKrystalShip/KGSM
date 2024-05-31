@@ -2,13 +2,11 @@
 
 A collection of bash scripts used to automate the creation/installation/updating/backups and management of game servers on Linux
 
-![manager.sh](kgsm_manager.png)
-
 ## Requirements
 
-- A few scripts use `dialog` in order to create a simple TUI to interact with the scripts. It's also possible to call the scripts under `/scripts` individually as most of them are made to work standalone, but the `manager.sh` makes life a little bit easier.
+- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD)
 
-- `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `manager.sh` is located. Example: `KGSM_ROOT=/opt/meta` / `KGSM_ROOT=/home/myuser/servers`
+- `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `kgsm.sh` is located. Example: `KGSM_ROOT=/opt/kgsm` / `KGSM_ROOT=/home/myuser/servers`
 
 ## Workflow
 
