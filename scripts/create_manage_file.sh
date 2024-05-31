@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
   exit 1
 fi
 
@@ -50,11 +50,11 @@ if ! eval "cat <<EOF
 $(<"$MANAGE_TEMPLATE_FILE")
 EOF
 " >"$SERVICE_MANAGE_SCRIPT_FILE" 2>/dev/null; then
-  echo ">>> ERROR: Could not copy $MANAGE_TEMPLATE_FILE to $SERVICE_MANAGE_SCRIPT_FILE"
+  echo ">>> ERROR: Could not copy $MANAGE_TEMPLATE_FILE to $SERVICE_MANAGE_SCRIPT_FILE" >&2
   exit 1
 fi
 
 if ! chmod +x "$SERVICE_MANAGE_SCRIPT_FILE"; then
-  echo ">>> ERROR: Failed to add +x permission to $SERVICE_MANAGE_SCRIPT_FILE"
+  echo ">>> ERROR: Failed to add +x permission to $SERVICE_MANAGE_SCRIPT_FILE" >&2
   exit 2
 fi

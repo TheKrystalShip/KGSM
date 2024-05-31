@@ -66,5 +66,5 @@ if ! eval "cat <<EOF
 $(<"$TEMPLATE_INPUT_FILE")
 EOF
 " >"$BLUEPRINT_OUTPUT_FILE" 2>/dev/null; then
-  echo ">>> ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE"
+  echo ">>> ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE" >&2
 fi

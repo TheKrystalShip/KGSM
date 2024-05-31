@@ -2,11 +2,11 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\"" >&2
   exit 1
 fi
 if [ $# -eq 1 ]; then
-  echo ">>> ERROR: Service port not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\""
+  echo ">>> ERROR: Service port not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\"" >&2
   exit 1
 fi
 

@@ -1,8 +1,24 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\""
+  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
+fi
+
+if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
+  echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  # shellcheck disable=SC1091
+  source /etc/environment
+
+  if [ -z "$KGSM_ROOT" ]; then
+    echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    exit 1
+  else
+    if [ -z "$KGSM_ROOT_FOUND" ]; then
+      echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+      export KGSM_ROOT_FOUND=1
+    fi
+  fi
 fi
 
 BLUEPRINT=$1
@@ -15,7 +31,7 @@ PWD=$(pwd)
 BLUEPRINT_FILE="$(find "$KGSM_ROOT" -type f -name "$BLUEPRINT")"
 
 if [ ! -f "$BLUEPRINT_FILE" ]; then
-  echo ">>> ERROR: Could not find $BLUEPRINT_FILE, exiting"
+  echo ">>> ERROR: Could not find $BLUEPRINT_FILE, exiting" >&2
   exit 1
 fi
 

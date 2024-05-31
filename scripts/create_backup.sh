@@ -42,7 +42,7 @@ function func_create_backup() {
   # Create backup folder if it doesn't exit
   if [ ! -d "$output_dir" ]; then
     if ! mkdir -p "$output_dir"; then
-      printf "\tERROR: Error creating backup folder %s" "$output_dir"
+      printf "\tERROR: Error creating backup folder %s" "$output_dir" >&2
       return 1
     fi
   fi
@@ -58,7 +58,7 @@ function func_create_backup() {
 
   # Move everything from the install directory into a backup folder
   if ! mv "$source"/* "$output_dir"/; then
-    echo ">>> ERROR: Failed to move contents from $source into $output_dir"
+    echo ">>> ERROR: Failed to move contents from $source into $output_dir" >&2
     remove_backup_dir "$output_dir"
     return 1
   fi

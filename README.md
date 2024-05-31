@@ -8,6 +8,8 @@ A collection of bash scripts used to automate the creation/installation/updating
 
 - `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `kgsm.sh` is located. Example: `KGSM_ROOT=/opt/kgsm` / `KGSM_ROOT=/home/myuser/servers`
 
+- For Steam games that require an account, `STEAM_USERNAME` & `STEAM_PASSWORD` environmental variables must be set.
+
 ## Workflow
 
 Game servers are built from blueprint files (`/blueprints/*.bp`) and optionally override scripts (`/overrides/*.overrides.sh`)

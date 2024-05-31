@@ -1,29 +1,37 @@
 #!/bin/bash
 
-ROOT_DIR=$KGSM_ROOT
+if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
+  echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  # shellcheck disable=SC1091
+  source /etc/environment
 
-if [[ -z "${KGSM_ROOT}" ]]; then
-  ROOT_DIR=$(pwd)
-else
-  ROOT_DIR="${KGSM_ROOT}"
+  if [ -z "$KGSM_ROOT" ]; then
+    echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    exit 1
+  else
+    if [ -z "$KGSM_ROOT_FOUND" ]; then
+      echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+      export KGSM_ROOT_FOUND=1
+    fi
+  fi
 fi
 
 # Blueprints (*.bp) are stored here
 # shellcheck disable=SC2155
-export BLUEPRINTS_SOURCE_DIR="$(find "$ROOT_DIR" -type d -name blueprints)"
+export BLUEPRINTS_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name blueprints)"
 
 # Overides (*.overrides.sh) are stored here
 # shellcheck disable=SC2155
-export OVERRIDES_SOURCE_DIR="$(find "$ROOT_DIR" -type d -name overrides)"
+export OVERRIDES_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name overrides)"
 
 # Templates (*.tp) are stored here
 # shellcheck disable=SC2155
-export TEMPLATES_SOURCE_DIR="$(find "$ROOT_DIR" -type d -name templates)"
+export TEMPLATES_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name templates)"
 
 # All other scripts (*.sh) are stored here
 # shellcheck disable=SC2155
-export SCRIPTS_SOURCE_DIR="$(find "$ROOT_DIR" -type d -name scripts)"
+export SCRIPTS_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name scripts)"
 
 # "Library" scripts are stored here
 # shellcheck disable=SC2155
-export SCRIPTS_INCLUDE_SOURCE_DIR="$(find "$ROOT_DIR" -type d -name include)"
+export SCRIPTS_INCLUDE_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name include)"

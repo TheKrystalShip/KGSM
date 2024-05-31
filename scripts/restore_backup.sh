@@ -2,11 +2,11 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\"" >&2
   exit 1
 fi
 if [ $# -eq 1 ]; then
-  echo ">>> ERROR: Source directory not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\""
+  echo ">>> ERROR: Source directory not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\"" >&2
   exit 1
 fi
 
@@ -51,18 +51,18 @@ function func_restore_backup() {
 
   # $SERVICE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
   if ! mv "$SERVICE_BACKUPS_DIR/$source"/* "$SERVICE_INSTALL_DIR"/; then
-    echo ">>> ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR"
+    echo ">>> ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR" >&2
     return
   fi
 
   # Updated $SERVICE_VERSION_FILE with $backup_version
   if ! echo "$backup_version" >"$SERVICE_VERSION_FILE"; then
-    echo ">>> WARNING: Failed to update version in $SERVICE_VERSION_FILE"
+    echo ">>> WARNING: Failed to update version in $SERVICE_VERSION_FILE" >&2
   fi
 
   # Remove empty backup directory
   if ! rm -rf "${SERVICE_BACKUPS_DIR:?}/${source:?}"; then
-    echo ">>> WARNING: Failed to remove $source"
+    echo ">>> WARNING: Failed to remove $source" >&2
   fi
 }
 

@@ -2,7 +2,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
   exit 1
 fi
 
@@ -48,7 +48,7 @@ function func_deploy() {
 
   # Move everything from $source into $dest
   if ! mv -v "$source"/* "$dest"/; then
-    echo ">>> ERROR: Failed to move contents from $source into $dest"
+    echo ">>> ERROR: Failed to move contents from $source into $dest" >&2
     return 1
   fi
 

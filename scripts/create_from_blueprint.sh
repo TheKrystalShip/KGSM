@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\""
+  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -44,7 +44,7 @@ BLUEPRINT_FILE_PATH="$BLUEPRINTS_SOURCE_DIR/$BLUEPRINT"
 
 # Check if blueprint file actually exists
 if [ ! -f "$BLUEPRINT_FILE_PATH" ]; then
-  echo ">>> ERROR: Could not find blueprint $BLUEPRINT_FILE_PATH, exiting"
+  echo ">>> ERROR: Could not find blueprint $BLUEPRINT_FILE_PATH, exiting" >&2
   exit 1
 fi
 

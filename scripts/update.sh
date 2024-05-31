@@ -21,7 +21,7 @@
 
 # Params
 if [ $# == 0 ]; then
-  func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
 fi
 
 if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
@@ -63,7 +63,7 @@ source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
 ################################################################################
 
 function func_exit_error() {
-  printf "\t%s\n" "${*:- Update process cancelled}"
+  printf "\t%s\n" "${*:- Update process cancelled}" >&2
   exit 1
 }
 

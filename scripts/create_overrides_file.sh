@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
   exit 1
 fi
 
@@ -33,13 +33,13 @@ source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 if [ -f "$OVERRIDES_FILE" ]; then
   # Make copy
   if ! sudo cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-    echo ">>> ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE"
+    echo ">>> ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
     exit 1
   fi
 
   # Give +x permission
   if ! sudo chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-    echo ">>> ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE"
+    echo ">>> ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
     exit 2
   fi
 fi
