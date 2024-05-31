@@ -1,11 +1,19 @@
 #!/bin/bash
 
-# shellcheck disable=SC1091
-source /etc/environment
+if [ -z "$KGSM_ROOT" ] && [ -z "$KGSM_ROOT_FOUND" ]; then
+  echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  # shellcheck disable=SC1091
+  source /etc/environment
 
-if [ -z "$KGSM_ROOT" ]; then
-  echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
-  exit 1
+  if [ -z "$KGSM_ROOT" ]; then
+    echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    exit 1
+  else
+    if [ -z "$KGSM_ROOT_FOUND" ]; then
+      echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+      export KGSM_ROOT_FOUND=1
+    fi
+  fi
 fi
 
 VERSION="0.1"
@@ -328,8 +336,8 @@ function init() {
   get_installed_services services
 
   declare -a menu_options=(
-    "Create blueprint"
-    "Build blueprint"
+    "Create new blueprint"
+    "Build from blueprint"
     "Run Install"
     "Check for update"
     "Create backup"
@@ -339,8 +347,8 @@ function init() {
   )
 
   declare -A menu_options_functions=(
-    ["Create blueprint"]=_create_blueprint
-    ["Build blueprint"]=_build_blueprint
+    ["Create new blueprint"]=_create_blueprint
+    ["Build from blueprint"]=_build_blueprint
     ["Run Install"]=_run_install
     ["Check for update"]=_check_for_update
     ["Create backup"]=_create_backup
