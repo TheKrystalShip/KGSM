@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
+source /etc/environment
+
 if [ -z "$KGSM_ROOT" ]; then
   echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
   exit 1
@@ -8,9 +11,6 @@ fi
 VERSION="0.1"
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-
-# shellcheck disable=SC1091
-source /etc/environment
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
