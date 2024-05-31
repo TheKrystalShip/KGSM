@@ -2,12 +2,11 @@
 
 # Params
 if [ $# -eq 0 ]; then
-    echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
-    exit 1
+  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  exit 1
 fi
 
 SERVICE=$1
-
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
@@ -22,7 +21,9 @@ SERVICE_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
 SOCKET_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
 
 function createBaseService() {
-    cat >"$SERVICE_FILE" <<-EOF
+  sudo touch "$SERVICE_FILE"
+
+  cat >"$SERVICE_FILE" <<-EOF
 [Unit]
 Description=$SERVICE_NAME
 
@@ -43,7 +44,9 @@ EOF
 }
 
 function createBaseServiceWithSocket() {
-    cat >"$SERVICE_FILE" <<-EOF
+  sudo touch "$SERVICE_FILE"
+
+  cat >"$SERVICE_FILE" <<-EOF
 [Unit]
 Description=${SERVICE_NAME^} Dedicated Server
 Requires=$SERVICE_NAME.socket
@@ -70,7 +73,9 @@ EOF
 }
 
 function createBaseSocket() {
-    cat >"$SOCKET_FILE" <<-EOF
+  sudo touch "$SOCKET_FILE"
+
+  cat >"$SOCKET_FILE" <<-EOF
 [Unit]
 Description=Socket for $SERVICE_NAME.stdin
 PartOf=$SERVICE_NAME.service
@@ -81,8 +86,8 @@ EOF
 }
 
 if [ "$SERVICE_USES_INPUT_SOCKET" != "1" ]; then
-    createBaseService
+  createBaseService
 else
-    createBaseServiceWithSocket
-    createBaseSocket
+  createBaseServiceWithSocket
+  createBaseSocket
 fi
