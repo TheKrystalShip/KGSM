@@ -1,7 +1,8 @@
 #!/bin/bash
 
 if [ -z "$KGSM_ROOT" ]; then
-  echo ""
+  echo ">>> ERROR: KGSM_ROOT environmental variable not set, exiting."
+  exit 1
 fi
 
 VERSION="0.1"
@@ -314,9 +315,11 @@ function get_installed_services() {
 
 function init() {
   title="KGSM - Main menu - v$VERSION"
+  subtitle="Press CTRL+C to exit at any time."
   prompt="Choose an action:"
 
   echo "$title"
+  echo "$subtitle"
   PS3="$prompt "
 
   declare -A services=()
