@@ -48,7 +48,7 @@ source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
 
 function func_exit_error() {
   printf "\t%s\n" "${*:- Update process cancelled}"
-  exit "$EXITSTATUS_ERROR"
+  exit 1
 }
 
 # Trap CTRL-C
@@ -91,7 +91,7 @@ function func_main() {
 
   if [ "$SERVICE_INSTALLED_VERSION" == "$latest_version" ]; then
     printf "\tWARNING: latest version already installed. Continuing would overwrite existing install\n"
-    read -r -p "Continue? (Y/n): " confirm && [[ $confirm != [nN] ]] || exit "$EXITSTATUS_ERROR"
+    read -r -p "Continue? (Y/n): " confirm && [[ $confirm != [nN] ]] || exit 1
   fi
 
   ############################################################################

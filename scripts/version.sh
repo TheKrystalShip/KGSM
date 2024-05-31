@@ -53,5 +53,5 @@ func_get_latest_version
 if [ -n "$latest_version" ]; then
   echo "$latest_version" | tr -d '\n'
 else
-  exit "$EXITSTATUS_ERROR"
+  exit 1
 fi

@@ -38,7 +38,7 @@ source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 latest_version=$("$VERSION_SCRIPT" "$SERVICE")
 
 if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
-  exit "$EXITSTATUS_ERROR"
+  exit 1
 fi
 
 echo "$latest_version" | tr -d '\n'
