@@ -44,7 +44,7 @@ declare -a DIR_ARRAY=(
 
 for dir in "${DIR_ARRAY[@]}"; do
   # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
-  if ! sudo mkdir -p "$dir"; then
+  if ! mkdir -p "$dir"; then
     printf ">>> ERROR: Failed to create %s\n" "$dir" >&2
     exit 1
   fi

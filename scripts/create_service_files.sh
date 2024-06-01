@@ -38,8 +38,6 @@ SERVICE_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
 SOCKET_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
 
 function createBaseService() {
-  sudo touch "$SERVICE_FILE"
-
   cat >"$SERVICE_FILE" <<-EOF
 [Unit]
 Description=$SERVICE_NAME
@@ -61,8 +59,6 @@ EOF
 }
 
 function createBaseServiceWithSocket() {
-  sudo touch "$SERVICE_FILE"
-
   cat >"$SERVICE_FILE" <<-EOF
 [Unit]
 Description=${SERVICE_NAME^} Dedicated Server
@@ -90,8 +86,6 @@ EOF
 }
 
 function createBaseSocket() {
-  sudo touch "$SOCKET_FILE"
-
   cat >"$SOCKET_FILE" <<-EOF
 [Unit]
 Description=Socket for $SERVICE_NAME.stdin

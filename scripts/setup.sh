@@ -60,6 +60,11 @@ function func_setup() {
     fi
   fi
 
+  # Check if ufw is installed
+  if ! ufw --version >/dev/null; then
+    return
+  fi
+
   # Symlink firewall rules to ufw
   local firewall_symlink=/etc/ufw/applications.d/ufw-$SERVICE_NAME
   if [ ! -e "$firewall_symlink" ]; then

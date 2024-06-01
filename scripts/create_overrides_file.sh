@@ -36,13 +36,13 @@ source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 # If overrides file exists, copy it
 if [ -f "$OVERRIDES_FILE" ]; then
   # Make copy
-  if ! sudo cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
+  if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
     echo ">>> ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
     exit 1
   fi
 
   # Give +x permission
-  if ! sudo chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
+  if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
     echo ">>> ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
     exit 2
   fi

@@ -144,7 +144,7 @@ function _check_for_update() {
 
   local choice=$(choose_service service_names)
 
-  "$VERSION_CHECK_SCRIPT" "$choice"
+  ("$VERSION_CHECK_SCRIPT" "$choice")
 }
 
 function _create_backup() {

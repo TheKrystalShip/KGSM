@@ -42,8 +42,6 @@ FIREWALL_FILE="ufw-$SERVICE_NAME"
 OUTPUT_FILE="$SERVICE_SERVICE_DIR/$FIREWALL_FILE"
 
 function create_firewall_rule_file() {
-  sudo touch "$OUTPUT_FILE"
-
   cat >"$OUTPUT_FILE" <<-EOF
 [$SERVICE_NAME]
 title=$SERVICE_NAME

@@ -48,8 +48,6 @@ fi
 WORKING_DIR="$SERVICE_WORKING_DIR"
 
 # Create manage.sh from template and put it in $SERVICE_MANAGE_SCRIPT_FILE
-sudo touch "$SERVICE_MANAGE_SCRIPT_FILE"
-
 if ! eval "cat <<EOF
 $(<"$MANAGE_TEMPLATE_FILE")
 EOF
