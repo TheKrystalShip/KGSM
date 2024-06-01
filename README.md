@@ -4,6 +4,8 @@ A collection of bash scripts used to automate the creation/installation/updating
 
 ## Requirements
 
+- Packages: `grep` `python3` `wget` `unzip` `curl` `tar`
+
 - [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD)
 
 - `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `kgsm.sh` is located. Example: `KGSM_ROOT=/opt/kgsm` / `KGSM_ROOT=/home/myuser/servers`
