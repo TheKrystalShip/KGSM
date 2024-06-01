@@ -103,9 +103,45 @@ function _build_blueprint() {
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
     else
+
+      local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$blueprint"
+      local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+      local install_dir=""
+
+      while true; do
+        read -rp "Install directory (absolute path): " install_dir
+        install_dir="$install_dir/$service_name"
+
+        if [ ! -d "$install_dir" ]; then
+          echo "INFO: $install_dir does not exist, attempting to create" >&2
+
+          if ! mkdir -p "$install_dir"; then
+            echo ">>> ERROR: Failed to create directory $install_dir" >&2
+          fi
+        fi
+
+        if [ -w "$install_dir" ]; then
+          break
+        else
+          echo ">>> ERROR: You don't have write permissions for $install_dir, specify a differente directory" >&2
+        fi
+      done
+
+      # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
+      if cat "$blueprint_abs_path" | grep "SERVICE_WORKING_DIR="; then
+        echo ""
+        sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
+      # Othwewise just append to the blueprint
+      else
+        {
+          echo ""
+          echo "# Directory where service is installed"
+          echo "SERVICE_WORKING_DIR=\"$install_dir\""
+        } >>"$blueprint_abs_path"
+      fi
+
       ("$BUILD_SCRIPT" "$blueprint")
-      local service=${blueprint::-3}
-      ("$UPDATE_SCRIPT" "$service")
+      ("$UPDATE_SCRIPT" "$service_name")
       return
     fi
   done

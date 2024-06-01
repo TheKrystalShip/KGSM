@@ -4,7 +4,7 @@ A collection of bash scripts used to automate the creation/installation/updating
 
 ## Requirements
 
-- Packages: `grep` `python3` `wget` `unzip` `curl` `tar`
+- Packages: `grep` `python3` `wget` `unzip` `curl` `tar` `sed`
 
 - [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD)
 
