@@ -24,16 +24,23 @@ if [ $# == 0 ]; then
   func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
 fi
 
+# Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
+  # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
     echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
     echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+
+    # Check if KGSM_ROOT is exported
+    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
+      export KGSM_ROOT
+    fi
   fi
 fi
 
