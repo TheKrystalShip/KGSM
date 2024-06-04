@@ -112,7 +112,7 @@ function _build_blueprint() {
         read -rp "Install directory: " install_dir
 
         # If the path doesn't contain the service name, append it
-        if [ "$install_dir" != "*$service_name" ]; then
+        if [[ "$install_dir" != *$service_name ]]; then
           if [[ "$install_dir" == *\/ ]]; then
             install_dir="${install_dir}${service_name}"
           else
