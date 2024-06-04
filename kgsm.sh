@@ -277,7 +277,10 @@ function _delete() {
   declare -A services=()
   get_installed_services services
 
-  # TODO: Add check if there's nothing installed
+  if [ -z "$services" ]; then
+    echo "INFO: No services installed" >&2
+    return
+  fi
 
   declare -a service_names=()
   for i in "${!services[@]}"; do
