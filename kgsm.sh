@@ -109,8 +109,16 @@ function _build_blueprint() {
       local install_dir=""
 
       while true; do
-        read -rp "Install directory (absolute path): " install_dir
-        install_dir="$install_dir/$service_name"
+        read -rp "Install directory: " install_dir
+
+        # If the path doesn't contain the service name, append it
+        if [ "$install_dir" != "*$service_name" ]; then
+          if [[ "$install_dir" == *\/ ]]; then
+            install_dir="${install_dir}${service_name}"
+          else
+            install_dir="$install_dir/$service_name"
+          fi
+        fi
 
         if [ ! -d "$install_dir" ]; then
           echo "INFO: $install_dir does not exist, attempting to create" >&2
