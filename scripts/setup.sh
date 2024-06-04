@@ -34,6 +34,18 @@ OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
 
+# INPUT:
+# $1: Origin file
+# $2: Destination file
+function _create_symlink() {
+  local source=$1
+  local dest=$2
+
+  if sudo ln -s "$source" "$dest"; then
+    echo "$source -> $dest" >&2
+  fi
+}
+
 # Safe to run multiple times.
 # Ensures symlinks for .service/.socket/ufw
 # files exist and creates them if it can
@@ -43,10 +55,15 @@ function func_setup() {
   if [ ! -e "$service_symlink" ]; then
     local service_file="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
     if [ -f "$service_file" ]; then
-      if sudo ln -s "$service_file" "$service_symlink"; then
-        echo "$service_file -> $service_symlink"
-      fi
+      _create_symlink "$service_file" "$service_symlink"
     fi
+  else
+    # If it already exists, need to replace it with new
+    if ! sudo rm "$service_symlink"; then
+      echo ">>> ERROR: Failed to remove existing symlink: $service_symlink" >&2
+    fi
+
+    _create_symlink "$service_file" "$service_symlink"
   fi
 
   # Symlink .socket file to systemd
@@ -54,10 +71,15 @@ function func_setup() {
   if [ ! -e "$socket_symlink" ]; then
     local socket_file="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
     if [ -f "$socket_file" ]; then
-      if sudo ln -s "$socket_file" "$socket_symlink"; then
-        echo "$socket_file -> $socket_symlink"
-      fi
+      _create_symlink "$socket_file" "$socket_symlink"
     fi
+  else
+    # If it already exists, need to replace it with new
+    if ! sudo rm "$socket_symlink"; then
+      echo ">>> ERROR: Failed to remove existing symlink: $socket_symlink" >&2
+    fi
+
+    _create_symlink "$socket_file" "$socket_symlink"
   fi
 
   # Check if ufw is installed
@@ -70,10 +92,15 @@ function func_setup() {
   if [ ! -e "$firewall_symlink" ]; then
     local firewall_file="$SERVICE_SERVICE_DIR/ufw-$SERVICE_NAME"
     if [ -f "$firewall_file" ]; then
-      if sudo ln -s "$firewall_file" "$firewall_symlink"; then
-        echo "$firewall_file -> $firewall_symlink"
-      fi
+      _create_symlink "$firewall_file" "$firewall_symlink"
     fi
+  else
+    # If it already exists, need to replace it with new
+    if ! sudo rm "$firewall_symlink"; then
+      echo ">>> ERROR: Failed to remove existing symlink: $firewall_symlink" >&2
+    fi
+
+    _create_symlink "$firewall_file" "$firewall_symlink"
   fi
 }
 
