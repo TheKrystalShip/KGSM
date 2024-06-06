@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Params
+if [ $# -eq 0 ]; then
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
+  exit 1
+fi
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
@@ -20,16 +26,19 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-# Passed as argument
-# Possible values: 0, 1
-AUTH_LEVEL=$1
+BLUEPRINT=$1
+
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # Used for steamcmd login
 # Anonymous login by default
 USERNAME="anonymous"
 
 # Anonymous login not allowed, load username & pass
-if [ "$AUTH_LEVEL" != "0" ]; then
+if [ "$SERVICE_STEAM_AUTH_LEVEL" != "0" ]; then
   if [ -z "$STEAM_USERNAME" ]; then
     echo ">>> ERROR: STEAM_USERNAME environmental variable not found, exiting" >&2
     exit 1
@@ -43,24 +52,24 @@ if [ "$AUTH_LEVEL" != "0" ]; then
 fi
 
 function steamcmd_get_latest_version() {
-  local app_id=$1
   steamcmd \
     +login "$USERNAME" \
     +app_info_update 1 \
-    +app_info_print "$app_id" \
+    +app_info_print "$SERVICE_APP_ID" \
     +quit | tr '\n' ' ' | grep \
     --color=NEVER \
     -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)'
 }
 
 function steamcmd_download() {
-  local app_id=$1
-  local output_dir=$2
+  local version=$1
+  local dest=$2
+
   steamcmd \
     +@sSteamCmdForcePlatformType linux \
-    +force_install_dir "$output_dir" \
+    +force_install_dir "$dest" \
     +login "$USERNAME" \
-    +app_update "$app_id" \
+    +app_update "$SERVICE_APP_ID" \
     -beta none \
     validate \
     +quit

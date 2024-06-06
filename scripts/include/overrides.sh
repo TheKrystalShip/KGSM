@@ -26,7 +26,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -35,7 +35,7 @@ BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # Import custom scripts if the game has any
 if [ -f "$SERVICE_OVERRIDES_SCRIPT_FILE" ]; then

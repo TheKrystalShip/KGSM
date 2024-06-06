@@ -13,7 +13,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -37,7 +37,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -50,18 +50,18 @@ source "$COMMON_SCRIPT" || exit 1
 # CRITICAL: This imports all the required vars
 # $SERVICE is given as an argument to the script
 # shellcheck source=/dev/null
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # $SERVICE_STEAM_AUTH_LEVEL comes from service_vars.sh
 # shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
+source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
 function func_get_latest_version() {
-  steamcmd_get_latest_version "$SERVICE_APP_ID"
+  steamcmd_get_latest_version
 }
 
 # shellcheck disable=SC1090
-source "$OVERRIDES_SCRIPT" "$SERVICE" || exit 1
+source "$OVERRIDES_SCRIPT" "$BLUEPRINT" || exit 1
 
 func_get_latest_version
 

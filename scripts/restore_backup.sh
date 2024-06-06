@@ -2,11 +2,11 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\" \"SOURCE\"" >&2
   exit 1
 fi
 if [ $# -eq 1 ]; then
-  echo ">>> ERROR: Source directory not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"SOURCE\"" >&2
+  echo ">>> ERROR: Source directory not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\" \"SOURCE\"" >&2
   exit 1
 fi
 
@@ -30,14 +30,14 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 SOURCE_DIR=$2
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 function func_restore_backup() {
   local source=$1

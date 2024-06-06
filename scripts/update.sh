@@ -21,7 +21,7 @@
 
 # Params
 if [ $# == 0 ]; then
-  func_exit_error ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
+  func_exit_error ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
 fi
 
 # Check for KGSM_ROOT env variable
@@ -44,7 +44,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
@@ -54,10 +54,10 @@ CREATE_BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name create_backup.sh)"
 DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
+source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
 ################################################################################
 # > Functions

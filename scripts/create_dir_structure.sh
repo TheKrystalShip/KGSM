@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: SERVICE name not supplied. Run script like this: ./${0##*/} \"SERVICE\""
+  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\""
   exit 1
 fi
 
@@ -25,12 +25,12 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 declare -a DIR_ARRAY=(
   "$SERVICE_WORKING_DIR"

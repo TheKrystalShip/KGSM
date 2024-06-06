@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -25,7 +25,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -36,7 +36,7 @@ MANAGE_SOCKET_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.socket.tp)
 source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # If service requires socket, load manage.socket.tp instead
 if [ "$SERVICE_USES_INPUT_SOCKET" != "0" ]; then

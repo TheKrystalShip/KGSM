@@ -14,7 +14,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -38,7 +38,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -48,10 +48,10 @@ VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
 source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # shellcheck disable=SC2155
-latest_version=$("$VERSION_SCRIPT" "$SERVICE")
+latest_version=$("$VERSION_SCRIPT" "$BLUEPRINT")
 
 if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
   exit 1

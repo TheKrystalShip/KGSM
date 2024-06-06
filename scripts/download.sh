@@ -2,7 +2,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Service name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -26,7 +26,7 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-SERVICE=$1
+BLUEPRINT=$1
 VERSION=${2:-0}
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -35,10 +35,10 @@ OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$SERVICE" || exit 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 # shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$SERVICE_STEAM_AUTH_LEVEL" || exit 1
+source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
 # If no version is passed, just fetch the latest
 if [ "$VERSION" -eq 0 ]; then
@@ -51,7 +51,7 @@ function func_download() {
   local version=$1
   local dest=$2
 
-  steamcmd_download "$SERVICE_APP_ID" "$dest"
+  steamcmd_download "$version" "$dest"
 }
 
 # shellcheck disable=SC1090
