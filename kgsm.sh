@@ -351,7 +351,7 @@ function get_installed_services() {
   for bp in "${blueprints[@]}"; do
     service_name=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
     service_working_dir=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
-    service_version_file="$service_working_dir/.version"
+    service_version_file="$service_working_dir/$service_name.version"
 
     # If there's no $service_working_dir, skip
     if [ ! -d "$service_working_dir" ]; then
