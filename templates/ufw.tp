@@ -1,4 +1,4 @@
 [$SERVICE_NAME]
 title=$SERVICE_NAME
 description=$SERVICE_NAME
-ports=$PORT
+ports=$SERVICE_PORT
