@@ -53,14 +53,11 @@ read -rp "(Optional) Executable subdirectory: " _install_subdirectory
 _launch_args=""
 read -rp "(Optional) Launch args: " _launch_args
 
-_uses_input_socket="0"
-read -rp "Command input socket (0|1): " _uses_input_socket
+_stop_command=""
+read -rp "(Optional) Socket stop command: " _stop_command
 
-_socket_stop_command=""
-read -rp "(Optional) Socket stop command: " _socket_stop_command
-
-_socket_save_command=""
-read -rp "(Optional) Socket save command: " _socket_save_command
+_save_command=""
+read -rp "(Optional) Socket save command: " _save_command
 
 # Output file path
 BLUEPRINT_OUTPUT_FILE="$BLUEPRINTS_SOURCE_DIR/$_name.bp"

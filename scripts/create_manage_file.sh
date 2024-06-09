@@ -30,18 +30,12 @@ BLUEPRINT=$1
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
-MANAGE_SOCKET_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.socket.tp)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
-
-# If service requires socket, load manage.socket.tp instead
-if [ "$SERVICE_USES_INPUT_SOCKET" != "0" ]; then
-  MANAGE_TEMPLATE_FILE="$MANAGE_SOCKET_TEMPLATE_FILE"
-fi
 
 # MANAGE_TEMPLATE_FILE expects a $WORKING_DIR var
 # shellcheck disable=SC2034

@@ -58,15 +58,8 @@ SERVICE_LAUNCH_ARGS="\
 release.jar \
 nogui"
 
-# Socket used as command input for the service if applicable
-# Values: 0, 1
-# Default: 0
-SERVICE_USES_INPUT_SOCKET=1
-
 # (Optional) Stop command sent to the input socket
-# Only used if SERVICE_USES_INPUT_SOCKET=1
 SERVICE_SOCKET_STOP_COMMAND="/stop"
 
 # (Optional) Save command sent to the input socket
-# Only used if SERVICE_USES_INPUT_SOCKET=1
 SERVICE_SOCKET_SAVE_COMMAND="/save-all"

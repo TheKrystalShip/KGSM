@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ \$# -eq 0 ]; then
-  echo "Launch script with: --start | --stop"
+  echo "Launch script with: --start | --stop | --save | --input"
   exit 1
 fi
 
@@ -10,13 +10,24 @@ source /etc/environment
 
 WORKING_DIR="$SERVICE_WORKING_DIR"
 INSTALL_DIR="$SERVICE_INSTALL_DIR"
+SOCKET_FILE="\$WORKING_DIR/$SERVICE_NAME.stdin"
 
 function start() {
   (cd "\$INSTALL_DIR/$SERVICE_INSTALL_SUBDIRECTORY" && exec ./$SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS)
 }
 
 function stop() {
-  return
+  save
+  sleep 10
+  echo "$SERVICE_SOCKET_STOP_COMMAND" >"\$SOCKET_FILE"
+}
+
+function save() {
+  echo "$SERVICE_SOCKET_SAVE_COMMAND" >"\$SOCKET_FILE"
+}
+
+function input() {
+  echo "\$1" >"\$SOCKET_FILE"
 }
 
 #Read the argument values
@@ -28,6 +39,14 @@ while [ \$# -gt 0 ]; do
     ;;
   --stop)
     stop
+    shift
+    ;;
+  --save)
+    save
+    shift
+    ;;
+  --input)
+    input "\$2"
     shift
     ;;
   *)

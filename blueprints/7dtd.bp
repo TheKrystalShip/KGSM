@@ -35,16 +35,10 @@ SERVICE_INSTALL_SUBDIRECTORY=
 # $WORKING_DIR/install is the complete path to where the service is installed
 SERVICE_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated"
 
-# Socket used as command input for the service if applicable
-# Values: 0, 1
-SERVICE_USES_INPUT_SOCKET=0
-
 # (Optional)
-# Only used if SERVICE_USES_INPUT_SOCKET=1
 # Stop command sent to the input socket
 SERVICE_SOCKET_STOP_COMMAND=
 
 # (Optional)
-# Only used if SERVICE_USES_INPUT_SOCKET=1
 # Save command sent to the input socket
 SERVICE_SOCKET_SAVE_COMMAND=
