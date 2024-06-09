@@ -83,7 +83,7 @@ function func_setup() {
   fi
 
   # Check if ufw is installed
-  if ! ufw --version >/dev/null; then
+  if ! command -v ufw &> /dev/null; then
     return
   fi
 
