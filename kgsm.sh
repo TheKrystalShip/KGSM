@@ -63,9 +63,9 @@ if [ -z "$RESTORE_BACKUP_SCRIPT" ]; then
   exit 1
 fi
 
-SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name setup.sh)"
+SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_symlinks.sh)"
 if [ -z "$SETUP_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load setup.sh" >&2
+  echo ">>> ERROR: Failed to load create_symlinks.sh" >&2
   exit 1
 fi
 

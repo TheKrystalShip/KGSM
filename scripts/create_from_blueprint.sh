@@ -34,7 +34,7 @@ CREATE_SERVICE_FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_service_fi
 CREATE_FIREWALL_RULE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_firewall_rule.sh)"
 CREATE_MANAGE_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_manage_file.sh)"
 CREATE_OVERRIDES_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_overrides_file.sh)"
-SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name setup.sh)"
+SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_symlinks.sh)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
