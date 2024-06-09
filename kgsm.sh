@@ -139,8 +139,7 @@ function _build_blueprint() {
       done
 
       # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
-      if cat "$blueprint_abs_path" | grep "SERVICE_WORKING_DIR="; then
-        echo ""
+      if cat "$blueprint_abs_path" | grep -q "SERVICE_WORKING_DIR="; then
         sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
       # Othwewise just append to the blueprint
       else
