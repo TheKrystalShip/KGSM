@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="0.1"
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
@@ -20,7 +22,8 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
-VERSION="0.1"
+# Trap CTRL-C
+trap exit INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 

@@ -20,6 +20,9 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
+# Trap CTRL-C
+trap exit INT
+
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 TEMPLATE_INPUT_FILE="$(find "$KGSM_ROOT" -type f -name blueprint.tp)"
 

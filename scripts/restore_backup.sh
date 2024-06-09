@@ -30,6 +30,9 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
+# Trap CTRL-C
+trap exit INT
+
 BLUEPRINT=$1
 SOURCE_DIR=$2
 

@@ -29,6 +29,9 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
+# Trap CTRL-C
+trap exit INT
+
 BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"

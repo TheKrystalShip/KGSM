@@ -26,6 +26,9 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
+# Trap CTRL-C
+trap exit INT
+
 BLUEPRINT=$1
 VERSION=${2:-0}
 
