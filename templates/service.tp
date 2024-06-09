@@ -1,0 +1,22 @@
+[Unit]
+Description=${SERVICE_NAME^} Dedicated Server
+Requires=$SERVICE_NAME.socket
+
+[Service]
+User=$USER
+WorkingDirectory=$SERVICE_WORKING_DIR
+ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
+ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
+NonBlocking=true
+
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=1
+
+Sockets=$SERVICE_NAME.socket
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

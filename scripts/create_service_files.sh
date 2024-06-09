@@ -33,72 +33,25 @@ BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
+SERVICE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name service.tp)"
+SOCKET_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name socket.tp)"
+
 # These don't exist yet, just creating a path for later creation
-SERVICE_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
-SOCKET_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
+SERVICE_OUTPUT_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
+SOCKET_OUTPUT_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
 
-function createBaseService() {
-  cat >"$SERVICE_FILE" <<-EOF
-[Unit]
-Description=$SERVICE_NAME
-
-[Service]
-User=$USER
-WorkingDirectory=$SERVICE_WORKING_DIR
-ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
-ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
-NonBlocking=true
-
-Restart=on-failure
-RestartSec=5
-StartLimitBurst=1
-
-[Install]
-WantedBy=multi-user.target
+if ! eval "cat <<EOF
+$(<"$SERVICE_TEMPLATE_FILE")
 EOF
-}
+" >"$SERVICE_OUTPUT_FILE" 2>/dev/null; then
+  echo ">>> ERROR: Could not copy $SERVICE_TEMPLATE_FILE to $SERVICE_OUTPUT_FILE" >&2
+  exit 1
+fi
 
-function createBaseServiceWithSocket() {
-  cat >"$SERVICE_FILE" <<-EOF
-[Unit]
-Description=${SERVICE_NAME^} Dedicated Server
-Requires=$SERVICE_NAME.socket
-
-[Service]
-User=$USER
-WorkingDirectory=$SERVICE_WORKING_DIR
-ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
-ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
-NonBlocking=true
-
-Restart=on-failure
-RestartSec=5
-StartLimitBurst=1
-
-Sockets=$SERVICE_NAME.socket
-StandardInput=socket
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
+if ! eval "cat <<EOF
+$(<"$SOCKET_TEMPLATE_FILE")
 EOF
-}
-
-function createBaseSocket() {
-  cat >"$SOCKET_FILE" <<-EOF
-[Unit]
-Description=Socket for $SERVICE_NAME.stdin
-PartOf=$SERVICE_NAME.service
-
-[Socket]
-ListenFIFO=$SERVICE_WORKING_DIR/$SERVICE_NAME.stdin
-EOF
-}
-
-if [ "$SERVICE_USES_INPUT_SOCKET" != "1" ]; then
-  createBaseService
-else
-  createBaseServiceWithSocket
-  createBaseSocket
+" >"$SOCKET_OUTPUT_FILE" 2>/dev/null; then
+  echo ">>> ERROR: Could not copy $SOCKET_TEMPLATE_FILE to $SOCKET_OUTPUT_FILE" >&2
+  exit 1
 fi

@@ -1,0 +1,6 @@
+[Unit]
+Description=Socket for $SERVICE_NAME.stdin
+PartOf=$SERVICE_NAME.service
+
+[Socket]
+ListenFIFO=$SERVICE_WORKING_DIR/$SERVICE_NAME.stdin
