@@ -2,11 +2,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\"" >&2
-  exit 1
-fi
-if [ $# -eq 1 ]; then
-  echo ">>> ERROR: Service port not supplied. Run script like this: ./${0##*/} \"SERVICE\" \"PORT\"" >&2
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"SERVICE\"" >&2
   exit 1
 fi
 
@@ -31,23 +27,18 @@ if [ -z "$KGSM_ROOT" ]; then
 fi
 
 BLUEPRINT=$1
-PORT=$2
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+FIREWALL_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name ufw.tp)"
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
-FIREWALL_FILE="ufw-$SERVICE_NAME"
-OUTPUT_FILE="$SERVICE_SERVICE_DIR/$FIREWALL_FILE"
+OUTPUT_FILE="$SERVICE_SERVICE_DIR/ufw-${SERVICE_NAME}"
 
-function create_firewall_rule_file() {
-  cat >"$OUTPUT_FILE" <<-EOF
-[$SERVICE_NAME]
-title=$SERVICE_NAME
-description=$SERVICE_NAME
-ports=$PORT
+if ! eval "cat <<EOF
+$(<"$FIREWALL_TEMPLATE_FILE")
 EOF
-}
-
-create_firewall_rule_file
+" >"$OUTPUT_FILE" 2>/dev/null; then
+  echo ">>> ERROR: Failed to create $OUTPUT_FILE" >&2
+fi
