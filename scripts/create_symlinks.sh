@@ -46,23 +46,22 @@ function create_symlink() {
   local source=$1
   local dest=$2
 
+  # If source file doesn't exist
   if [ ! -f "$source" ]; then
     echo ">>> ERROR: Could not find $source file" >&2
     return
   fi
 
-  if [ ! -e "$source" ]; then
-    if ! sudo ln -s "$source" "$dest"; then
-      echo ">>> ERROR: Failed to link: $source -> $dest" >&2
-    fi
-  else
+  # If symlink already exists, remove it
+  if [ -L "$dest" ]; then
     if ! sudo rm "$dest"; then
       echo ">>> ERROR: Failed to remove existing symlink: $dest" >&2
     fi
+  fi
 
-    if ! sudo ln -s "$source" "$dest"; then
-      echo ">>> ERROR: Failed to link: $source -> $dest" >&2
-    fi
+  # Create new symlink
+  if ! sudo ln -s "$source" "$dest"; then
+    echo ">>> ERROR: Failed to link: $source -> $dest" >&2
   fi
 }
 
@@ -88,3 +87,6 @@ firewall_symlink="/etc/ufw/applications.d/ufw-$SERVICE_NAME"
 firewall_file="$SERVICE_SERVICE_DIR/ufw-$SERVICE_NAME"
 
 create_symlink "$firewall_file" "$firewall_symlink"
+
+# Allow service through ufw
+sudo ufw allow "$SERVICE_NAME"
