@@ -45,3 +45,6 @@ EOF
 " >"$OUTPUT_FILE" 2>/dev/null; then
   echo ">>> ERROR: Failed to create $OUTPUT_FILE" >&2
 fi
+
+# ufw complains if the file isn't owned by root
+sudo chown root:root "$OUTPUT_FILE"
