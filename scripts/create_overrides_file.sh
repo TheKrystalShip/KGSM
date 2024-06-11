@@ -31,10 +31,11 @@ trap exit INT
 BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
-OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "${SERVICE}".overrides.sh)"
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
+
+OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".overrides.sh)"
 
 # If overrides file exists, copy it
 if [ -f "$OVERRIDES_FILE" ]; then
