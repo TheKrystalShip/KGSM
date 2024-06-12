@@ -44,6 +44,11 @@ source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 # shellcheck disable=SC2034
 WORKING_DIR="$SERVICE_WORKING_DIR"
 
+# Prepend "./" to $SERVICE_LAUNCH_BIN if it doesn't start with "./" or "/"
+if [[ "$SERVICE_LAUNCH_BIN" != \.\/* ]] && [[ "$SERVICE_LAUNCH_BIN" != \/* ]]; then
+  SERVICE_LAUNCH_BIN="./$SERVICE_LAUNCH_BIN"
+fi
+
 # Create manage.sh from template and put it in $SERVICE_MANAGE_SCRIPT_FILE
 if ! eval "cat <<EOF
 $(<"$MANAGE_TEMPLATE_FILE")
