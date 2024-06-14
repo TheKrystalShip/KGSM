@@ -52,11 +52,28 @@ if [ "$SERVICE_STEAM_AUTH_LEVEL" != "0" ]; then
 fi
 
 function steamcmd_get_latest_version() {
-  steamcmd \
+  # For some unknown reason steamcmd has decided to always redirect the
+  # output of this command to a specific file instead of printing it to console.
+  # This means now I have to check for the existance of the file and read from
+  # it when this happens.
+
+  local command_output=$(steamcmd \
     +login "$USERNAME" \
     +app_info_update 1 \
     +app_info_print "$SERVICE_APP_ID" \
-    +quit | tr '\n' ' ' | grep \
+    +quit)
+
+  # Look for the "Redirecting stderr to [...]" in the output
+  local stderr_redirect_found=$(echo "$command_output" | grep -oP "(?<=Redirecting stderr to ').*?(?=')")
+
+  # If it finds the redirect match, read the contents of the file
+  if [ -n "$stderr_redirect_found" ]; then
+    command_output=$(<"$stderr_redirect_found")
+  fi
+
+  # If the redirect match wasn't found, it means what I'm looking for is already
+  # in the $command_output
+  echo "$command_output" | tr '\n' ' ' | grep \
     --color=NEVER \
     -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)'
 }
@@ -70,7 +87,6 @@ function steamcmd_download() {
     +force_install_dir "$dest" \
     +login "$USERNAME" \
     +app_update "$SERVICE_APP_ID" \
-    -beta none \
     validate \
     +quit
 }
