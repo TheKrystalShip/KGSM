@@ -58,7 +58,7 @@ function steamcmd_get_latest_version() {
   # it when this happens.
 
   local command_output=$(steamcmd \
-    +login "$USERNAME" \
+    +login $USERNAME \
     +app_info_update 1 \
     +app_info_print "$SERVICE_APP_ID" \
     +quit)
@@ -85,7 +85,7 @@ function steamcmd_download() {
   steamcmd \
     +@sSteamCmdForcePlatformType linux \
     +force_install_dir "$dest" \
-    +login "$USERNAME" \
+    +login $USERNAME \
     +app_update "$SERVICE_APP_ID" \
     validate \
     +quit
