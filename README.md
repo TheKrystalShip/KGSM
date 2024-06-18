@@ -19,7 +19,7 @@ Game servers are built from blueprint files (`/blueprints/*.bp`) and optionally 
 The blueprint file is the source of configuration for the game servers, meaning all configuration will be read from there and scaffolded further.
 Check the existing blueprints for working examples.
 
-The `/scripts/create_from_blueprint.sh [BLUEPRINT_NAME]` script will take a blueprint and scaffold all the necessary directories & files needed for a game server.
+The `/scripts/install.sh [BLUEPRINT_NAME]` script will take a blueprint and scaffold all the necessary directories & files needed for a game server.
 
 # LICENSE
 

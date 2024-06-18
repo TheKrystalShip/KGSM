@@ -31,30 +31,25 @@ trap exit INT
 
 BLUEPRINT=$1
 
+COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+DIRECTORY_SCRIPT="$(find "$KGSM_ROOT" -type f -name directory.sh)"
+SYSTEMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name systemd.sh)"
+FIREWALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name firewall.sh)"
+
+# shellcheck disable=SC1090
+source "$COMMON_SCRIPT" || exit 1
+
+# Check if blueprint ends with .bp extension. If not, add it
+if [[ "$BLUEPRINT" != *.bp ]]; then
+  BLUEPRINT="${BLUEPRINT}.bp"
+fi
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
-SERVICE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name service.tp)"
-SOCKET_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name socket.tp)"
-
-# These don't exist yet, just creating a path for later creation
-SERVICE_OUTPUT_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.service"
-SOCKET_OUTPUT_FILE="$SERVICE_SERVICE_DIR/$SERVICE_NAME.socket"
-
-if ! eval "cat <<EOF
-$(<"$SERVICE_TEMPLATE_FILE")
-EOF
-" >"$SERVICE_OUTPUT_FILE" 2>/dev/null; then
-  echo ">>> ERROR: Could not copy $SERVICE_TEMPLATE_FILE to $SERVICE_OUTPUT_FILE" >&2
-  exit 1
-fi
-
-if ! eval "cat <<EOF
-$(<"$SOCKET_TEMPLATE_FILE")
-EOF
-" >"$SOCKET_OUTPUT_FILE" 2>/dev/null; then
-  echo ">>> ERROR: Could not copy $SOCKET_TEMPLATE_FILE to $SOCKET_OUTPUT_FILE" >&2
-  exit 1
-fi
+"$DIRECTORY_SCRIPT" "$SERVICE_NAME" --uninstall || exit 1
+sudo "$SYSTEMD_SCRIPT" "$SERVICE_NAME" --uninstall || exit 1
+sudo "$FIREWALL_SCRIPT" "$SERVICE_NAME" --uninstall || exit 1
+# "$CREATE_MANAGE_FILE_SCRIPT" "$SERVICE_NAME" || exit 1
+# "$CREATE_OVERRIDES_FILE_SCRIPT" "$SERVICE_NAME" || exit 1

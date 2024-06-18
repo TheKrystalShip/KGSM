@@ -35,10 +35,6 @@ read -rp "Name: " _name
 _port=""
 read -rp "Port: " _port
 
-_working_dir=""
-read -rp "Install directory: " _working_dir
-_working_dir+="/$_name"
-
 _app_id=""
 read -rp "Steam APP_ID (0 for none): " _app_id
 

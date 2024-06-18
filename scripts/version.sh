@@ -50,12 +50,9 @@ OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-# CRITICAL: This imports all the required vars
-# $SERVICE is given as an argument to the script
 # shellcheck source=/dev/null
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
-# $SERVICE_STEAM_AUTH_LEVEL comes from service_vars.sh
 # shellcheck disable=SC1090
 source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 
+# Params
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\""
+  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\" [--install | --uninstall]" >&2
   exit 1
 fi
 
@@ -41,14 +42,43 @@ declare -a DIR_ARRAY=(
   "$SERVICE_CONFIG_DIR"
   "$SERVICE_INSTALL_DIR"
   "$SERVICE_SAVES_DIR"
-  "$SERVICE_SERVICE_DIR"
   "$SERVICE_TEMP_DIR"
 )
 
-for dir in "${DIR_ARRAY[@]}"; do
-  # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
-  if ! mkdir -p "$dir"; then
-    printf ">>> ERROR: Failed to create %s\n" "$dir" >&2
+function _install() {
+  # Create directory tree
+  for dir in "${DIR_ARRAY[@]}"; do
+    # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
+    if ! mkdir -p "$dir"; then
+      printf ">>> ERROR: Failed to create %s\n" "$dir" >&2
+      exit 1
+    fi
+  done
+}
+
+function _uninstall() {
+  # Remove main working directory,
+  # which will remove all subdirectories
+  if ! rm -rf "$SERVICE_WORKING_DIR"; then
+    echo ">>> Error: Failed to remove $SERVICE_WORKING_DIR" >&2
     exit 1
   fi
+}
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$2" in
+  --install)
+    _install
+    shift
+    ;;
+  --uninstall)
+    _uninstall
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
 done

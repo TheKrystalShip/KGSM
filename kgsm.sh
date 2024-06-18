@@ -42,9 +42,9 @@ if [ -z "$CREATE_BLUEPRINT_SCRIPT" ]; then
   exit 1
 fi
 
-BUILD_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_from_blueprint.sh)"
-if [ -z "$BUILD_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_from_blueprint.sh" >&2
+INSTALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name install.sh)"
+if [ -z "$INSTALL_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load install.sh" >&2
   exit 1
 fi
 
@@ -66,15 +66,9 @@ if [ -z "$RESTORE_BACKUP_SCRIPT" ]; then
   exit 1
 fi
 
-SETUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_symlinks.sh)"
-if [ -z "$SETUP_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_symlinks.sh" >&2
-  exit 1
-fi
-
-DELETE_SCRIPT="$(find "$KGSM_ROOT" -type f -name delete.sh)"
-if [ -z "$DELETE_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load delete.sh" >&2
+UNINSTALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name uninstall.sh)"
+if [ -z "$UNINSTALL_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load uninstall.sh" >&2
   exit 1
 fi
 
@@ -86,14 +80,14 @@ function _create_blueprint() {
   ("$CREATE_BLUEPRINT_SCRIPT")
 }
 
-function _build_blueprint() {
-  title="KGSM - Build blueprint - v$VERSION"
+function _install_blueprint() {
+  title="KGSM - Install blueprint - v$VERSION"
   prompt="Choose a blueprint:"
 
   echo "$title"
   PS3="$prompt "
 
-  declare -a blueprints=()
+  declare -a blueprints
   get_blueprints blueprints
 
   if ((${#blueprints[@]} < 1)); then
@@ -124,8 +118,6 @@ function _build_blueprint() {
         fi
 
         if [ ! -d "$install_dir" ]; then
-          echo "INFO: $install_dir does not exist, attempting to create" >&2
-
           if ! mkdir -p "$install_dir"; then
             echo ">>> ERROR: Failed to create directory $install_dir" >&2
           fi
@@ -150,7 +142,7 @@ function _build_blueprint() {
         } >>"$blueprint_abs_path"
       fi
 
-      ("$BUILD_SCRIPT" "$blueprint")
+      ("$INSTALL_SCRIPT" "$blueprint")
       ("$UPDATE_SCRIPT" "$service_name")
       return
     fi
@@ -162,15 +154,10 @@ function _run_install() {
 
   echo "$title"
 
-  declare -A services=()
+  declare -a services
   get_services services
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
-
-  local choice=$(choose_service service_names)
+  local choice=$(choose_service services)
 
   ("$UPDATE_SCRIPT" "$choice")
 }
@@ -180,15 +167,10 @@ function _check_for_update() {
 
   echo "$title"
 
-  declare -A services=()
+  declare -a services
   get_installed_services services
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
-
-  local choice=$(choose_service service_names)
+  local choice=$(choose_service services)
 
   ("$VERSION_CHECK_SCRIPT" "$choice")
 }
@@ -200,15 +182,10 @@ function _create_backup() {
   echo "$title"
   PS3="$prompt "
 
-  declare -A services=()
+  declare -a services
   get_installed_services services
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
-
-  local choice=$(choose_service service_names)
+  local choice=$(choose_service services)
   if [ "$choice" = "-1" ]; then return; fi
 
   ("$CREATE_BACKUP_SCRIPT" "$choice")
@@ -221,17 +198,12 @@ function _restore_backup() {
   echo "$title"
   PS3="$prompt "
 
-  declare -A services=()
+  declare -a services
   get_services services
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
+  local service=$(choose_service services)
 
-  local service=$(choose_service service_names)
-
-  local service_backup_dir="${services[$service]}/backups"
+  # TODO: local service_backup_dir="${services[$service]}/backups"
 
   shopt -s extglob nullglob
 
@@ -257,49 +229,24 @@ function _restore_backup() {
   done
 }
 
-function _run_setup() {
-  title="KGSM - Setup - v$VERSION"
+function _uninstall() {
+  title="KGSM - Uninstall - v$VERSION"
   prompt="Choose a service:"
 
   echo "$title"
   PS3="$prompt "
 
-  declare -A services=()
+  declare -a services
   get_installed_services services
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
-
-  local choice=$(choose_service service_names)
-
-  ("$SETUP_SCRIPT" "$choice")
-}
-
-function _delete() {
-  title="KGSM - Delete - v$VERSION"
-  prompt="Choose a service:"
-
-  echo "$title"
-  PS3="$prompt "
-
-  declare -A services=()
-  get_installed_services services
-
-  if [ -z "$services" ]; then
+  if [ "${#services[@]}" -eq 0 ]; then
     echo "INFO: No services installed" >&2
     return
   fi
 
-  declare -a service_names=()
-  for i in "${!services[@]}"; do
-    service_names+=("$i")
-  done
+  local choice=$(choose_service services)
 
-  local choice=$(choose_service service_names)
-
-  ("$DELETE_SCRIPT" "$choice")
+  ("$UNINSTALL_SCRIPT" "$choice")
 }
 
 function choose_service() {
@@ -341,7 +288,7 @@ function get_services() {
       continue
     fi
 
-    ref_services_array["$service_name"]="$service_working_dir"
+    ref_services_array+=("$service_name")
   done
 }
 
@@ -368,11 +315,11 @@ function get_installed_services() {
     service_version=$(cat "$service_version_file")
 
     # Check if there's a version number stored in the file
-    if [ -z "$service_version" ] || [ "$service_version" = "0" ]; then
+    if [ -z "$service_version" ] || [[ "$service_version" == "0" ]]; then
       continue
     fi
 
-    ref_services_array["$service_name"]="$service_working_dir"
+    ref_services_array+=("$service_name")
   done
 }
 
@@ -390,24 +337,22 @@ function init() {
 
   declare -a menu_options=(
     "Create new blueprint"
-    "Build from blueprint"
+    "Install"
     "Run Install"
     "Check for update"
     "Create backup"
     "Restore backup"
-    "Run Setup"
-    "Delete"
+    "Uninstall"
   )
 
   declare -A menu_options_functions=(
     ["Create new blueprint"]=_create_blueprint
-    ["Build from blueprint"]=_build_blueprint
+    ["Install"]=_install_blueprint
     ["Run Install"]=_run_install
     ["Check for update"]=_check_for_update
     ["Create backup"]=_create_backup
     ["Restore backup"]=_restore_backup
-    ["Run Setup"]=_run_setup
-    ["Delete"]=_delete
+    ["Uninstall"]=_uninstall
   )
 
   select opt in "${menu_options[@]}"; do
