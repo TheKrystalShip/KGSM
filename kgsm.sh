@@ -30,9 +30,9 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-VERSION_CHECK_SCRIPT="$(find "$KGSM_ROOT" -type f -name version_check.sh)"
-if [ -z "$VERSION_CHECK_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load version_check.sh" >&2
+VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
+if [ -z "$VERSION_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load version.sh" >&2
   exit 1
 fi
 
@@ -116,7 +116,7 @@ function _install_blueprint() {
         if [ -w "$install_dir" ]; then
           break
         else
-          echo ">>> ERROR: You don't have write permissions for $install_dir, specify a differente directory" >&2
+          echo ">>> ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
         fi
       done
 
@@ -160,7 +160,7 @@ function _check_for_update() {
   # shellcheck disable=SC2155
   local choice=$(choose_service services)
 
-  ("$VERSION_CHECK_SCRIPT" "$choice")
+  ("$VERSION_SCRIPT" "$choice" --compare)
 }
 
 function _create_backup() {

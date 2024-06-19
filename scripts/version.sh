@@ -12,9 +12,10 @@
 ################################################################################
 
 # Params
-if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+if [ $# -eq 1 ]; then
+  echo ">>> ERROR: Missing arguments" >&2
+  echo "./${0##*/} \"BLUEPRINT\" [--compare | --installed | --latest]" >&2
+  exit 2
 fi
 
 # Check for KGSM_ROOT env variable
@@ -56,6 +57,32 @@ source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 # shellcheck disable=SC1090
 source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
+COMPARE_WITH_INSTALLED_VERSION=0
+PRINT_INSTALLED_VERSION=0
+GET_LATEST_VERSION=0
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$2" in
+  --compare)
+    COMPARE_WITH_INSTALLED_VERSION=1
+    shift
+    ;;
+  --installed)
+    PRINT_INSTALLED_VERSION=1
+    shift
+    ;;
+  --latest)
+    GET_LATEST_VERSION=1
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
+
 function func_get_latest_version() {
   steamcmd_get_latest_version
 }
@@ -63,11 +90,33 @@ function func_get_latest_version() {
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$BLUEPRINT" || exit 1
 
-func_get_latest_version
+if [ "$PRINT_INSTALLED_VERSION" -eq 1 ]; then
+  echo -n "$SERVICE_INSTALLED_VERSION"
+  exit 0
+fi
 
-# Check if not empty
-if [ -n "$latest_version" ]; then
-  echo "$latest_version" | tr -d '\n'
-else
-  exit 1
+if [ "$COMPARE_WITH_INSTALLED_VERSION" -eq 1 ]; then
+  latest_version=$(func_get_latest_version)
+
+  # Check if not empty
+  if [ -n "$latest_version" ]; then
+    if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
+      exit 1
+    fi
+  else
+    exit 1
+  fi
+
+  echo -n "$latest_version"
+fi
+
+if [ "$GET_LATEST_VERSION" -eq 1 ]; then
+  latest_version=$(func_get_latest_version)
+
+  # Check if not empty
+  if [ -n "$latest_version" ]; then
+    echo -n "$latest_version"
+  else
+    exit 1
+  fi
 fi
