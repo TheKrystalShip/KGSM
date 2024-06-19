@@ -63,13 +63,14 @@ function steamcmd_get_latest_version() {
     +app_info_print "$SERVICE_APP_ID" \
     +quit)
 
-  # Look for the "Redirecting stderr to [...]" in the output
-  local stderr_redirect_found=$(echo "$command_output" | grep -oP "(?<=Redirecting stderr to ').*?(?=')")
+  # https://github.com/ValveSoftware/steam-for-linux/issues/10975
+  # # Look for the "Redirecting stderr to [...]" in the output
+  # local stderr_redirect_found=$(echo "$command_output" | grep -oP "(?<=Redirecting stderr to ').*?(?=')")
 
-  # If it finds the redirect match, read the contents of the file
-  if [ -n "$stderr_redirect_found" ]; then
-    command_output=$(<"$stderr_redirect_found")
-  fi
+  # # If it finds the redirect match, read the contents of the file
+  # if [ -n "$stderr_redirect_found" ]; then
+  #   command_output=$(<"$stderr_redirect_found")
+  # fi
 
   # If the redirect match wasn't found, it means what I'm looking for is already
   # in the $command_output
