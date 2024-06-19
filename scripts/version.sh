@@ -1,21 +1,42 @@
 #!/bin/bash
 
-################################################################################
-# Gets the latest available version of a game
-#
-# INPUT: Service name
-#
-# OUTPUT:
-# - Exit Code 0: New version found, written to STDOUT
-# - Exit Code 1: Error: Empty response was returned
-# - Exit Code X: Other error, check output
-################################################################################
+function usage() {
+  echo "Usage: ./version.sh <blueprint> <option>
+
+Options:
+    blueprint   Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+    --installed   Prints the currently installed version
+
+    --latest      Prints the latest version available
+
+    --compare     Compares the latest version available with
+                  the currently installed version. If the latest
+                  available version is different than the installed
+                  version then it prints it
+
+Exit codes:
+    0: Success / New version was found, written to stdout
+
+    1: Error / No new version found
+
+    2: Other error
+
+Examples:
+    ./version.sh valheim --installed
+
+    ./version.sh terraria --latest
+
+    ./version.sh 7dtd --compare
+"
+}
 
 # Params
-if [ $# -eq 1 ]; then
-  echo ">>> ERROR: Missing arguments" >&2
-  echo "./${0##*/} \"BLUEPRINT\" [--compare | --installed | --latest]" >&2
-  exit 2
+if [ $# -le 1 ]; then
+  usage && exit 2
 fi
 
 # Check for KGSM_ROOT env variable
@@ -43,27 +64,17 @@ trap "echo "" && exit" INT
 
 BLUEPRINT=$1
 
-COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
-STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
-OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-
-# shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
-
-# shellcheck source=/dev/null
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
-
-# shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
-
 COMPARE_WITH_INSTALLED_VERSION=0
 PRINT_INSTALLED_VERSION=0
 GET_LATEST_VERSION=0
 
 #Read the argument values
-while [ $# -gt 0 ]; do
-  case "$2" in
+while [[ "$#" -gt 0 ]]; do
+  case $2 in
+  -h | --help)
+    usage && exit 2
+    shift
+    ;;
   --compare)
     COMPARE_WITH_INSTALLED_VERSION=1
     shift
@@ -82,6 +93,20 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
+OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+
+# shellcheck disable=SC1090
+source "$COMMON_SCRIPT" || exit 1
+
+# shellcheck source=/dev/null
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
+
+# shellcheck disable=SC1090
+source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
 function func_get_latest_version() {
   steamcmd_get_latest_version
