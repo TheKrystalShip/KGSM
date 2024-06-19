@@ -54,15 +54,9 @@ if [ -z "$UPDATE_SCRIPT" ]; then
   exit 1
 fi
 
-CREATE_BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_backup.sh)"
-if [ -z "$CREATE_BACKUP_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_backup.sh" >&2
-  exit 1
-fi
-
-RESTORE_BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name restore_backup.sh)"
-if [ -z "$RESTORE_BACKUP_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load restore_backup.sh" >&2
+BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
+if [ -z "$BACKUP_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load backup.sh" >&2
   exit 1
 fi
 
@@ -73,19 +67,14 @@ if [ -z "$UNINSTALL_SCRIPT" ]; then
 fi
 
 function _create_blueprint() {
-  title="KGSM - Create blueprint - v$VERSION"
-
-  echo "$title"
+  echo "KGSM - Create blueprint - v$VERSION"
 
   ("$CREATE_BLUEPRINT_SCRIPT")
 }
 
 function _install_blueprint() {
-  title="KGSM - Install blueprint - v$VERSION"
-  prompt="Choose a blueprint:"
-
-  echo "$title"
-  PS3="$prompt "
+  echo "KGSM - Install blueprint - v$VERSION"
+  PS3="Choose a blueprint: "
 
   declare -a blueprints
   get_blueprints blueprints
@@ -102,6 +91,7 @@ function _install_blueprint() {
     else
 
       local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$blueprint"
+      # shellcheck disable=SC2155
       local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
       local install_dir=""
 
@@ -150,91 +140,58 @@ function _install_blueprint() {
 }
 
 function _run_install() {
-  title="KGSM - Install - v$VERSION"
-
-  echo "$title"
+  echo "KGSM - Install - v$VERSION"
 
   declare -a services
   get_services services
 
+  # shellcheck disable=SC2155
   local choice=$(choose_service services)
 
   ("$UPDATE_SCRIPT" "$choice")
 }
 
 function _check_for_update() {
-  title="KGSM - Check for update - v$VERSION"
-
-  echo "$title"
+  echo "KGSM - Check for update - v$VERSION"
 
   declare -a services
   get_installed_services services
 
+  # shellcheck disable=SC2155
   local choice=$(choose_service services)
 
   ("$VERSION_CHECK_SCRIPT" "$choice")
 }
 
 function _create_backup() {
-  title="KGSM - Create backup - v$VERSION"
-  prompt="Choose a service:"
-
-  echo "$title"
-  PS3="$prompt "
+  echo "KGSM - Create backup - v$VERSION"
+  PS3="Choose a service: "
 
   declare -a services
   get_installed_services services
 
+  # shellcheck disable=SC2155
   local choice=$(choose_service services)
-  if [ "$choice" = "-1" ]; then return; fi
 
-  ("$CREATE_BACKUP_SCRIPT" "$choice")
+  ("$BACKUP_SCRIPT" "$choice" --create)
 }
 
 function _restore_backup() {
-  title="KGSM - Restore backup - v$VERSION"
-  prompt="Choose a service:"
-
-  echo "$title"
-  PS3="$prompt "
+  echo "KGSM - Restore backup - v$VERSION"
+  PS3="Choose a service: "
 
   declare -a services
   get_services services
 
-  local service=$(choose_service services)
+  # shellcheck disable=SC2155
+  local choice=$(choose_service services)
 
-  # TODO: local service_backup_dir="${services[$service]}/backups"
-
-  shopt -s extglob nullglob
-
-  prompt="Choose a backup to restore:"
-  # Create array
-  backups_array=("$service_backup_dir"/*)
-  # remove leading $BLUEPRINTS_SOURCE_DIR:
-  backups_array=("${backups_array[@]#"$service_backup_dir/"}")
-
-  if ((${#backups_array[@]} < 1)); then
-    printf 'No backups found. Exiting.\n'
-    return
-  fi
-
-  select backup in "${backups_array[@]}"; do
-    if [[ -z $backup ]]; then
-      echo "Didn't understand \"$REPLY\" " >&2
-      REPLY=
-    else
-      "$RESTORE_BACKUP_SCRIPT" "$service" "$backup"
-      return
-    fi
-  done
+  ("$BACKUP_SCRIPT" "$choice" --restore)
 }
 
 function _uninstall() {
-  title="KGSM - Uninstall - v$VERSION"
-  prompt="Choose a service:"
-
-  echo "$title"
-  PS3="$prompt "
+  echo "KGSM - Uninstall - v$VERSION"
+  PS3="Choose a service: "
 
   declare -a services
   get_installed_services services
@@ -244,6 +201,7 @@ function _uninstall() {
     return
   fi
 
+  # shellcheck disable=SC2155
   local choice=$(choose_service services)
 
   ("$UNINSTALL_SCRIPT" "$choice")
@@ -280,7 +238,9 @@ function get_services() {
   get_blueprints blueprints
 
   for bp in "${blueprints[@]}"; do
+    # shellcheck disable=SC2002
     service_name=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+    # shellcheck disable=SC2002
     service_working_dir=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
 
     # If there's no $service_working_dir, skip
@@ -293,6 +253,7 @@ function get_services() {
 }
 
 function get_installed_services() {
+  # shellcheck disable=SC2178
   local -n ref_services_array=$1
   declare -a blueprints=()
   get_blueprints blueprints
@@ -324,13 +285,9 @@ function get_installed_services() {
 }
 
 function init() {
-  title="KGSM - Main menu - v$VERSION"
-  subtitle="Press CTRL+C to exit at any time."
-  prompt="Choose an action:"
-
-  echo "$title"
-  echo "$subtitle"
-  PS3="$prompt "
+  echo "KGSM - Main menu - v$VERSION"
+  echo "Press CTRL+C to exit at any time."
+  PS3="Choose an action: "
 
   declare -A services=()
   get_installed_services services

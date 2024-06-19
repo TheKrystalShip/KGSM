@@ -22,19 +22,6 @@
 #                               into SERVICE_INSTALL_DIR, do any more cleanup
 #                               that couldn't be done by func_download.
 #
-# func_create_backup            The default implementation will simply move all
-#                               content from SERVICE_INSTALL_DIR into a new
-#                               directory created under SERVICE_BACKUPS_DIR.
-#                               The naming of the new directory is not used for
-#                               any sort of automation, so it can be set to
-#                               anything, but it should be descriptive enough
-#                               to understand when the backup was made and what
-#                               it contains.
-#
-# func_restore_backup           Responsible for restoring an existing backup
-#                               back into a functioning state, and moved into
-#                               SERVICE_INSTALL_DIR ready to use.
-#
 # func_setup                    Will set up any system config needed in order to
 #                               run the service, like systemd files, firewall
 #                               rules or anything else that's needed.
@@ -116,29 +103,6 @@ function func_download() {
 #   local source=$1
 #   local dest=$2
 #   return 0
-# }
-
-# INPUT:
-# - $1: Source directory, absolute path
-# - $2: Destination directory, absolute path. Create subdirectory in here
-#
-# OUTPUT:
-# - 0: Success
-# - 1: Error
-# - 2: Skipped, not error
-# function func_create_backup() {
-#   local source=$1
-#   local dest=$2
-#   return 0
-# }
-
-# INPUT:
-# - $1: Name of the backup directory to restore, not a path
-#
-# OUTPUT:
-# - void
-# function func_restore_backup() {
-#
 # }
 
 # INPUT:

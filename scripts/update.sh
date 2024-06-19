@@ -50,7 +50,7 @@ BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
 VERSION_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name version.sh)"
 DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
-CREATE_BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name create_backup.sh)"
+BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
 
 # shellcheck disable=SC1090
@@ -158,7 +158,7 @@ function func_main() {
   printf "\n\tCreating backup of current version\n\n"
   sleep 1
 
-  if ! "$CREATE_BACKUP_SCRIPT_FILE" "$SERVICE_NAME"; then
+  if ! "$BACKUP_SCRIPT_FILE" "$SERVICE_NAME" --create; then
     func_exit_error ">>> ERROR: Failed to create backup, exiting"
   fi
 

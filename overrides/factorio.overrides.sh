@@ -22,19 +22,6 @@
 #                               into SERVICE_INSTALL_DIR, do any more cleanup
 #                               that couldn't be done by func_download.
 #
-# func_create_backup            The default implementation will simply move all
-#                               content from SERVICE_INSTALL_DIR into a new
-#                               directory created under SERVICE_BACKUPS_DIR.
-#                               The naming of the new directory is not used for
-#                               any sort of automation, so it can be set to
-#                               anything, but it should be descriptive enough
-#                               to understand when the backup was made and what
-#                               it contains.
-#
-# func_restore_backup           Responsible for restoring an existing backup
-#                               back into a functioning state, and moved into
-#                               SERVICE_INSTALL_DIR ready to use.
-#
 # func_setup                    Will set up any system config needed in order to
 #                               run the service, like systemd files, firewall
 #                               rules or anything else that's needed.
