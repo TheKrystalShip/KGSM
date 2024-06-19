@@ -38,8 +38,24 @@ if [ ! -f "$BLUEPRINT_FILE" ]; then
   exit 1
 fi
 
+COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+
 # shellcheck disable=SC1090
-source "$BLUEPRINT_FILE"
+source "$COMMON_SCRIPT" || exit 1
+
+# shellcheck disable=SC1090
+source "$BLUEPRINT_FILE" || exit 1
+
+export SERVICE_NAME
+export SERVICE_WORKING_DIR
+export SERVICE_APP_ID
+export SERVICE_STEAM_AUTH_LEVEL
+
+# shellcheck disable=SC2155
+export IS_STEAM_GAME=$(
+  ! [ "$SERVICE_APP_ID" != "0" ]
+  echo $?
+)
 
 export SERVICE_BACKUPS_DIR="$SERVICE_WORKING_DIR/backups"
 export SERVICE_CONFIG_DIR="$SERVICE_WORKING_DIR/config"
@@ -52,26 +68,11 @@ export SERVICE_MANAGE_SCRIPT_FILE="$SERVICE_WORKING_DIR/${SERVICE_NAME}.manage.s
 export SERVICE_VERSION_FILE="$SERVICE_WORKING_DIR/${SERVICE_NAME}.version"
 export SERVICE_SOCKET_FILE="$SERVICE_WORKING_DIR/${SERVICE_NAME}.in"
 
-export SYSTEMD_DIR="/etc/systemd/system"
 export SERVICE_SYSTEMD_SERVICE_FILE="$SYSTEMD_DIR/${SERVICE_NAME}.service"
 export SERVICE_SYSTEMD_SOCKET_FILE="$SYSTEMD_DIR/${SERVICE_NAME}.socket"
-
-export UFW_DIR="/etc/ufw/applications.d"
 export SERVICE_UFW_FIREWALL_FILE="$UFW_DIR/kgsm-${SERVICE_NAME}"
-
-export SERVICE_NAME
-export SERVICE_WORKING_DIR
 
 export SERVICE_INSTALLED_VERSION="0"
 if [ -f "$SERVICE_VERSION_FILE" ]; then
   SERVICE_INSTALLED_VERSION=$(cat "$SERVICE_VERSION_FILE")
 fi
-
-export SERVICE_APP_ID
-export SERVICE_STEAM_AUTH_LEVEL
-
-# shellcheck disable=SC2155
-export IS_STEAM_GAME=$(
-  ! [ "$SERVICE_APP_ID" != "0" ]
-  echo $?
-)

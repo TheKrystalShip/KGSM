@@ -39,3 +39,11 @@ export SCRIPTS_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name scripts)"
 # "Library" scripts are stored here
 # shellcheck disable=SC2155
 export SCRIPTS_INCLUDE_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name include)"
+
+###### System directories
+
+# Systemd directory where .service files will be created
+export SYSTEMD_DIR="/etc/systemd/system"
+
+# UFW directory where firewall rule files will be created
+export UFW_DIR="/etc/ufw/applications.d"
