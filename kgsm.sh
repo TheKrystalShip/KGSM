@@ -23,7 +23,7 @@ if [ -z "$KGSM_ROOT" ]; then
 fi
 
 # Trap CTRL-C
-trap exit INT
+trap "echo "" && exit" INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 

@@ -39,7 +39,7 @@ if [ -z "$KGSM_ROOT" ]; then
 fi
 
 # Trap CTRL-C
-trap exit INT
+trap "echo "" && exit" INT
 
 BLUEPRINT=$1
 
