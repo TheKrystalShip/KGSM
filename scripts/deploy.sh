@@ -1,10 +1,41 @@
 #!/bin/bash
 
-# Params
+function usage() {
+  echo "Moves the content of \$SERVICE_TEMP_DIR into \$SERVICE_INSTALL_DIR
+
+Usage:
+    ./deploy.sh <blueprint>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+Examples:
+    ./deploy.sh valheim
+
+    ./deploy.sh terraria
+"
+}
+
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+  usage && exit 1
 fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then

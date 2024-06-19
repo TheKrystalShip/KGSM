@@ -1,9 +1,35 @@
 #!/bin/bash
 
+function usage() {
+  echo "Scaffolds the necessary directory structure for a blueprint on
+installation.
+Removes the directory structure on uninstall.
+
+Usage:
+    ./directory.sh <blueprint> <option>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+    --install     Generates the directory structure for
+                  the specified blueprint
+
+    --uninstall   Removes the directory structure for
+                  the specified blueprint
+
+Examples:
+    ./directory.sh valheim --install
+
+    ./directory.sh terraria --uninstall
+"
+}
+
 # Params
-if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\" [--install | --uninstall]" >&2
-  exit 1
+if [ $# -le 1 ]; then
+  usage && exit 1
 fi
 
 # Check for KGSM_ROOT env variable
@@ -68,6 +94,10 @@ function _uninstall() {
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$2" in
+  -h | --help)
+    usage && exit 1
+    shift
+    ;;
   --install)
     _install
     shift

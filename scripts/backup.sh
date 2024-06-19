@@ -1,10 +1,36 @@
 #!/bin/bash
 
+function usage() {
+  echo "Creates or restores backups
+
+Usage:
+    ./backup.sh <blueprint> <option>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+    --create      Creates a new backup for the specified blueprint
+
+    --restore     If no backup is specified, it will prompt the user
+                  with a list of available backups for the blueprint.
+                  Alternatively a backup name can be specified after
+                  this argument
+
+Examples:
+    ./backup.sh valheim --create
+
+    ./backup.sh terraria --restore
+
+    ./backup.sh 7dtd --restore 7dtd-12966454-2024-05-2011:07:50.backup
+"
+}
+
 # Params
-if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied." >&2
-  echo "Run script like this: ./${0##*/} \"BLUEPRINT\" [--create | --restore]" >&2
-  exit 1
+if [ $# -le 1 ]; then
+  usage && exit 1
 fi
 
 # Check for KGSM_ROOT env variable
@@ -143,6 +169,10 @@ function _restore() {
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$2" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
   --create)
     _create
     shift

@@ -1,9 +1,45 @@
 #!/bin/bash
 
+function usage() {
+  echo "Creates a \$SERVICE_NAME.manage.sh file that's tasked with
+starting, stopping and interacting with the service input socket.
+
+The file will be generated from a generic template that can be found
+in \$TEMPLATES_SOURCE_DIR, and created inside of \$SERVICE_WORKING_DIR
+
+Usage:
+    ./create_manage_file.sh <blueprint>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+Examples:
+    ./create_manage_file.sh valheim
+
+    ./create_manage_file.sh terraria
+"
+}
+
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+  usage && exit 1
 fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then

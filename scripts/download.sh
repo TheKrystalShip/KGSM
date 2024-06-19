@@ -1,10 +1,43 @@
 #!/bin/bash
 
-# Params
+function usage() {
+  echo "Will download a server into \$SERVICE_TEMP_DIR
+It will look for an override if it's available, otherwise it will use the
+default SteamCMD download.
+
+Usage:
+    ./download.sh <blueprint>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+Examples:
+    ./download.sh valheim
+
+    ./download.sh terraria
+"
+}
+
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+  usage && exit 1
 fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then

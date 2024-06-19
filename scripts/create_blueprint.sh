@@ -1,5 +1,40 @@
 #!/bin/bash
 
+function usage() {
+  echo "Creates a new blueprint. It will prompt the user to input
+the required fields one by one until the blueprint is finished, at
+which point it can be found in \$BLUEPRINTS_SOURCE_DIR under the
+same name the user input when prompted.
+
+Usage:
+    ./create_blueprint.sh [option]
+
+Options:
+    -h --help     Prints this message
+
+Examples:
+    ./create_blueprint.sh
+"
+}
+
+if [ $# -eq 1 ]; then
+  usage && exit 1
+fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2

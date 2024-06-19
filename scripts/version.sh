@@ -1,10 +1,15 @@
 #!/bin/bash
 
 function usage() {
-  echo "Usage: ./version.sh <blueprint> <option>
+  echo "Used to fetch different version information for a service.
+It can be used to read the locally installed version, fetch the latest available
+and/or compare the two to determine if an update is available.
+
+Usage:
+    ./version.sh <blueprint> <option>
 
 Options:
-    blueprint   Name of the blueprint file.
+    blueprint     Name of the blueprint file.
                   The .bp extension in the name is optional
 
     -h --help     Prints this message

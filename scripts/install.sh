@@ -1,9 +1,45 @@
 #!/bin/bash
 
+function usage() {
+  echo "Runs the install process for a given blueprint.
+It will generate the directory structure, the systemd *.service and *.socket
+files, the UFW firewall rule, generate the \$SERVICE_NAME.manage.sh script file
+and (if it exists) the \$SERVICE_NAME.overrides.sh file.
+This creates the necessary infrastructure scaffolding for a blueprint.
+
+Usage:
+    ./install.sh <blueprint>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+Examples:
+    ./install.sh valheim
+
+    ./install.sh terraria
+"
+}
+
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+  usage && exit 1
 fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then

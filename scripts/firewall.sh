@@ -1,13 +1,42 @@
 #!/bin/bash
 
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root" >&2
-  exit 1
-fi
+function usage() {
+  echo "Creates the required UFW firewall rule file and enables said rule on
+installation.
+Will remove the rule and file on uninstall.
+
+Usage:
+    Must be called with root privilages
+    sudo ./firewall.sh <blueprint> <option>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+    --install     Generates the firewall rule file for
+                  the specified blueprint and enables said
+                  rule in UFW
+
+    --uninstall   Removes the firewall rule file for
+                  the specified blueprint and also disables
+                  said rule from UFW
+
+Examples:
+    sudo ./firewall.sh valheim --install
+
+    sudo ./firewall.sh terraria --uninstall
+"
+}
 
 # Params
-if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\" [--install | --uninstall]" >&2
+if [ $# -le 1 ]; then
+  usage && exit 1
+fi
+
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root" >&2
   exit 1
 fi
 
@@ -97,6 +126,10 @@ function _uninstall() {
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$2" in
+  -h | --help)
+    usage && exit
+    shift
+    ;;
   --install)
     _install
     shift

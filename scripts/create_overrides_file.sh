@@ -1,9 +1,45 @@
 #!/bin/bash
 
+function usage() {
+  echo "Copies (if it exists) a \$SERVICE_NAME.overrides.sh file into
+\$SERVICE_WORKING_DIR that will be used to override some functions when
+called from different scripts.
+More information about the specific functions
+can be found under \$TEMPLATES_SOURCE_DIR/overrides.tp
+
+Usage:
+    ./create_override_file.sh <blueprint>
+
+Options:
+    blueprint     Name of the blueprint file.
+                  The .bp extension in the name is optional
+
+    -h --help     Prints this message
+
+Examples:
+    ./create_override_file.sh valheim
+
+    ./create_override_file.sh terraria
+"
+}
+
 if [ $# -eq 0 ]; then
-  echo ">>> ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-  exit 1
+  usage && exit 1
 fi
+
+#Read the argument values
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -h | --help)
+    usage && exit 0
+    shift
+    ;;
+  *)
+    shift
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
