@@ -2,6 +2,60 @@
 
 VERSION="0.1"
 
+function usage() {
+  echo "Krystal Game Server Manager - v$VERSION
+Used to create, install and manage game servers on Linux.
+
+All of this is achieved through a series of script files found under
+\$KGSM_ROOT/scripts; they can be executed manually by themselves if needed but
+this script aims to bundle together some of the more common uses and present
+them in a simple way through an interactive terminal menu system.
+
+Most of the menu options are interactive and they might require user input at
+various steps, as so this script is not meant to be ran programatically and
+instead a user should be present when interacting with the script.
+
+Usage:
+    ./kgsm.sh [-h | --help]
+
+Menu options:
+    Add blueprint       Create a new blueprint file. It will be stored under
+                        \$KGSM_ROOT/blueprints.
+                        It will prompt for input on various details regarding
+                        the blueprint.
+
+    Install             Run the installation process for an existing blueprint.
+                        It will only prompt for input if there's any issues
+                        during the install process.
+
+    Check for update    Check if a new version of a server is available.
+                        It will print if a new version is found, otherwise
+                        it will fail with exit code 1.
+
+    Update              Runs a version check for a new version, creates a backup
+                        of the currently installed version, downloads the new
+                        version and deploys it.
+                        Highly interactive since it has to run through multiple
+                        different steps.
+
+    Create backup       Creates a backup of a server. It will output the full
+                        path to the newly created backup directory.
+
+    Restore Backup      Restores a backup of a server
+                        It will prompt to select a backup to restore and
+                        also if the current installation directory of the
+                        server is not empty.
+
+    Uninstall           Runs the uninstall process for a server. Warning: This
+                        will remove everything other than the blueprint file
+                        the server is based on.
+"
+}
+
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+  usage && exit 0
+fi
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
@@ -30,6 +84,36 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
+DIRECTORY_SCRIPT="$(find "$KGSM_ROOT" -type f -name directory.sh)"
+if [ -z "$DIRECTORY_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load directory.sh" >&2
+  exit 1
+fi
+
+SYSTEMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name systemd.sh)"
+if [ -z "$SYSTEMD_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load systemd.sh" >&2
+  exit 1
+fi
+
+FIREWALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name firewall.sh)"
+if [ -z "$FIREWALL_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load firewall.sh" >&2
+  exit 1
+fi
+
+CREATE_MANAGE_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_manage_file.sh)"
+if [ -z "$CREATE_MANAGE_FILE_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load create_manage_file.sh" >&2
+  exit 1
+fi
+
+CREATE_OVERRIDES_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_overrides_file.sh)"
+if [ -z "$CREATE_OVERRIDES_FILE_SCRIPT" ]; then
+  echo ">>> ERROR: Failed to load create_overrides_file.sh" >&2
+  exit 1
+fi
+
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
 if [ -z "$VERSION_SCRIPT" ]; then
   echo ">>> ERROR: Failed to load version.sh" >&2
@@ -42,12 +126,6 @@ if [ -z "$CREATE_BLUEPRINT_SCRIPT" ]; then
   exit 1
 fi
 
-INSTALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name install.sh)"
-if [ -z "$INSTALL_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load install.sh" >&2
-  exit 1
-fi
-
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
 if [ -z "$UPDATE_SCRIPT" ]; then
   echo ">>> ERROR: Failed to load update.sh" >&2
@@ -57,12 +135,6 @@ fi
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 if [ -z "$BACKUP_SCRIPT" ]; then
   echo ">>> ERROR: Failed to load backup.sh" >&2
-  exit 1
-fi
-
-UNINSTALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name uninstall.sh)"
-if [ -z "$UNINSTALL_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load uninstall.sh" >&2
   exit 1
 fi
 
@@ -120,6 +192,11 @@ function _install_blueprint() {
         fi
       done
 
+      # IMPORTANT
+      # Once the installation directory has been established, it is essential
+      # that it gets saved into the blueprint itself because all other scripts
+      # expect the blueprint to have a $SERVICE_WORKING_DIR variable
+
       # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
       if cat "$blueprint_abs_path" | grep -q "SERVICE_WORKING_DIR="; then
         sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
@@ -132,8 +209,19 @@ function _install_blueprint() {
         } >>"$blueprint_abs_path"
       fi
 
-      ("$INSTALL_SCRIPT" "$blueprint")
-      ("$UPDATE_SCRIPT" "$service_name")
+      # First create directory structure
+      "$DIRECTORY_SCRIPT" "$blueprint" --install
+      # Create systemd file
+      sudo "$SYSTEMD_SCRIPT" "$blueprint" --install
+      # Create firewall rule file and enable rule
+      sudo "$FIREWALL_SCRIPT" "$blueprint" --install
+      # Create entrypoint
+      "$CREATE_MANAGE_FILE_SCRIPT" "$blueprint"
+      # Create overrides if any exist
+      "$CREATE_OVERRIDES_FILE_SCRIPT" "$blueprint"
+      # Run the download process
+      "$UPDATE_SCRIPT" "$blueprint"
+
       return
     fi
   done
@@ -204,7 +292,12 @@ function _uninstall() {
   # shellcheck disable=SC2155
   local choice=$(choose_service services)
 
-  ("$UNINSTALL_SCRIPT" "$choice")
+  # Remove directory structure
+  "$DIRECTORY_SCRIPT" "$choice" --uninstall || exit 1
+  # Remove systemd files
+  sudo "$SYSTEMD_SCRIPT" "$choice" --uninstall || exit 1
+  # Remove UFW firewall rule and file
+  sudo "$FIREWALL_SCRIPT" "$choice" --uninstall || exit 1
 }
 
 function choose_service() {
@@ -285,28 +378,32 @@ function get_installed_services() {
 }
 
 function init() {
-  echo "KGSM - Main menu - v$VERSION"
-  echo "Press CTRL+C to exit at any time."
+  echo "KGSM - Main menu - v$VERSION
+Start the script with -h or --help to see a detailed description
+of each menu option
+Press CTRL+C to exit at any time.
+"
+
   PS3="Choose an action: "
 
   declare -A services=()
   get_installed_services services
 
   declare -a menu_options=(
-    "Create new blueprint"
+    "Add blueprint"
     "Install"
-    "Run Install"
     "Check for update"
+    "Update"
     "Create backup"
     "Restore backup"
     "Uninstall"
   )
 
   declare -A menu_options_functions=(
-    ["Create new blueprint"]=_create_blueprint
+    ["Add blueprint"]=_create_blueprint
     ["Install"]=_install_blueprint
-    ["Run Install"]=_run_install
     ["Check for update"]=_check_for_update
+    ["Update"]=_run_install
     ["Create backup"]=_create_backup
     ["Restore backup"]=_restore_backup
     ["Uninstall"]=_uninstall
