@@ -6,31 +6,44 @@ installation.
 Removes the directory structure on uninstall.
 
 Usage:
-    ./directory.sh <blueprint> <option>
+    ./${0##*/} [-b | --blueprint] <bp> <option>
 
 Options:
-    blueprint     Name of the blueprint file.
-                  The .bp extension in the name is optional
+    -b --blueprint <bp>   Name of the blueprint file.
+                          The .bp extension in the name is optional
 
-    -h --help     Prints this message
+    -h --help             Prints this message
 
-    --install     Generates the directory structure for
-                  the specified blueprint
+    --install             Generates the directory structure for
+                          the specified blueprint
 
-    --uninstall   Removes the directory structure for
-                  the specified blueprint
+    --uninstall           Removes the directory structure for
+                          the specified blueprint
 
 Examples:
-    ./directory.sh valheim --install
+    ./${0##*/} -b valheim --install
 
-    ./directory.sh terraria --uninstall
+    ./${0##*/} --blueprint terraria --uninstall
 "
 }
 
-# Params
-if [ $# -le 1 ]; then
-  usage && exit 1
-fi
+if [ "$#" -eq 0 ]; then usage && exit 1; fi
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    shift
+    BLUEPRINT=$1
+    shift
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -54,8 +67,6 @@ fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
-
-BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
@@ -92,11 +103,7 @@ function _uninstall() {
 
 #Read the argument values
 while [ $# -gt 0 ]; do
-  case "$2" in
-  -h | --help)
-    usage && exit 1
-    shift
-    ;;
+  case "$1" in
   --install)
     _install
     shift
@@ -106,7 +113,8 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   *)
-    shift
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
     ;;
   esac
   shift

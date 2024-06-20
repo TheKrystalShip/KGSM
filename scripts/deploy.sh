@@ -4,24 +4,39 @@ function usage() {
   echo "Moves the content of \$SERVICE_TEMP_DIR into \$SERVICE_INSTALL_DIR
 
 Usage:
-    ./deploy.sh <blueprint>
+    ./${0##*/} [-b | --blueprint] <bp>
 
 Options:
-    blueprint     Name of the blueprint file.
-                  The .bp extension in the name is optional
+    -b --blueprint <bp>   Name of the blueprint file.
+                          The .bp extension in the name is optional
 
-    -h --help     Prints this message
+    -h --help             Prints this message
 
 Examples:
-    ./deploy.sh valheim
+    ./${0##*/} -b valheim
 
-    ./deploy.sh terraria
+    ./${0##*/} --blueprint terraria
 "
 }
 
-if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-  usage && exit 1
-fi
+if [ "$#" -eq 0 ]; then usage && exit 1; fi
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    shift
+    BLUEPRINT=$1
+    shift
+    ;;
+  *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
+    ;;
+  esac
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -45,8 +60,6 @@ fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
-
-BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"

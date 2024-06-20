@@ -7,21 +7,16 @@ which point it can be found in \$BLUEPRINTS_SOURCE_DIR under the
 same name the user input when prompted.
 
 Usage:
-    ./create_blueprint.sh [option]
+    ./${0##*/} [option]
 
 Options:
     -h --help     Prints this message
 
 Examples:
-    ./create_blueprint.sh
+    ./${0##*/}
 "
 }
 
-if [ $# -eq 1 ]; then
-  usage && exit 1
-fi
-
-#Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
   -h | --help)
@@ -29,7 +24,8 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   *)
-    shift
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
     ;;
   esac
   shift

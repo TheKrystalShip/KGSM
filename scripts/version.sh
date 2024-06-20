@@ -7,7 +7,7 @@ available, compare the two to determine if an update is available and/or
 save a new version for a specific blueprint.
 
 Usage:
-    ./version.sh <blueprint> <option>
+    ./${0##*/} [-b | --blueprint] <bp> <option>
 
 Options:
     -b --blueprint <bp>   Name of the blueprint file, this has to be the first
@@ -35,15 +35,32 @@ Exit codes:
     2: Other error
 
 Examples:
-    ./version.sh -b valheim --installed
+    ./${0##*/} -b valheim --installed
 
-    ./version.sh --blueprint terraria --latest
+    ./${0##*/} --blueprint terraria --latest
 
-    ./version.sh -b 7dtd --compare
+    ./${0##*/} -b 7dtd --compare
 
-    ./version.sh --blueprint minecraft --save 1.20.1
+    ./${0##*/} --blueprint minecraft --save 1.20.1
 "
 }
+
+# Read the argument values
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    shift
+    BLUEPRINT=$1
+    shift
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -76,26 +93,14 @@ OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-function _installed() {
-  # shellcheck source=/dev/null
-  source "$BLUEPRINT_SCRIPT" "$BLUEPRINT"
+# shellcheck source=/dev/null
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
-  echo -n "$SERVICE_INSTALLED_VERSION"
-  return 0
-}
+# shellcheck source=/dev/null
+source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
-function _latest() {
-  # shellcheck disable=SC1090
-  source "$OVERRIDES_SCRIPT" "$BLUEPRINT"
-
-  if [[ $(type -t func_get_latest_version) == function ]]; then
-    latest_version=$(func_get_latest_version)
-  else
-    # shellcheck disable=SC1090
-    source "$STEAMCMD_SCRIPT" "$BLUEPRINT"
-
-    latest_version=$(steamcmd_get_latest_version)
-  fi
+function func_get_latest_version() {
+  latest_version=$(steamcmd_get_latest_version)
 
   # Check if not empty
   if [ -n "$latest_version" ]; then
@@ -108,12 +113,10 @@ function _latest() {
 
 function _compare() {
   # shellcheck disable=SC2155
-  local latest_version=$(_latest)
-  # shellcheck disable=SC2155
-  local installed_version=$(_installed)
+  local latest_version=$(func_get_latest_version)
 
   if [ -n "$latest_version" ]; then
-    if [ "$latest_version" == "$installed_version" ]; then
+    if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
       return 1
     fi
   else
@@ -124,20 +127,8 @@ function _compare() {
   return 0
 }
 
-function _save() {
-  # shellcheck source=/dev/null
-  source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || return 1
-
-  local new_version=$1
-
-  # Save new version to SERVICE_VERSION_FILE
-  if [ ! -f "$SERVICE_VERSION_FILE" ]; then
-    touch "$SERVICE_VERSION_FILE"
-  fi
-
-  echo "$new_version" >"$SERVICE_VERSION_FILE"
-  return 0
-}
+# shellcheck disable=SC1090
+source "$OVERRIDES_SCRIPT" "$BLUEPRINT"
 
 # Initialize return value to 0
 ret=0
@@ -145,34 +136,28 @@ ret=0
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  -h | --help)
-    usage && exit 0
-    ;;
-  -b | --blueprint)
-    BLUEPRINT=$2
-    shift
-    ;;
   --compare)
     _compare || ret=$?
     shift
     ;;
   --installed)
-    _installed || ret=$?
-    shift
+    echo -n "$SERVICE_INSTALLED_VERSION"
+    exit 0
     ;;
   --latest)
-    _latest || ret=$?
+    func_get_latest_version || ret=$?
     shift
     ;;
   --save)
-    _save "$2" || ret=$?
     shift
+    echo "$1" "$1" >"$SERVICE_VERSION_FILE"
+    exit 0
     ;;
   *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
-  shift
 done
 
 # Exit with the appropriate return value

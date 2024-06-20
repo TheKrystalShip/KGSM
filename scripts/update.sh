@@ -23,7 +23,7 @@ After Step 7 a message will be displayed indicating the update was a success
 and it will exit with code 0
 
 Usage:
-    ./update.sh [-b | --blueprint] <blueprint>
+    ./${0##*/} [-b | --blueprint] <bp>
 
 Options:
     -b --blueprint <bp>   Name of the blueprint file, this has to be the first
@@ -31,9 +31,9 @@ Options:
                           (The .bp extension in the name is optional)
 
 Examples:
-    ./update.sh -b valheim
+    ./${0##*/} -b valheim
 
-    ./update.sh --blueprint terraria
+    ./${0##*/} --blueprint terraria
 "
 }
 
@@ -49,6 +49,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     ;;
   *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
@@ -146,7 +147,7 @@ function func_main() {
   func_print_title "2/7 Download"
   printf "\n\tDownloading version %s\n\n" "$latest_version"
 
-  if ! "$DOWNLOAD_SCRIPT_FILE" "$SERVICE_NAME"; then
+  if ! "$DOWNLOAD_SCRIPT_FILE" -b "$SERVICE_NAME"; then
     func_exit_error ">>> ${0##*/} ERROR: Failed to download new version, exiting.\n"
   fi
 
@@ -187,7 +188,7 @@ function func_main() {
   printf "\n\tCreating backup of current version\n\n"
   sleep 1
 
-  if ! "$BACKUP_SCRIPT_FILE" "$SERVICE_NAME" --create; then
+  if ! "$BACKUP_SCRIPT_FILE" -b "$SERVICE_NAME" --create; then
     func_exit_error ">>> ${0##*/} ERROR: Failed to create backup, exiting"
   fi
 
@@ -202,7 +203,7 @@ function func_main() {
   printf "\n\tDeploying %s...\n\n" "$latest_version"
   sleep 1
 
-  if ! "$DEPLOY_SCRIPT_FILE" "$SERVICE_NAME"; then
+  if ! "$DEPLOY_SCRIPT_FILE" -b "$SERVICE_NAME"; then
     func_exit_error ">>> ${0##*/} ERROR: Failed to deploy $latest_version, exiting" "$latest_version"
   fi
 

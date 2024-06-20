@@ -16,7 +16,7 @@ various steps, as so this script is not meant to be ran programatically and
 instead a user should be present when interacting with the script.
 
 Usage:
-    ./kgsm.sh [-h | --help]
+    ./${0##*/} [-h | --help]
 
 Menu options:
     Add blueprint       Create a new blueprint file. It will be stored under
@@ -52,9 +52,18 @@ Menu options:
 "
 }
 
-if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-  usage && exit 0
-fi
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -84,33 +93,15 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-DIRECTORY_SCRIPT="$(find "$KGSM_ROOT" -type f -name directory.sh)"
-if [ -z "$DIRECTORY_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load directory.sh" >&2
+DIRECTORIES_SCRIPT="$(find "$KGSM_ROOT" -type f -name directories.sh)"
+if [ -z "$DIRECTORIES_SCRIPT" ]; then
+  echo ">>> ${0##*/} ERROR: Failed to load directories.sh" >&2
   exit 1
 fi
 
-SYSTEMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name systemd.sh)"
-if [ -z "$SYSTEMD_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load systemd.sh" >&2
-  exit 1
-fi
-
-FIREWALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name firewall.sh)"
-if [ -z "$FIREWALL_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load firewall.sh" >&2
-  exit 1
-fi
-
-CREATE_MANAGE_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_manage_file.sh)"
-if [ -z "$CREATE_MANAGE_FILE_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load create_manage_file.sh" >&2
-  exit 1
-fi
-
-CREATE_OVERRIDES_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_overrides_file.sh)"
-if [ -z "$CREATE_OVERRIDES_FILE_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load create_overrides_file.sh" >&2
+FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name files.sh)"
+if [ -z "$FILES_SCRIPT" ]; then
+  echo ">>> ${0##*/} ERROR: Failed to load files.sh" >&2
   exit 1
 fi
 
@@ -126,6 +117,18 @@ if [ -z "$CREATE_BLUEPRINT_SCRIPT" ]; then
   exit 1
 fi
 
+DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
+if [ -z "$DOWNLOAD_SCRIPT_FILE" ]; then
+  echo ">>> ${0##*/} ERROR: Failed to load download.sh" >&2
+  exit 1
+fi
+
+DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
+if [ -z "$DEPLOY_SCRIPT_FILE" ]; then
+  echo ">>> ${0##*/} ERROR: Failed to load deploy.sh" >&2
+  exit 1
+fi
+
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
 if [ -z "$UPDATE_SCRIPT" ]; then
   echo ">>> ${0##*/} ERROR: Failed to load update.sh" >&2
@@ -138,13 +141,13 @@ if [ -z "$BACKUP_SCRIPT" ]; then
   exit 1
 fi
 
-function _create_blueprint() {
+function _add_blueprint() {
   echo "KGSM - Create blueprint - v$VERSION"
 
   ("$CREATE_BLUEPRINT_SCRIPT")
 }
 
-function _install_blueprint() {
+function _install() {
   echo "KGSM - Install blueprint - v$VERSION"
   PS3="Choose a blueprint: "
 
@@ -156,89 +159,84 @@ function _install_blueprint() {
     return 0
   fi
 
-  select blueprint in "${blueprints[@]}"; do
-    if [[ -z $blueprint ]]; then
-      echo "Didn't understand \"$REPLY\" " >&2
-      REPLY=
-    else
+  # shellcheck disable=SC2155
+  local choice=$(get_choice blueprints)
 
-      local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$blueprint"
-      # shellcheck disable=SC2155
-      local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-      local install_dir=""
+  local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$choice"
+  # shellcheck disable=SC2155
+  local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+  local install_dir=""
 
-      while true; do
-        read -rp "Install directory: " install_dir
+  while true; do
+    read -rp "Install directory: " install_dir
 
-        # If the path doesn't contain the service name, append it
-        if [[ "$install_dir" != *$service_name ]]; then
-          if [[ "$install_dir" == *\/ ]]; then
-            install_dir="${install_dir}${service_name}"
-          else
-            install_dir="$install_dir/$service_name"
-          fi
-        fi
-
-        if [ ! -d "$install_dir" ]; then
-          if ! mkdir -p "$install_dir"; then
-            echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
-            return 1
-          fi
-        fi
-
-        if [ ! -w "$install_dir" ]; then
-          echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
-          return 1
-        fi
-
-        break
-      done
-
-      # IMPORTANT
-      # Once the installation directory has been established, it is essential
-      # that it gets saved into the blueprint itself because all other scripts
-      # expect the blueprint to have a $SERVICE_WORKING_DIR variable
-
-      # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
-      if cat "$blueprint_abs_path" | grep -q "SERVICE_WORKING_DIR="; then
-        sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
-      # Othwewise just append to the blueprint
+    # If the path doesn't contain the service name, append it
+    if [[ "$install_dir" != *$service_name ]]; then
+      if [[ "$install_dir" == *\/ ]]; then
+        install_dir="${install_dir}${service_name}"
       else
-        {
-          echo ""
-          echo "# Directory where service is installed"
-          echo "SERVICE_WORKING_DIR=\"$install_dir\""
-        } >>"$blueprint_abs_path"
+        install_dir="$install_dir/$service_name"
       fi
-
-      # First create directory structure
-      "$DIRECTORY_SCRIPT" "$blueprint" --install || return 1
-      # Create systemd file
-      sudo "$SYSTEMD_SCRIPT" "$blueprint" --install || return 1
-      # Create firewall rule file and enable rule
-      sudo "$FIREWALL_SCRIPT" "$blueprint" --install || return 1
-      # Create entrypoint
-      "$CREATE_MANAGE_FILE_SCRIPT" "$blueprint" || return 1
-      # Create overrides if any exist
-      "$CREATE_OVERRIDES_FILE_SCRIPT" "$blueprint" || return 1
-      # Run the download process
-      "$UPDATE_SCRIPT" "$blueprint" || return 1
-
-      return 0
     fi
+
+    if [ ! -d "$install_dir" ]; then
+      if ! mkdir -p "$install_dir"; then
+        echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+        return 1
+      fi
+    fi
+
+    if [ ! -w "$install_dir" ]; then
+      echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
+      return 1
+    fi
+
+    break
   done
+
+  # IMPORTANT
+  # Once the installation directory has been established, it is essential
+  # that it gets saved into the blueprint itself because all other scripts
+  # expect the blueprint to have a $SERVICE_WORKING_DIR variable
+
+  # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
+  if cat "$blueprint_abs_path" | grep -q "SERVICE_WORKING_DIR="; then
+    sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
+  # Othwewise just append to the blueprint
+  else
+    {
+      echo ""
+      echo "# Directory where service is installed"
+      echo "SERVICE_WORKING_DIR=\"$install_dir\""
+    } >>"$blueprint_abs_path"
+  fi
+
+  # First create directory structure
+  "$DIRECTORIES_SCRIPT" -b "$choice" --install
+  # Create necessary files
+  sudo "$FILES_SCRIPT" -b "$choice" --install
+  # Run the download process
+  "$DOWNLOAD_SCRIPT_FILE" -b "$choice"
+  # Deploy newly downloaded
+  "$DEPLOY_SCRIPT_FILE" -b "$choice"
+  # Save new version
+  "$VERSION_SCRIPT" -b "$choice" --save "$latest_version"
+
+  return 0
 }
 
-function _run_install() {
-  echo "KGSM - Install - v$VERSION"
+function _update() {
+  echo "KGSM - Update - v$VERSION"
 
-  declare -a services
-  get_services services
+  declare -a blueprints
+  get_blueprints blueprints
 
   # shellcheck disable=SC2155
-  local choice=$(choose_service services)
+  local choice=$(get_choice blueprints)
+  # shellcheck disable=SC2155
+  local latest_version=$("$VERSION_SCRIPT" -b "$choice" --latest)
 
-  ("$UPDATE_SCRIPT" "$choice")
+  ("$UPDATE_SCRIPT" -b "$choice")
 }
 
 function _check_for_update() {
@@ -248,9 +246,9 @@ function _check_for_update() {
   get_installed_services services
 
   # shellcheck disable=SC2155
-  local choice=$(choose_service services)
+  local choice=$(get_choice services)
 
-  ("$VERSION_SCRIPT" "$choice" --compare)
+  ("$VERSION_SCRIPT" -b "$choice" --compare)
 }
 
 function _create_backup() {
@@ -261,9 +259,9 @@ function _create_backup() {
   get_installed_services services
 
   # shellcheck disable=SC2155
-  local choice=$(choose_service services)
+  local choice=$(get_choice services)
 
-  ("$BACKUP_SCRIPT" "$choice" --create)
+  ("$BACKUP_SCRIPT" -b "$choice" --create)
 }
 
 function _restore_backup() {
@@ -274,9 +272,9 @@ function _restore_backup() {
   get_services services
 
   # shellcheck disable=SC2155
-  local choice=$(choose_service services)
+  local choice=$(get_choice services)
 
-  ("$BACKUP_SCRIPT" "$choice" --restore)
+  ("$BACKUP_SCRIPT" -b "$choice" --restore)
 }
 
 function _uninstall() {
@@ -292,20 +290,18 @@ function _uninstall() {
   fi
 
   # shellcheck disable=SC2155
-  local choice=$(choose_service services)
+  local choice=$(get_choice services)
 
   # Remove directory structure
-  "$DIRECTORY_SCRIPT" "$choice" --uninstall || return 1
-  # Remove systemd files
-  sudo "$SYSTEMD_SCRIPT" "$choice" --uninstall || return 1
-  # Remove UFW firewall rule and file
-  sudo "$FIREWALL_SCRIPT" "$choice" --uninstall || return 1
+  "$DIRECTORIES_SCRIPT" -b "$choice" --uninstall
+  # Remove files
+  sudo "$FILES_SCRIPT" -b "$choice" --uninstall
 }
 
-function choose_service() {
-  local -n ref_services=$1
+function get_choice() {
+  local -n ref_arr=$1
 
-  select choice in "${ref_services[@]}"; do
+  select choice in "${ref_arr[@]}"; do
     if [[ -z $choice ]]; then
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
@@ -402,10 +398,10 @@ Press CTRL+C to exit at any time.
   )
 
   declare -A menu_options_functions=(
-    ["Add blueprint"]=_create_blueprint
-    ["Install"]=_install_blueprint
+    ["Add blueprint"]=_add_blueprint
+    ["Install"]=_install
     ["Check for update"]=_check_for_update
-    ["Update"]=_run_install
+    ["Update"]=_update
     ["Create backup"]=_create_backup
     ["Restore backup"]=_restore_backup
     ["Uninstall"]=_uninstall

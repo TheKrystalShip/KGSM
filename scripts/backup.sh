@@ -4,34 +4,47 @@ function usage() {
   echo "Creates or restores backups
 
 Usage:
-    ./backup.sh <blueprint> <option>
+    ./${0##*/} [-b | --blueprint] <bp> <option>
 
 Options:
-    blueprint     Name of the blueprint file.
-                  The .bp extension in the name is optional
+    -b --blueprint <bp>   Name of the blueprint file.
+                          The .bp extension in the name is optional
 
-    -h --help     Prints this message
+    -h --help             Prints this message
 
-    --create      Creates a new backup for the specified blueprint
+    --create              Creates a new backup for the specified blueprint
 
-    --restore     If no backup is specified, it will prompt the user
-                  with a list of available backups for the blueprint.
-                  Alternatively a backup name can be specified after
-                  this argument
+    --restore             If no backup is specified, it will prompt the user
+                          with a list of available backups for the blueprint.
+                          Alternatively a backup name can be specified after
+                          this argument
 
 Examples:
-    ./backup.sh valheim --create
+    ./${0##*/} -b valheim --create
 
-    ./backup.sh terraria --restore
+    ./${0##*/} --blueprint terraria --restore
 
-    ./backup.sh 7dtd --restore 7dtd-12966454-2024-05-2011:07:50.backup
+    ./${0##*/} -b 7dtd --restore 7dtd-12966454-2024-05-2011:07:50.backup
 "
 }
 
-# Params
-if [ $# -le 1 ]; then
-  usage && exit 1
-fi
+if [ "$#" -eq 0 ]; then usage && return 1; fi
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    shift
+    BLUEPRINT=$1
+    shift
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -55,8 +68,6 @@ fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
-
-BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
@@ -99,7 +110,6 @@ function _create() {
     echo "${0##*/} WARNING: Failed to reset version in $SERVICE_VERSION_FILE"
   fi
 
-  echo "$output_dir"
   return 0
 }
 
@@ -166,24 +176,30 @@ function _restore() {
   return 0
 }
 
+ret=0
+
 #Read the argument values
 while [ $# -gt 0 ]; do
-  case "$2" in
+  case "$1" in
   -h | --help)
     usage && exit 0
     shift
     ;;
   --create)
-    _create
+    _create || ret=$?
     shift
     ;;
   --restore)
-    _restore "$3"
+    shift
+    _restore "$1" || ret=$?
     shift
     ;;
   *)
-    shift
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
     ;;
   esac
   shift
 done
+
+exit "$ret"

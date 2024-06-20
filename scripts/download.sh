@@ -6,24 +6,49 @@ It will look for an override if it's available, otherwise it will use the
 default SteamCMD download.
 
 Usage:
-    ./download.sh <blueprint>
+    ./${0##*/} [-b | --blueprint] <bp> [-v | --version] <v>
 
 Options:
-    blueprint     Name of the blueprint file.
-                  The .bp extension in the name is optional
+    -b --blueprint <bp>   Name of the blueprint file.
+                          The .bp extension in the name is optional
 
-    -h --help     Prints this message
+    -v --version <v>      Optional: Version number to download.
+                          This feature is not currently used
+
+    -h --help             Prints this message
 
 Examples:
-    ./download.sh valheim
+    ./${0##*/} -b valheim
 
-    ./download.sh terraria
+    ./${0##*/} --blueprint terraria -v 1449
 "
 }
 
-if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-  usage && exit 1
-fi
+if [ "$#" -eq 0 ]; then usage && exit 1; fi
+
+VERSION=0
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    shift
+    BLUEPRINT=$1
+    shift
+    ;;
+  -v | --version)
+    shift
+    VERSION=$1
+    shift
+    ;;
+  *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    usage && exit 1
+    ;;
+  esac
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -47,9 +72,6 @@ fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
-
-BLUEPRINT=$1
-VERSION=${2:-0}
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
