@@ -1,28 +1,59 @@
 #!/bin/bash
 
-################################################################################
-# Script used for updating a game server.
-# Steps:
-#   1. Check if new version is available
-#   2. Download new version in temporary folder
-#   3. Create backup of running version
-#   4. Deploy newly downloaded version
-#   5. Restore service state
-#   6. Update version number in DB
-#
-# INPUT:
-# - Must provide a game name (must match the name in the DB, folder name,
-#   service file name, etc.)
-#
-# OUTPUT:
-# - Exit Code 0: Update successful
-# - Exit Code 1-n: Error, check output
-################################################################################
+function usage() {
+  echo "Runs a full update process for a game server.
+It goes through multiple steps:
+  Step 1: Check if there's a new version available
 
-# Params
-if [ $# == 0 ]; then
-  func_exit_error ">>> ${0##*/} ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
-fi
+  Step 2: Run the download process, either through SteamCMD or through an
+          override if one exists.
+
+  Step 3: It checks if the service might already be running and will shut it
+          down before proceeding
+
+  Step 4: Will create a full backup of the existing installation
+
+  Step 5: Deploys the newly downloaded version
+
+  Step 6: Restores the service if it was running during Step 3
+
+  Step 7: Saves the new version
+
+After Step 7 a message will be displayed indicating the update was a success
+and it will exit with code 0
+
+Usage:
+    ./update.sh [-b | --blueprint] <blueprint>
+
+Options:
+    -b --blueprint <bp>   Name of the blueprint file, this has to be the first
+                          parameter.
+                          (The .bp extension in the name is optional)
+
+Examples:
+    ./update.sh -b valheim
+
+    ./update.sh --blueprint terraria
+"
+}
+
+if [ "$#" -eq 0 ]; then usage && exit 1; fi
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    BLUEPRINT=$2
+    shift
+    ;;
+  *)
+    usage && exit 1
+    ;;
+  esac
+  shift
+done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -43,8 +74,6 @@ if [ -z "$KGSM_ROOT" ]; then
     fi
   fi
 fi
-
-BLUEPRINT=$1
 
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
@@ -91,7 +120,7 @@ function func_main() {
   sleep 1
 
   # shellcheck disable=SC2155
-  local latest_version=$("$VERSION_SCRIPT_FILE" "$SERVICE_NAME" --compare)
+  local latest_version=$("$VERSION_SCRIPT_FILE" -b "$SERVICE_NAME" --latest)
 
   printf "\tInstalled version:\t%s\n" "$SERVICE_INSTALLED_VERSION"
 
@@ -213,13 +242,7 @@ function func_main() {
   sleep 1
 
   # Save new version to SERVICE_VERSION_FILE
-  if [ ! -f "$SERVICE_VERSION_FILE" ]; then
-    touch "$SERVICE_VERSION_FILE"
-  fi
-
-  echo "$latest_version" >"$SERVICE_VERSION_FILE"
-
-  func_print_title "Update finished"
+  "$VERSION_SCRIPT_FILE" -b "$SERVICE_NAME" --save "$latest_version"
 
   return 0
 }

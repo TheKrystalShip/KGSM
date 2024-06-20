@@ -2,26 +2,30 @@
 
 function usage() {
   echo "Used to fetch different version information for a service.
-It can be used to read the locally installed version, fetch the latest available
-and/or compare the two to determine if an update is available.
+It can be used to read the locally installed version, fetch the latest
+available, compare the two to determine if an update is available and/or
+save a new version for a specific blueprint.
 
 Usage:
     ./version.sh <blueprint> <option>
 
 Options:
-    blueprint     Name of the blueprint file.
-                  The .bp extension in the name is optional
+    -b --blueprint <bp>   Name of the blueprint file, this has to be the first
+                          parameter.
+                          (The .bp extension in the name is optional)
 
-    -h --help     Prints this message
+    -h --help             Prints this message
 
-    --installed   Prints the currently installed version
+    --installed           Prints the currently installed version
 
-    --latest      Prints the latest version available
+    --latest              Prints the latest version available
 
-    --compare     Compares the latest version available with
-                  the currently installed version. If the latest
-                  available version is different than the installed
-                  version then it prints it
+    --compare             Compares the latest version available with
+                          the currently installed version. If the latest
+                          available version is different than the installed
+                          version then it prints it
+
+    --save <version>      Save the given version
 
 Exit codes:
     0: Success / New version was found, written to stdout
@@ -31,17 +35,15 @@ Exit codes:
     2: Other error
 
 Examples:
-    ./version.sh valheim --installed
+    ./version.sh -b valheim --installed
 
-    ./version.sh terraria --latest
+    ./version.sh --blueprint terraria --latest
 
-    ./version.sh 7dtd --compare
+    ./version.sh -b 7dtd --compare
+
+    ./version.sh --blueprint minecraft --save 1.20.1
 "
 }
-
-if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-  usage && exit 2
-fi
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
@@ -66,34 +68,6 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-BLUEPRINT=$1
-
-COMPARE_WITH_INSTALLED_VERSION=0
-PRINT_INSTALLED_VERSION=0
-GET_LATEST_VERSION=0
-
-#Read the argument values
-while [[ "$#" -gt 0 ]]; do
-  case $2 in
-  --compare)
-    COMPARE_WITH_INSTALLED_VERSION=1
-    shift
-    ;;
-  --installed)
-    PRINT_INSTALLED_VERSION=1
-    shift
-    ;;
-  --latest)
-    GET_LATEST_VERSION=1
-    shift
-    ;;
-  *)
-    shift
-    ;;
-  esac
-  shift
-done
-
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
@@ -102,46 +76,104 @@ OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-# shellcheck source=/dev/null
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
+function _installed() {
+  # shellcheck source=/dev/null
+  source "$BLUEPRINT_SCRIPT" "$BLUEPRINT"
 
-# shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
-
-function func_get_latest_version() {
-  steamcmd_get_latest_version
+  echo -n "$SERVICE_INSTALLED_VERSION"
+  return 0
 }
 
-# shellcheck disable=SC1090
-source "$OVERRIDES_SCRIPT" "$BLUEPRINT" || exit 1
+function _latest() {
+  # shellcheck disable=SC1090
+  source "$OVERRIDES_SCRIPT" "$BLUEPRINT"
 
-if [ "$PRINT_INSTALLED_VERSION" -eq 1 ]; then
-  echo -n "$SERVICE_INSTALLED_VERSION"
-  exit 0
-fi
-
-if [ "$COMPARE_WITH_INSTALLED_VERSION" -eq 1 ]; then
-  latest_version=$(func_get_latest_version)
-
-  # Check if not empty
-  if [ -n "$latest_version" ]; then
-    if [ "$latest_version" == "$SERVICE_INSTALLED_VERSION" ]; then
-      exit 1
-    fi
+  if [[ $(type -t func_get_latest_version) == function ]]; then
+    latest_version=$(func_get_latest_version)
   else
-    exit 1
+    # shellcheck disable=SC1090
+    source "$STEAMCMD_SCRIPT" "$BLUEPRINT"
+
+    latest_version=$(steamcmd_get_latest_version)
   fi
-
-  echo -n "$latest_version"
-fi
-
-if [ "$GET_LATEST_VERSION" -eq 1 ]; then
-  latest_version=$(func_get_latest_version)
 
   # Check if not empty
   if [ -n "$latest_version" ]; then
     echo -n "$latest_version"
+    return 0
   else
-    exit 1
+    return 1
   fi
-fi
+}
+
+function _compare() {
+  # shellcheck disable=SC2155
+  local latest_version=$(_latest)
+  # shellcheck disable=SC2155
+  local installed_version=$(_installed)
+
+  if [ -n "$latest_version" ]; then
+    if [ "$latest_version" == "$installed_version" ]; then
+      return 1
+    fi
+  else
+    return 1
+  fi
+
+  echo -n "$latest_version"
+  return 0
+}
+
+function _save() {
+  # shellcheck source=/dev/null
+  source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || return 1
+
+  local new_version=$1
+
+  # Save new version to SERVICE_VERSION_FILE
+  if [ ! -f "$SERVICE_VERSION_FILE" ]; then
+    touch "$SERVICE_VERSION_FILE"
+  fi
+
+  echo "$new_version" >"$SERVICE_VERSION_FILE"
+  return 0
+}
+
+# Initialize return value to 0
+ret=0
+
+# Read the argument values
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  -b | --blueprint)
+    BLUEPRINT=$2
+    shift
+    ;;
+  --compare)
+    _compare || ret=$?
+    shift
+    ;;
+  --installed)
+    _installed || ret=$?
+    shift
+    ;;
+  --latest)
+    _latest || ret=$?
+    shift
+    ;;
+  --save)
+    _save "$2" || ret=$?
+    shift
+    ;;
+  *)
+    usage && exit 1
+    ;;
+  esac
+  shift
+done
+
+# Exit with the appropriate return value
+exit $ret

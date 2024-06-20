@@ -64,7 +64,7 @@ source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
 
 # If no version is passed, just fetch the latest
 if [ "$VERSION" -eq 0 ]; then
-  VERSION=$("$VERSION_SCRIPT" "$SERVICE_NAME")
+  VERSION=$("$VERSION_SCRIPT" -b "$SERVICE_NAME" --latest)
 fi
 
 # Calls SteamCMD to handle the download
