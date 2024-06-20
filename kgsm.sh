@@ -58,16 +58,16 @@ fi
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    echo ">>> ${0##*/} ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
@@ -86,55 +86,55 @@ source "$COMMON_SCRIPT" || exit 1
 
 DIRECTORY_SCRIPT="$(find "$KGSM_ROOT" -type f -name directory.sh)"
 if [ -z "$DIRECTORY_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load directory.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load directory.sh" >&2
   exit 1
 fi
 
 SYSTEMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name systemd.sh)"
 if [ -z "$SYSTEMD_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load systemd.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load systemd.sh" >&2
   exit 1
 fi
 
 FIREWALL_SCRIPT="$(find "$KGSM_ROOT" -type f -name firewall.sh)"
 if [ -z "$FIREWALL_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load firewall.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load firewall.sh" >&2
   exit 1
 fi
 
 CREATE_MANAGE_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_manage_file.sh)"
 if [ -z "$CREATE_MANAGE_FILE_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_manage_file.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load create_manage_file.sh" >&2
   exit 1
 fi
 
 CREATE_OVERRIDES_FILE_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_overrides_file.sh)"
 if [ -z "$CREATE_OVERRIDES_FILE_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_overrides_file.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load create_overrides_file.sh" >&2
   exit 1
 fi
 
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
 if [ -z "$VERSION_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load version.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load version.sh" >&2
   exit 1
 fi
 
 CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
 if [ -z "$CREATE_BLUEPRINT_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load create_blueprint.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load create_blueprint.sh" >&2
   exit 1
 fi
 
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
 if [ -z "$UPDATE_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load update.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load update.sh" >&2
   exit 1
 fi
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 if [ -z "$BACKUP_SCRIPT" ]; then
-  echo ">>> ERROR: Failed to load backup.sh" >&2
+  echo ">>> ${0##*/} ERROR: Failed to load backup.sh" >&2
   exit 1
 fi
 
@@ -153,7 +153,7 @@ function _install_blueprint() {
 
   if ((${#blueprints[@]} < 1)); then
     printf 'No blueprints found. Exiting.\n'
-    return
+    return 0
   fi
 
   select blueprint in "${blueprints[@]}"; do
@@ -181,15 +181,17 @@ function _install_blueprint() {
 
         if [ ! -d "$install_dir" ]; then
           if ! mkdir -p "$install_dir"; then
-            echo ">>> ERROR: Failed to create directory $install_dir" >&2
+            echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+            return 1
           fi
         fi
 
-        if [ -w "$install_dir" ]; then
-          break
-        else
-          echo ">>> ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
+        if [ ! -w "$install_dir" ]; then
+          echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
+          return 1
         fi
+
+        break
       done
 
       # IMPORTANT
@@ -210,19 +212,19 @@ function _install_blueprint() {
       fi
 
       # First create directory structure
-      "$DIRECTORY_SCRIPT" "$blueprint" --install
+      "$DIRECTORY_SCRIPT" "$blueprint" --install || return 1
       # Create systemd file
-      sudo "$SYSTEMD_SCRIPT" "$blueprint" --install
+      sudo "$SYSTEMD_SCRIPT" "$blueprint" --install || return 1
       # Create firewall rule file and enable rule
-      sudo "$FIREWALL_SCRIPT" "$blueprint" --install
+      sudo "$FIREWALL_SCRIPT" "$blueprint" --install || return 1
       # Create entrypoint
-      "$CREATE_MANAGE_FILE_SCRIPT" "$blueprint"
+      "$CREATE_MANAGE_FILE_SCRIPT" "$blueprint" || return 1
       # Create overrides if any exist
-      "$CREATE_OVERRIDES_FILE_SCRIPT" "$blueprint"
+      "$CREATE_OVERRIDES_FILE_SCRIPT" "$blueprint" || return 1
       # Run the download process
-      "$UPDATE_SCRIPT" "$blueprint"
+      "$UPDATE_SCRIPT" "$blueprint" || return 1
 
-      return
+      return 0
     fi
   done
 }
@@ -285,7 +287,7 @@ function _uninstall() {
   get_installed_services services
 
   if [ "${#services[@]}" -eq 0 ]; then
-    echo "INFO: No services installed" >&2
+    echo "${0##*/} INFO: No services installed" >&2
     return
   fi
 
@@ -293,11 +295,11 @@ function _uninstall() {
   local choice=$(choose_service services)
 
   # Remove directory structure
-  "$DIRECTORY_SCRIPT" "$choice" --uninstall || exit 1
+  "$DIRECTORY_SCRIPT" "$choice" --uninstall || return 1
   # Remove systemd files
-  sudo "$SYSTEMD_SCRIPT" "$choice" --uninstall || exit 1
+  sudo "$SYSTEMD_SCRIPT" "$choice" --uninstall || return 1
   # Remove UFW firewall rule and file
-  sudo "$FIREWALL_SCRIPT" "$choice" --uninstall || exit 1
+  sudo "$FIREWALL_SCRIPT" "$choice" --uninstall || return 1
 }
 
 function choose_service() {

@@ -75,19 +75,19 @@ function func_download() {
 
   # Download
   if ! wget https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
-    echo ">>> ERROR: wget https://factorio.com/get-download/stable/headless/linux64 -O $output_file"
+    echo ">>> ${0##*/} ERROR: wget https://factorio.com/get-download/stable/headless/linux64 -O $output_file"
     return
   fi
 
   # Extract
   if ! tar -xf "$output_file" --strip-components=1 -C "$dest"; then
-    echo ">>> ERROR: tar -xf $output_file --strip-components=1 -C $dest"
+    echo ">>> ${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest"
     return
   fi
 
   # Remove trailing file
   if ! rm "$output_file"; then
-    echo ">>> ERROR: rm $output_file"
+    echo ">>> ${0##*/} ERROR: rm $output_file"
     return
   fi
 

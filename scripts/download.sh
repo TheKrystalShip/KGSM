@@ -21,36 +21,22 @@ Examples:
 "
 }
 
-if [ $# -eq 0 ]; then
+if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
   usage && exit 1
 fi
 
-#Read the argument values
-while [ $# -gt 0 ]; do
-  case "$1" in
-  -h | --help)
-    usage && exit 0
-    shift
-    ;;
-  *)
-    shift
-    ;;
-  esac
-  shift
-done
-
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    echo ">>> ${0##*/} ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then

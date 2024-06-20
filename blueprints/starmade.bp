@@ -22,7 +22,7 @@ SERVICE_STEAM_AUTH_LEVEL="1"
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-SERVICE_LAUNCH_BIN="$SERVICE_WORKING_DIR/install/dep/java/jre1.7.0_80/bin/java"
+SERVICE_LAUNCH_BIN="java"
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
