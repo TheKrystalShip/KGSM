@@ -12,14 +12,17 @@ A collection of bash scripts used to automate the creation/installation/updating
 
 - For Steam games that require an account, `STEAM_USERNAME` & `STEAM_PASSWORD` environmental variables must be set.
 
+### Optional:
+
+- `KGSM_DEFAULT_INSTALL_DIR` can also be set as a main installation directory to avoid being prompted on every install.
+
+- `KGSM_RABBITMQ_URI` & `KGSM_RABBITMQ_ROUTING_KEY` can be used to send events when services are installed/uninstalled
+
 ## Workflow
 
 Game servers are built from blueprint files (`/blueprints/*.bp`) and optionally override scripts (`/overrides/*.overrides.sh`)
 
-The blueprint file is the source of configuration for the game servers, meaning all configuration will be read from there and scaffolded further.
-Check the existing blueprints for working examples.
-
-The `/scripts/install.sh [BLUEPRINT_NAME]` script will take a blueprint and scaffold all the necessary directories & files needed for a game server.
+The main `kgsm.sh` script file provides a `--help` command that explains how each option works.
 
 # LICENSE
 

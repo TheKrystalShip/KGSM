@@ -165,34 +165,38 @@ function _install() {
   local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$choice"
   # shellcheck disable=SC2155
   local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-  local install_dir=""
+  # KGSM_DEFAULT_INSTALL_DIR is an env var
+  local install_dir="$KGSM_DEFAULT_INSTALL_DIR"
 
-  while true; do
-    read -rp "Install directory: " install_dir
+  # KGSM_DEFAULT_INSTALL_DIR doesn't exist, prompt the user
+  if [ -z "$install_dir" ]; then
+    while true; do
+      read -rp "Install directory: " install_dir
 
-    # If the path doesn't contain the service name, append it
-    if [[ "$install_dir" != *$service_name ]]; then
-      if [[ "$install_dir" == *\/ ]]; then
-        install_dir="${install_dir}${service_name}"
-      else
-        install_dir="$install_dir/$service_name"
+      # If the path doesn't contain the service name, append it
+      if [[ "$install_dir" != *$service_name ]]; then
+        if [[ "$install_dir" == *\/ ]]; then
+          install_dir="${install_dir}${service_name}"
+        else
+          install_dir="$install_dir/$service_name"
+        fi
       fi
-    fi
 
-    if [ ! -d "$install_dir" ]; then
-      if ! mkdir -p "$install_dir"; then
-        echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+      if [ ! -d "$install_dir" ]; then
+        if ! mkdir -p "$install_dir"; then
+          echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+          return 1
+        fi
+      fi
+
+      if [ ! -w "$install_dir" ]; then
+        echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
         return 1
       fi
-    fi
 
-    if [ ! -w "$install_dir" ]; then
-      echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
-      return 1
-    fi
-
-    break
-  done
+      break
+    done
+  fi
 
   # IMPORTANT
   # Once the installation directory has been established, it is essential
@@ -210,6 +214,10 @@ function _install() {
       echo "SERVICE_WORKING_DIR=\"$install_dir\""
     } >>"$blueprint_abs_path"
   fi
+
+  # Get the latest version that's gonna be downloaded
+  # shellcheck disable=SC2155
+  local latest_version=$("$VERSION_SCRIPT" -b "$choice" --latest)
 
   # First create directory structure
   "$DIRECTORIES_SCRIPT" -b "$choice" --install
