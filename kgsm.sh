@@ -222,6 +222,8 @@ function _install() {
   # Save new version
   "$VERSION_SCRIPT" -b "$choice" --save "$latest_version"
 
+  notify_rabbitmq "$choice" 0
+
   return 0
 }
 
@@ -296,6 +298,8 @@ function _uninstall() {
   "$DIRECTORIES_SCRIPT" -b "$choice" --uninstall
   # Remove files
   sudo "$FILES_SCRIPT" -b "$choice" --uninstall
+
+  notify_rabbitmq "$choice" -1
 }
 
 function get_choice() {
@@ -373,6 +377,24 @@ function get_installed_services() {
 
     ref_services_array+=("$service_name")
   done
+}
+
+function notify_rabbitmq() {
+  local service=$1
+  local status=$2
+
+  if ! command -v amqp-publish &>/dev/null; then return 0; fi
+  if [ -z "$KGSM_RABBITMQ_URI" ]; then return 0; fi
+  if [ -z "$KGSM_RABBITMQ_ROUTING_KEY" ]; then return 0; fi
+
+  if [[ "$service" == *.bp ]]; then
+    service=$(cat "$BLUEPRINTS_SOURCE_DIR/$service" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+  fi
+
+  amqp-publish \
+    -uri "$KGSM_RABBITMQ_URI" \
+    -routing-key "$KGSM_RABBITMQ_ROUTING_KEY" \
+    -body "{\"service\": \"$service\", \"status\": $status}"
 }
 
 function init() {
