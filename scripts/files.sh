@@ -280,7 +280,10 @@ function _install() {
   __create_manage_file || ret=$?
   __create_overrides_file || ret=$?
   __systemd_install || ret=$?
-  __ufw_install || ret=$?
+
+  if command -v ufw &>/dev/null; then
+    __ufw_install || ret=$?
+  fi
 
   return "$ret"
 }
@@ -288,7 +291,10 @@ function _install() {
 function _uninstall() {
   local ret=0
   __systemd_uninstall || ret=$?
-  __ufw_uninstall || ret=$?
+
+  if command -v ufw &>/dev/null; then
+    __ufw_uninstall || ret=$?
+  fi
 
   return "$ret"
 }
