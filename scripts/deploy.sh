@@ -95,4 +95,4 @@ function func_deploy() {
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
 
-func_deploy "$SERVICE_TEMP_DIR" "$SERVICE_INSTALL_DIR"
+func_deploy "$SERVICE_TEMP_DIR" "$SERVICE_INSTALL_DIR" && exit $?

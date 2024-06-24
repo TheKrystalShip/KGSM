@@ -299,17 +299,15 @@ function _uninstall() {
   return "$ret"
 }
 
-ret=0
-
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
   --install)
-    _install || ret=$?
+    _install && exit $?
     shift
     ;;
   --uninstall)
-    _uninstall || ret=$?
+    _uninstall && exit $?
     shift
     ;;
   *)
@@ -319,5 +317,3 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-
-exit "$ret"

@@ -88,33 +88,34 @@ function _install() {
     # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
     if ! mkdir -p "$dir"; then
       printf ">>> ${0##*/} ERROR: Failed to create %s\n" "$dir" >&2
-      exit 1
+      return 1
     fi
   done
+  return 0
 }
 
 function _uninstall() {
   # Remove main working directory
   if ! rm -rf "$SERVICE_WORKING_DIR"; then
     echo ">>> ${0##*/} ERROR: Failed to remove $SERVICE_WORKING_DIR" >&2
-    exit 1
+    return 1
   fi
+  return 0
 }
 
-#Read the argument values
+# Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
   --install)
-    _install
+    _install && exit $?
     shift
     ;;
   --uninstall)
-    _uninstall
+    _uninstall && exit $?
     shift
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
-    usage && exit 1
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1
     ;;
   esac
   shift

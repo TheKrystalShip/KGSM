@@ -176,8 +176,6 @@ function _restore() {
   return 0
 }
 
-ret=0
-
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -186,12 +184,12 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   --create)
-    _create || ret=$?
+    _create && exit $?
     shift
     ;;
   --restore)
     shift
-    _restore "$1" || ret=$?
+    _restore "$1" && exit $?
     shift
     ;;
   *)
@@ -201,5 +199,3 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-
-exit "$ret"

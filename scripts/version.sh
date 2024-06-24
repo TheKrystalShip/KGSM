@@ -130,14 +130,11 @@ function _compare() {
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$BLUEPRINT"
 
-# Initialize return value to 0
-ret=0
-
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   --compare)
-    _compare || ret=$?
+    _compare && exit $?
     shift
     ;;
   --installed)
@@ -145,12 +142,12 @@ while [[ "$#" -gt 0 ]]; do
     exit 0
     ;;
   --latest)
-    func_get_latest_version || ret=$?
+    func_get_latest_version && exit $?
     shift
     ;;
   --save)
     shift
-    echo "$1" "$1" >"$SERVICE_VERSION_FILE"
+    echo "$1" >"$SERVICE_VERSION_FILE"
     exit 0
     ;;
   *)
@@ -159,6 +156,3 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   esac
 done
-
-# Exit with the appropriate return value
-exit $ret

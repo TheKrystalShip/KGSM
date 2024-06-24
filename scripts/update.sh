@@ -248,4 +248,4 @@ function func_main() {
   return 0
 }
 
-func_main "$@"
+func_main "$@" && exit $?

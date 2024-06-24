@@ -96,9 +96,10 @@ function func_download() {
   local dest=$2
 
   steamcmd_download "$version" "$dest"
+  return $?
 }
 
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
 
-func_download "$VERSION" "$SERVICE_TEMP_DIR"
+func_download "$VERSION" "$SERVICE_TEMP_DIR" && exit $?
