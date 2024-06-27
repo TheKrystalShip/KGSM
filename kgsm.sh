@@ -1,8 +1,10 @@
 #!/bin/bash
 
-VERSION="v0.2"
+function get_version() {
+  [[ -f "version.txt" ]] && cat "version.txt"
+}
 
-DESCRIPTION="Krystal Game Server Manager - $VERSION
+DESCRIPTION="Krystal Game Server Manager - $(get_version)
 
 Create, install and manage game servers on Linux."
 
@@ -15,6 +17,8 @@ Usage:
 Options:
   \e[4mGeneral\e[0m
     -h --help                   Prints this message
+
+    --update                      Updates KGSM to the latest version
 
     --get-ip                    Gets the external server IP used to connect to the
                                 server.
@@ -87,10 +91,86 @@ Menu options:
 " "$DESCRIPTION"
 }
 
+# Define a function to update the script and other files
+function update_script() {
+  # Define the raw URL of the script and version file
+  # shellcheck disable=SC2155
+  local script_version=$(get_version)
+  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
+  local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz"
+  echo "Checking for updates..." >&2
+
+  # Fetch the latest version number
+  if command -v curl >/dev/null 2>&1; then
+    LATEST_VERSION=$(curl -s "$version_url")
+  elif command -v wget >/dev/null 2>&1; then
+    LATEST_VERSION=$(wget -q -O - "$version_url")
+  else
+    echo "Error: curl or wget is required to check for updates." >&2
+    return 1
+  fi
+
+  # Compare the versions
+  if [ "$script_version" != "$LATEST_VERSION" ]; then
+    echo "New version available: $LATEST_VERSION. Updating..." >&2
+
+    # Backup the current script
+    cp "$0" "${0}.bak"
+    echo "Backup of the current script created at ${0}.bak" >&2
+
+    # Download the repository tarball
+    if command -v curl >/dev/null 2>&1; then
+      curl -L -o "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
+    elif command -v wget >/dev/null 2>&1; then
+      wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
+    else
+      echo "Error: curl or wget is required to download the update." >&2
+      return 1
+    fi
+
+    # Extract the tarball
+    if tar -xzf "kgsm.tar.gz"; then
+      # Overwrite the existing files with the new ones
+      cp -r KGSM-main/* .
+      chmod +x kgsm.sh scripts/*.sh
+      echo "Scripts updated successfully to version $LATEST_VERSION." >&2
+
+      # Cleanup
+      rm -rf "KGSM-main" "kgsm.tar.gz"
+
+      # Remove --update arg from $@
+      for arg in "$@"; do
+        shift
+        [ "$arg" = "--update" ] && continue
+        set -- "$@" "$arg"
+      done
+
+      # Add updated to the arg list
+      set -- "$@" updated
+
+      # Restart the script
+      exec "$0" "$@"
+    else
+      echo "Error: Failed to extract the update. Reverting to the previous version." >&2
+      mv "${0}.bak" "$0"
+    fi
+  else
+    echo "You are already using the latest version: $script_version." >&2
+  fi
+
+  return 0
+}
+
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   -h | --help)
     usage && exit 0
+    ;;
+  --update)
+    update_script "$@" && exit $?
+    ;;
+  updated)
+    echo "Script was updated and restarted." >&2
     ;;
   *)
     break
@@ -277,7 +357,7 @@ function get_installed_services() {
 }
 
 function _interactive() {
-  echo "KGSM - Interactive menu - $VERSION
+  echo "KGSM - Interactive menu - $(get_version)
 
 Start the script with '--interactive -h' or '--interactive --help' for a detailed description of each menu option
 Press CTRL+C to exit at any time.
@@ -472,7 +552,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
     ;;
   -v | --version)
-    echo "$VERSION" && exit 0
+    get_version && exit 0
     ;;
   *)
     echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1
