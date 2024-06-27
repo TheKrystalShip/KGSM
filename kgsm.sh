@@ -1,55 +1,90 @@
 #!/bin/bash
 
-VERSION="0.1"
+VERSION="v0.2"
+
+DESCRIPTION="Krystal Game Server Manager - $VERSION
+
+Create, install and manage game servers on Linux."
 
 function usage() {
-  echo "Krystal Game Server Manager - v$VERSION
-Used to create, install and manage game servers on Linux.
-
-All of this is achieved through a series of script files found under
-\$KGSM_ROOT/scripts; they can be executed manually by themselves if needed but
-this script aims to bundle together some of the more common uses and present
-them in a simple way through an interactive terminal menu system.
-
-Most of the menu options are interactive and they might require user input at
-various steps, as so this script is not meant to be ran programatically and
-instead a user should be present when interacting with the script.
+  printf "%s
 
 Usage:
-    ./${0##*/} [-h | --help]
+  ./kgsm.sh [option]
+
+Options:
+  \e[4mGeneral\e[0m
+    -h --help                   Prints this message
+
+    --get-ip                    Gets the external server IP used to connect to the
+                                server.
+    --interactive               Starts the script in interactive mode.
+        -h --help               Prints the help information for the interactive mode
+
+    -v --version                Prints the KGSM version
+
+  \e[4mBlueprints\e[0m
+    --create-blueprint          Create a new blueprints file.
+        -h --help               Prints the help information about the blueprint
+                                creation process.
+
+    --get-blueprints            Returns a list of all available blueprints
+
+    --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing blueprint.
+                                \e[1mBLUEPRINT\e[0m must be the name of a blueprint.
+                                Run --get-blueprints to see a list of all available
+                                blueprints.
+
+  \e[4mServices\e[0m
+    --service \e[1mSERVICE\e[0m [OPTION]  Issue commands to a service.
+                                \e[1mSERVICE\e[0m must be the name of a server or a blueprint
+                                OPTION represents one of the following
+
+        --get-logs              Returns the last 10 lines of the service's log.
+        --get-status            Returns a detailed status of the service.
+        --is-active
+        --start                 Starts the service.
+        --stop                  Stops the service.
+        --restart               Restarts the service.
+        --check-update          Checks if a new version is available.
+        --update                Runs the update process.
+            -h --help           Prints the help information for the update process
+        --create-backup         Creates a backup of the currently installed version if any.
+            -h --help           Prints the help information for the backup process.
+        --restore-backup \e[1mNAME\e[0m   Restores a backup.
+                                \e[1mNAME\e[0m is the backup name.
+            -h --help           Prints the help information for the backup process.
+        --uninstall             Run the uninstall process.
+" "$DESCRIPTION"
+}
+
+function usage_interactive() {
+  printf "%s
 
 Menu options:
-    Add blueprint       Create a new blueprint file. It will be stored under
-                        \$KGSM_ROOT/blueprints.
-                        It will prompt for input on various details regarding
-                        the blueprint.
-
-    Install             Run the installation process for an existing blueprint.
+     \e[4mInstall\e[0m            Run the installation process for an existing blueprint.
                         It will only prompt for input if there's any issues
                         during the install process.
 
-    Check for update    Check if a new version of a server is available.
+     \e[4mCheck for update\e[0m   Check if a new version of a server is available.
                         It will print if a new version is found, otherwise
                         it will fail with exit code 1.
 
-    Update              Runs a version check for a new version, creates a backup
-                        of the currently installed version, downloads the new
+     \e[4mUpdate\e[0m             Runs a check for a new version, creates a backup
+                        of the current installation if any, downloads the new
                         version and deploys it.
-                        Highly interactive since it has to run through multiple
-                        different steps.
 
-    Create backup       Creates a backup of a server. It will output the full
-                        path to the newly created backup directory.
+     \e[4mCreate backup\e[0m      Creates a backup of the current installation if any.
 
-    Restore Backup      Restores a backup of a server
+     \e[4mRestore Backup\e[0m     Restores a backup of a server
                         It will prompt to select a backup to restore and
                         also if the current installation directory of the
                         server is not empty.
 
-    Uninstall           Runs the uninstall process for a server. Warning: This
-                        will remove everything other than the blueprint file
-                        the server is based on.
-"
+     \e[4mUninstall\e[0m          Runs the uninstall process for a server.
+                        Warning: This will remove everything other than the
+                        blueprint file the server is based on.
+" "$DESCRIPTION"
 }
 
 while [[ "$#" -gt 0 ]]; do
@@ -58,8 +93,7 @@ while [[ "$#" -gt 0 ]]; do
     usage && exit 0
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
-    usage && exit 1
+    break
     ;;
   esac
   shift
@@ -93,109 +127,58 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
+CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
+[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
+
 DIRECTORIES_SCRIPT="$(find "$KGSM_ROOT" -type f -name directories.sh)"
-if [ -z "$DIRECTORIES_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load directories.sh" >&2
-  exit 1
-fi
+[[ -z "$DIRECTORIES_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load directories.sh" >&2 && exit 1
 
 FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name files.sh)"
-if [ -z "$FILES_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load files.sh" >&2
-  exit 1
-fi
+[[ -z "$FILES_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load files.sh" >&2 && exit 1
 
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-if [ -z "$VERSION_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load version.sh" >&2
-  exit 1
-fi
+[[ -z "$VERSION_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load version.sh" >&2 && exit 1
 
-CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
-if [ -z "$CREATE_BLUEPRINT_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load create_blueprint.sh" >&2
-  exit 1
-fi
+DOWNLOAD_SCRIPT="$(find "$KGSM_ROOT" -type f -name download.sh)"
+[[ -z "$DOWNLOAD_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load download.sh" >&2 && exit 1
 
-DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
-if [ -z "$DOWNLOAD_SCRIPT_FILE" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load download.sh" >&2
-  exit 1
-fi
-
-DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
-if [ -z "$DEPLOY_SCRIPT_FILE" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load deploy.sh" >&2
-  exit 1
-fi
+DEPLOY_SCRIPT="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
+[[ -z "$DEPLOY_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load deploy.sh" >&2 && exit 1
 
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
-if [ -z "$UPDATE_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load update.sh" >&2
-  exit 1
-fi
+[[ -z "$UPDATE_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load update.sh" >&2 && exit 1
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
-if [ -z "$BACKUP_SCRIPT" ]; then
-  echo ">>> ${0##*/} ERROR: Failed to load backup.sh" >&2
-  exit 1
-fi
-
-function _add_blueprint() {
-  echo "KGSM - Create blueprint - v$VERSION"
-
-  ("$CREATE_BLUEPRINT_SCRIPT")
-}
+[[ -z "$BACKUP_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load backup.sh" >&2 && exit 1
 
 function _install() {
-  echo "KGSM - Install blueprint - v$VERSION"
-  PS3="Choose a blueprint: "
+  local blueprint=$1
+  local install_dir=${2:-$KGSM_DEFAULT_INSTALL_DIR}
 
-  declare -a blueprints
-  get_blueprints blueprints
-
-  if ((${#blueprints[@]} < 1)); then
-    printf 'No blueprints found. Exiting.\n'
-    return 0
+  if [[ "$blueprint" != *.bp ]]; then
+    blueprint="${blueprint}.bp"
   fi
 
   # shellcheck disable=SC2155
-  local choice=$(get_choice blueprints)
-
-  local blueprint_abs_path="$BLUEPRINTS_SOURCE_DIR/$choice"
+  local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint")"
   # shellcheck disable=SC2155
   local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-  # KGSM_DEFAULT_INSTALL_DIR is an env var
-  local install_dir="$KGSM_DEFAULT_INSTALL_DIR"
 
-  # KGSM_DEFAULT_INSTALL_DIR doesn't exist, prompt the user
-  if [ -z "$install_dir" ]; then
-    while true; do
-      read -rp "Install directory: " install_dir
+  # If the path doesn't contain the service name, append it
+  if [[ "$blueprint" != *$service_name ]]; then
+    install_dir=$install_dir/$service_name
+  fi
 
-      # If the path doesn't contain the service name, append it
-      if [[ "$install_dir" != *$service_name ]]; then
-        if [[ "$install_dir" == *\/ ]]; then
-          install_dir="${install_dir}${service_name}"
-        else
-          install_dir="$install_dir/$service_name"
-        fi
-      fi
+  if [ ! -d "$install_dir" ]; then
+    if ! mkdir -p "$install_dir"; then
+      echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+      return 1
+    fi
+  fi
 
-      if [ ! -d "$install_dir" ]; then
-        if ! mkdir -p "$install_dir"; then
-          echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
-          return 1
-        fi
-      fi
-
-      if [ ! -w "$install_dir" ]; then
-        echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir, specify a different directory" >&2
-        return 1
-      fi
-
-      break
-    done
+  if [ ! -w "$install_dir" ]; then
+    echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir" >&2
+    return 1
   fi
 
   # IMPORTANT
@@ -217,111 +200,33 @@ function _install() {
 
   # Get the latest version that's gonna be downloaded
   # shellcheck disable=SC2155
-  local latest_version=$("$VERSION_SCRIPT" -b "$choice" --latest)
+  local latest_version=$("$VERSION_SCRIPT" -b "$blueprint" --latest)
 
   # First create directory structure
-  "$DIRECTORIES_SCRIPT" -b "$choice" --install
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install
   # Create necessary files
-  sudo "$FILES_SCRIPT" -b "$choice" --install
+  sudo "$FILES_SCRIPT" -b "$blueprint" --install
   # Run the download process
-  "$DOWNLOAD_SCRIPT_FILE" -b "$choice"
+  "$DOWNLOAD_SCRIPT" -b "$blueprint"
   # Deploy newly downloaded
-  "$DEPLOY_SCRIPT_FILE" -b "$choice"
+  "$DEPLOY_SCRIPT" -b "$blueprint"
   # Save new version
-  "$VERSION_SCRIPT" -b "$choice" --save "$latest_version"
-
-  notify_rabbitmq "$choice" 0
+  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version"
 
   return 0
 }
 
-function _update() {
-  echo "KGSM - Update - v$VERSION"
-
-  declare -a blueprints
-  get_blueprints blueprints
-
-  # shellcheck disable=SC2155
-  local choice=$(get_choice blueprints)
-  # shellcheck disable=SC2155
-  local latest_version=$("$VERSION_SCRIPT" -b "$choice" --latest)
-
-  ("$UPDATE_SCRIPT" -b "$choice")
-}
-
-function _check_for_update() {
-  echo "KGSM - Check for update - v$VERSION"
-
-  declare -a services
-  get_installed_services services
-
-  # shellcheck disable=SC2155
-  local choice=$(get_choice services)
-
-  ("$VERSION_SCRIPT" -b "$choice" --compare)
-}
-
-function _create_backup() {
-  echo "KGSM - Create backup - v$VERSION"
-  PS3="Choose a service: "
-
-  declare -a services
-  get_installed_services services
-
-  # shellcheck disable=SC2155
-  local choice=$(get_choice services)
-
-  ("$BACKUP_SCRIPT" -b "$choice" --create)
-}
-
-function _restore_backup() {
-  echo "KGSM - Restore backup - v$VERSION"
-  PS3="Choose a service: "
-
-  declare -a services
-  get_services services
-
-  # shellcheck disable=SC2155
-  local choice=$(get_choice services)
-
-  ("$BACKUP_SCRIPT" -b "$choice" --restore)
-}
-
 function _uninstall() {
-  echo "KGSM - Uninstall - v$VERSION"
-  PS3="Choose a service: "
+  local blueprint=$1
 
-  declare -a services
-  get_installed_services services
-
-  if [ "${#services[@]}" -eq 0 ]; then
-    echo "${0##*/} INFO: No services installed" >&2
-    return
+  if [[ "$blueprint" != *.bp ]]; then
+    blueprint="${blueprint}.bp"
   fi
 
-  # shellcheck disable=SC2155
-  local choice=$(get_choice services)
-
   # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -b "$choice" --uninstall
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall
   # Remove files
-  sudo "$FILES_SCRIPT" -b "$choice" --uninstall
-
-  notify_rabbitmq "$choice" -1
-}
-
-function get_choice() {
-  local -n ref_arr=$1
-
-  select choice in "${ref_arr[@]}"; do
-    if [[ -z $choice ]]; then
-      echo "Didn't understand \"$REPLY\" " >&2
-      REPLY=
-    else
-      echo "$choice"
-      return
-    fi
-  done
+  sudo "$FILES_SCRIPT" -b "$blueprint" --uninstall
 }
 
 function get_blueprints() {
@@ -335,26 +240,6 @@ function get_blueprints() {
   ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
 }
 
-function get_services() {
-  local -n ref_services_array=$1
-  declare -a blueprints=()
-  get_blueprints blueprints
-
-  for bp in "${blueprints[@]}"; do
-    # shellcheck disable=SC2002
-    service_name=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-    # shellcheck disable=SC2002
-    service_working_dir=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
-
-    # If there's no $service_working_dir, skip
-    if [ ! -d "$service_working_dir" ]; then
-      continue
-    fi
-
-    ref_services_array+=("$service_name")
-  done
-}
-
 function get_installed_services() {
   # shellcheck disable=SC2178
   local -n ref_services_array=$1
@@ -362,8 +247,12 @@ function get_installed_services() {
   get_blueprints blueprints
 
   for bp in "${blueprints[@]}"; do
-    service_name=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-    service_working_dir=$(cat "$BLUEPRINTS_SOURCE_DIR/$bp" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
+    # shellcheck disable=SC2155
+    local bp_file=$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$bp")
+    if [ -z "$bp_file" ]; then continue; fi
+
+    service_name=$(cat "$bp_file" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+    service_working_dir=$(cat "$bp_file" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
     service_version_file="$service_working_dir/$service_name.version"
 
     # If there's no $service_working_dir, skip
@@ -387,38 +276,19 @@ function get_installed_services() {
   done
 }
 
-function notify_rabbitmq() {
-  local service=$1
-  local status=$2
+function _interactive() {
+  echo "KGSM - Interactive menu - $VERSION
 
-  if ! command -v amqp-publish &>/dev/null; then return 0; fi
-  if [ -z "$KGSM_RABBITMQ_URI" ]; then return 0; fi
-  if [ -z "$KGSM_RABBITMQ_ROUTING_KEY" ]; then return 0; fi
-
-  if [[ "$service" == *.bp ]]; then
-    service=$(cat "$BLUEPRINTS_SOURCE_DIR/$service" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-  fi
-
-  amqp-publish \
-    -uri "$KGSM_RABBITMQ_URI" \
-    -routing-key "$KGSM_RABBITMQ_ROUTING_KEY" \
-    -body "{\"service\": \"$service\", \"status\": $status}"
-}
-
-function init() {
-  echo "KGSM - Main menu - v$VERSION
-Start the script with -h or --help to see a detailed description
-of each menu option
+Start the script with '--interactive -h' or '--interactive --help' for a detailed description of each menu option
 Press CTRL+C to exit at any time.
-"
 
+"
   PS3="Choose an action: "
 
-  declare -A services=()
-  get_installed_services services
+  local action=""
+  local args=""
 
   declare -a menu_options=(
-    "Add blueprint"
     "Install"
     "Check for update"
     "Update"
@@ -427,31 +297,188 @@ Press CTRL+C to exit at any time.
     "Uninstall"
   )
 
-  declare -A menu_options_functions=(
-    ["Add blueprint"]=_add_blueprint
-    ["Install"]=_install
-    ["Check for update"]=_check_for_update
-    ["Update"]=_update
-    ["Create backup"]=_create_backup
-    ["Restore backup"]=_restore_backup
-    ["Uninstall"]=_uninstall
+  declare -A arg_map=(
+    ["Install"]=--install
+    ["Check for update"]=--check-update
+    ["Update"]=--update
+    ["Create backup"]=--create-backup
+    ["Restore backup"]=--restore-backup
+    ["Uninstall"]=--uninstall
   )
 
+  # Select action first
   select opt in "${menu_options[@]}"; do
     if [[ -z $opt ]]; then
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
     else
-      # Here we check that the option is in the associative array
-      if [[ -z "${menu_options_functions[$opt]}" ]]; then
-        echo "Invalid option. Try another one." >&2
-      else
-        # Here we execute the function
-        "${menu_options_functions[$opt]}"
-        break
-      fi
+      action="${arg_map[$opt]}"
+      break
     fi
   done
+
+  # Depending on the action, load up a list of all blueprints,
+  # all services or only the installed services
+  declare -a blueprints_or_services=()
+
+  case "$action" in
+  --install)
+    get_blueprints blueprints_or_services
+    ;;
+  --check-update)
+    get_installed_services blueprints_or_services
+    ;;
+  --update)
+    get_installed_services blueprints_or_services
+    ;;
+  --create-backup)
+    get_installed_services blueprints_or_services
+    ;;
+  --restore-backup)
+    get_blueprints blueprints_or_services
+    ;;
+  --uninstall)
+    get_installed_services blueprints_or_services
+    ;;
+  *) echo ">>> ${0##*/} Error: Unknown action $action" >&2 && return 1 ;;
+  esac
+
+  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo ">>> ${0##*/} Error: No blueprints or services found, exiting" >&2 && return 1
+
+  PS3="Choose a blueprint/service: "
+
+  # Select blueprint/service for the action
+  select bp in "${blueprints_or_services[@]}"; do
+    if [[ -z $bp ]]; then
+      echo "Didn't understand \"$REPLY\" " >&2
+      REPLY=
+    else
+      args="$bp"
+      break
+    fi
+  done
+
+  # Recursivelly call the script with the given params.
+  # --install has a different arg order
+  case "$action" in
+  # Arg splitting is intended
+  --install) ./"$0" $action $args ;;
+  *) ./"$0" --service $args $action ;;
+  esac
 }
 
-init "$@"
+# Exit code
+ret=0
+
+# If it's started with no args, default to interactive mode
+[[ "$#" -eq 0 ]] && _interactive || ret=$?
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  --create-blueprint)
+    shift
+    # [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing arguments" >&2 && exit 1
+    case "$1" in
+    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit 0 ;;
+    *) "$CREATE_BLUEPRINT_SCRIPT" "$@" && exit $? ;;
+    esac
+    ;;
+  --install)
+    blueprint=
+    install_dir=$KGSM_DEFAULT_INSTALL_DIR
+    shift
+    [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <blueprint>" >&2 && exit 1
+    blueprint="$1"
+    shift
+    case "$1" in
+    --dir)
+      shift
+      install_dir="$1"
+      ;;
+    esac
+    _install "$blueprint" "$install_dir" && exit $?
+    ;;
+  --get-blueprints)
+    declare -a bps=()
+    get_blueprints bps
+    for bp in "${bps[@]}"; do
+      echo "$bp"
+    done
+    exit 0
+    ;;
+  --get-ip)
+    curl https://icanhazip.com 2>/dev/null && exit 0 || ret=$?
+    ;;
+  --service)
+    shift
+    [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <service>" >&2 && exit 1
+    service=$1
+    shift
+    [[ -z "$1" ]] && usage && exit 1
+    case "$1" in
+    --get-logs)
+      journalctl -n "10" -u "$service" --no-pager && exit 0 || ret=$?
+      ;;
+    --get-status)
+      systemctl status "$service" | head -n 3 && exit 0 || ret=$?
+      ;;
+    --is-active)
+      systemctl is-active "$service" && exit 0 || ret=$?
+      ;;
+    --start)
+      systemctl start "$service" && exit 0 || ret=$?
+      ;;
+    --stop)
+      systemctl stop "$service" && exit 0 || ret=$?
+      ;;
+    --restart)
+      systemctl restart "$service" && exit 0 || ret=$?
+      ;;
+    --check-update)
+      case "$1" in
+      -h | --help) "$VERSION_SCRIPT" --help && exit 0 ;;
+      *) "$VERSION_SCRIPT" -b "$service" --compare && exit $? ;;
+      esac
+      ;;
+    --update)
+      case "$1" in
+      -h | --help) "$UPDATE_SCRIPT" --help && exit 0 ;;
+      *) "$UPDATE_SCRIPT" -b "$service" || ret=$? ;;
+      esac
+      ;;
+    --create-backup)
+      case "$1" in
+      -h | --help) "$BACKUP_SCRIPT" --help && exit 0 ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --create || ret=$? ;;
+      esac
+      ;;
+    --restore-backup)
+      case "$1" in
+      -h | --help) "$BACKUP_SCRIPT" --help && exit 0 ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --create || ret=$? ;;
+      esac
+      ;;
+    --uninstall)
+      _uninstall "$service" || ret=$?
+      ;;
+    *) usage && exit 1 ;;
+    esac
+    ;;
+  --interactive)
+    shift
+    case "$1" in
+    -h | --help) usage_interactive && exit 0 ;;
+    *) _interactive || ret=$? ;;
+    esac
+    ;;
+  -v | --version)
+    echo "$VERSION" && exit 0
+    ;;
+  *)
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1
+    ;;
+  esac
+  shift
+done
+
+exit "$ret"
