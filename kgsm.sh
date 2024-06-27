@@ -18,7 +18,10 @@ Options:
   \e[4mGeneral\e[0m
     -h --help                   Prints this message
 
-    --update                      Updates KGSM to the latest version
+    --update                    Updates KGSM to the latest version
+
+    --install-requirements      Checks for required packages and installs them
+                                if they are not present.
 
     --get-ip                    Gets the external server IP used to connect to the
                                 server.
@@ -145,9 +148,6 @@ function update_script() {
         set -- "$@" "$arg"
       done
 
-      # Add updated to the arg list
-      set -- "$@" updated
-
       # Restart the script
       exec "$0" "$@"
     else
@@ -187,6 +187,11 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
+    # Only kgsm.sh can use this, all other scripts will require KGSM_ROOT as
+    # an environment variable.
+    KGSM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    export KGSM_ROOT
+  else
     echo ">>> ${0##*/} ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
     exit 1
   else
@@ -230,6 +235,9 @@ UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 [[ -z "$BACKUP_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load backup.sh" >&2 && exit 1
+
+REQUIREMENTS_SCRIPT="$(find "$KGSM_ROOT" -type f -name requirements.sh)"
+[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load requirements.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -489,6 +497,9 @@ while [[ "$#" -gt 0 ]]; do
   --get-ip)
     curl https://icanhazip.com 2>/dev/null && exit 0 || ret=$?
     ;;
+  --update)
+    update_script "$@" && exit $?
+    ;;
   --service)
     shift
     [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <service>" >&2 && exit 1
@@ -550,6 +561,9 @@ while [[ "$#" -gt 0 ]]; do
     -h | --help) usage_interactive && exit 0 ;;
     *) _interactive || ret=$? ;;
     esac
+    ;;
+  --install-requirements)
+    sudo "$REQUIREMENTS_SCRIPT" && exit $?
     ;;
   -v | --version)
     get_version && exit 0

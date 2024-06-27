@@ -12,9 +12,9 @@ KGSM has been developed and tested only on `Manjaro 24.0.2 Wynsdey`, `Kernel v6.
 
 ### Packages:
 
-- `grep` `python3` `wget` `unzip` `curl` `tar` `sed` `find`
+- Run `./kgsm.sh --install-requirements` in order to check all necessary packages are available or if any need installation.
 
-- [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD)
+- If [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) isn't directly available through your distribution's package manager you will have to manually set it up and ensure `steamcmd` is available in the $PATH.
 
 - (Optional) KGSM is set up to work with `ufw` if it detects it on the system, but it's not required in order to use.
 
@@ -22,7 +22,9 @@ KGSM has been developed and tested only on `Manjaro 24.0.2 Wynsdey`, `Kernel v6.
 
 KGSM will expect env vars to be available when running the script, otherwise it will manually load `/etc/environment` as a fallback.
 
-- `KGSM_ROOT` environmental variable needs to be set, pointing to the directory where `kgsm.sh` is located.
+- For running any of the script under the `./scripts/*` directory, `KGSM_ROOT` environmental variable needs to be set pointing to the directory where `kgsm.sh` is located.
+
+- Running `kgsm.sh` by itself doesn't _require_ `KGSM_ROOT` to be set, but it is recommended.
 
   - Example: `KGSM_ROOT=/opt/kgsm`
 
