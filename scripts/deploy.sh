@@ -84,7 +84,7 @@ function func_deploy() {
   fi
 
   # Move everything from $source into $dest
-  if ! mv -v "$source"/* "$dest"/; then
+  if ! mv "$source"/* "$dest"/; then
     echo ">>> ${0##*/} ERROR: Failed to move contents from $source into $dest" >&2
     return 1
   fi
