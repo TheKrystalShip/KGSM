@@ -53,6 +53,11 @@ Options:
         --start                 Starts the service.
         --stop                  Stops the service.
         --restart               Restarts the service.
+        -v --version            Provides version information.
+                                Running this with no other argument has the same
+                                outcome as adding the --installed argument.
+          --installed           Prints the currently installed version.
+          --latest              Prints the latest available version number.
         --check-update          Checks if a new version is available.
         --update                Runs the update process.
             -h --help           Prints the help information for the update process
@@ -521,6 +526,15 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --restart)
       systemctl restart "$service" && exit 0 || ret=$?
+      ;;
+    -v | --version)
+      shift
+      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed && exit $?
+      case "$1" in
+      --installed) "$VERSION_SCRIPT" -b "$service" --installed && exit $? ;;
+      --latest) "$VERSION_SCRIPT" -b "$service" --latest && exit $? ;;
+      *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1 ;;
+      esac
       ;;
     --check-update)
       case "$1" in
