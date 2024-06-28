@@ -192,9 +192,6 @@ if [ -z "$KGSM_ROOT" ]; then
     KGSM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     export KGSM_ROOT
   else
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
-    exit 1
-  else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
