@@ -54,7 +54,7 @@
 # - 1: Error
 function func_get_latest_version() {
   # shellcheck disable=SC2034
-  result=$(curl -s 'https://factorio.com/api/latest-releases' | python3 -c "import sys, json; print(json.load(sys.stdin)['stable']['headless'])")
+  result=$(curl -s 'https://factorio.com/api/latest-releases' | jq .stable.headless)
   echo "$result"
 }
 

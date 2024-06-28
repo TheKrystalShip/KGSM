@@ -8,7 +8,7 @@ fi
 # Define required packages
 required_packages=(
   "grep"
-  "python3"
+  "jq"
   "wget"
   "unzip"
   "curl"

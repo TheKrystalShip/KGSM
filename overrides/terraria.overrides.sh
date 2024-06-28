@@ -55,7 +55,7 @@
 function func_get_latest_version() {
   # Fetch latest version
   # shellcheck disable=SC2155
-  local newest_version_full_name=$(curl -s 'https://terraria.org/api/get/dedicated-servers-names' | python3 -c "import sys, json; print(json.load(sys.stdin)[0])")
+  local newest_version_full_name=$(curl -s 'https://terraria.org/api/get/dedicated-servers-names' | jq .[0])
   # Expected: terraria-server-1449.zip
   IFS='-' read -r -a new_version_unformatted <<<"$newest_version_full_name "
   local temp=${new_version_unformatted[2]}
