@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function get_version() {
-  [[ -f "version.txt" ]] && cat "version.txt"
+  [[ -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version.txt" ]] && cat "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version.txt"
 }
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
@@ -23,7 +23,7 @@ Options:
     --install-requirements      Checks for required packages and installs them
                                 if they are not present.
 
-    --get-ip                    Gets the external server IP used to connect to the
+    --ip                        Gets the external server IP used to connect to the
                                 server.
     --interactive               Starts the script in interactive mode.
         -h --help               Prints the help information for the interactive mode
@@ -35,7 +35,7 @@ Options:
         -h --help               Prints the help information about the blueprint
                                 creation process.
 
-    --get-blueprints            Returns a list of all available blueprints
+    --blueprints                Returns a list of all available blueprints
 
     --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing blueprint.
                                 \e[1mBLUEPRINT\e[0m must be the name of a blueprint.
@@ -47,8 +47,8 @@ Options:
                                 \e[1mSERVICE\e[0m must be the name of a server or a blueprint
                                 OPTION represents one of the following
 
-        --get-logs              Returns the last 10 lines of the service's log.
-        --get-status            Returns a detailed status of the service.
+        --logs                  Returns the last 10 lines of the service's log.
+        --status                Returns a detailed status of the service.
         --is-active
         --start                 Starts the service.
         --stop                  Stops the service.
@@ -488,7 +488,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
     _install "$blueprint" "$install_dir" && exit $?
     ;;
-  --get-blueprints)
+  --blueprints)
     declare -a bps=()
     get_blueprints bps
     for bp in "${bps[@]}"; do
@@ -496,7 +496,7 @@ while [[ "$#" -gt 0 ]]; do
     done
     exit 0
     ;;
-  --get-ip)
+  --ip)
     curl https://icanhazip.com 2>/dev/null && exit 0 || ret=$?
     ;;
   --update)
@@ -509,10 +509,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && usage && exit 1
     case "$1" in
-    --get-logs)
+    --logs)
       journalctl -n "10" -u "$service" --no-pager && exit 0 || ret=$?
       ;;
-    --get-status)
+    --status)
       systemctl status "$service" | head -n 3 && exit 0 || ret=$?
       ;;
     --is-active)
@@ -563,7 +563,7 @@ while [[ "$#" -gt 0 ]]; do
     --uninstall)
       _uninstall "$service" || ret=$?
       ;;
-    *) usage && exit 1 ;;
+    *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1
     esac
     ;;
   --interactive)
@@ -580,7 +580,7 @@ while [[ "$#" -gt 0 ]]; do
     get_version && exit 0
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1
+    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift
