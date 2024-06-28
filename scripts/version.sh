@@ -130,11 +130,13 @@ function _compare() {
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$BLUEPRINT"
 
+ret=0
+
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   --compare)
-    _compare && exit $?
+    _compare || ret=$?
     shift
     ;;
   --installed)
@@ -142,7 +144,7 @@ while [[ "$#" -gt 0 ]]; do
     exit 0
     ;;
   --latest)
-    func_get_latest_version && exit $?
+    func_get_latest_version || ret=$?
     shift
     ;;
   --save)
@@ -156,3 +158,5 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   esac
 done
+
+exit "$ret"
