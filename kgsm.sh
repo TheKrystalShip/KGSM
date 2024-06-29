@@ -1,7 +1,29 @@
 #!/bin/bash
 
+# Check for KGSM_ROOT env variable
+if [ -z "$KGSM_ROOT" ]; then
+  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  # shellcheck disable=SC1091
+  source /etc/environment
+
+  # If not found in /etc/environment
+  if [ -z "$KGSM_ROOT" ]; then
+    # Only kgsm.sh can use this, all other scripts will require KGSM_ROOT as
+    # an environment variable.
+    KGSM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    export KGSM_ROOT
+  else
+    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+
+    # Check if KGSM_ROOT is exported
+    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
+      export KGSM_ROOT
+    fi
+  fi
+fi
+
 function get_version() {
-  [[ -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version.txt" ]] && cat "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version.txt"
+  [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
 }
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
@@ -183,28 +205,6 @@ while [[ "$#" -gt 0 ]]; do
   esac
   shift
 done
-
-# Check for KGSM_ROOT env variable
-if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-
-  # If not found in /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    # Only kgsm.sh can use this, all other scripts will require KGSM_ROOT as
-    # an environment variable.
-    KGSM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    export KGSM_ROOT
-  else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-
-    # Check if KGSM_ROOT is exported
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
-      export KGSM_ROOT
-    fi
-  fi
-fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
@@ -563,7 +563,7 @@ while [[ "$#" -gt 0 ]]; do
     --uninstall)
       _uninstall "$service" || ret=$?
       ;;
-    *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1
+    *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --interactive)
