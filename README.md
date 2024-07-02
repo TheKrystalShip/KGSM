@@ -4,7 +4,7 @@ A simplistic one-stop-shop management interface for installing, updating and man
 
 ## Compatibility
 
-KGSM has been developed and tested only on `Manjaro 24.0.2 Wynsdey`, `Kernel v6.5.13-7-MANJARO`, using `Bash 5.2.26` I cannot guarantee it will work flawlessly with other distributions but the project aims for broad compatibility by using as few dependencies as possible.
+KGSM has been developed and tested on `Manjaro 24.0.2 Wynsdey`, `Kernel v6.5.13-7-MANJARO`, using `Bash 5.2.26` I cannot guarantee it will work flawlessly with other distributions but the project aims for broad compatibility by using as few dependencies as possible.
 
 ## Installation
 
@@ -12,14 +12,25 @@ KGSM has been developed and tested only on `Manjaro 24.0.2 Wynsdey`, `Kernel v6.
 
 ```sh
 wget -O "kgsm.tar.gz" https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz
+```
+```sh
 tar -xzf "kgsm.tar.gz"
+```
+```sh
 cd ./KGSM-main
+```
+```sh
 chmod +x ./kgsm.sh ./modules/*.sh
 ```
 
 ### Updating
 
-KGSM comes with built-in updating capabilities, ensure you're using the latest version by running `./kgsm.sh --update`
+KGSM comes with built-in updating capabilities.
+
+Ensure you're using the latest version by running
+```sh
+./kgsm.sh --update
+```
 
 ### Requirements
 
@@ -39,7 +50,7 @@ To _attempt_ to automatically install dependencies, run:
 
 - If [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) isn't directly available through your distribution's package manager you will have to manually set it up and ensure `steamcmd` is available in the $PATH.
 
-- (Optional) KGSM is set up to work with `ufw` if it detects it on the system, but it's not required in order to use.
+- (Optional) KGSM is set up to work with [`UFW`](https://en.wikipedia.org/wiki/Uncomplicated_Firewall) if it detects it on the system, but it's not required in order to use.
 
 #### Environmental vars
 
