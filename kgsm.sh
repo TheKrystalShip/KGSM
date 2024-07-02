@@ -162,8 +162,8 @@ function update_script() {
     if tar -xzf "kgsm.tar.gz"; then
       # Overwrite the existing files with the new ones
       cp -r KGSM-main/* .
-      chmod +x kgsm.sh scripts/*.sh
-      echo "Scripts updated successfully to version $LATEST_VERSION." >&2
+      chmod +x kgsm.sh modules/*.sh
+      echo "KGSM updated successfully to version $LATEST_VERSION." >&2
 
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
