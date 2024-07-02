@@ -2,7 +2,7 @@
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  # echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
@@ -34,13 +34,16 @@ function usage() {
   printf "%s
 
 Usage:
-  ./kgsm.sh [option]
+  ./${0##*/} [option]
 
 Options:
   \e[4mGeneral\e[0m
     -h --help                   Prints this message
 
     --update                    Updates KGSM to the latest version
+
+    --requirements              Displays a list of the required packages needed to
+                                run KGSM.
 
     --install-requirements      Checks for required packages and installs them
                                 if they are not present.
@@ -572,6 +575,9 @@ while [[ "$#" -gt 0 ]]; do
     -h | --help) usage_interactive && exit 0 ;;
     *) _interactive || ret=$? ;;
     esac
+    ;;
+  --requirements)
+    "$REQUIREMENTS_SCRIPT" --list && exit $?
     ;;
   --install-requirements)
     sudo "$REQUIREMENTS_SCRIPT" && exit $?
