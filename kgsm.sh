@@ -325,7 +325,7 @@ function get_blueprints() {
   shopt -s extglob nullglob
 
   # Create array
-  ref_blueprints_array=("$BLUEPRINTS_SOURCE_DIR"/*)
+  ref_blueprints_array=("$BLUEPRINTS_SOURCE_DIR"/*.bp)
   # remove leading $BLUEPRINTS_SOURCE_DIR:
   ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
 }

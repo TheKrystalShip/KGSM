@@ -78,7 +78,7 @@ trap "echo "" && exit" INT
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
-OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".overrides.sh)"
+OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".bp.overrides.sh)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || return 1
