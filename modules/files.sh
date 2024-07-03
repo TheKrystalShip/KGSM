@@ -54,13 +54,13 @@ done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
+  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT environmental variable not found, exiting." >&2
+    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     return 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -92,7 +92,7 @@ function __create_manage_file() {
   WORKING_DIR="$SERVICE_WORKING_DIR"
 
   # Prepend "./" to $SERVICE_LAUNCH_BIN if it doesn't start with "./" or "/"
-  if [[ "$SERVICE_LAUNCH_BIN" != \.\/* ]] && [[ "$SERVICE_LAUNCH_BIN" != \/* ]]; then
+  if [[ "$SERVICE_LAUNCH_BIN" != ./* && "$SERVICE_LAUNCH_BIN" != /* ]]; then
     SERVICE_LAUNCH_BIN="./$SERVICE_LAUNCH_BIN"
   fi
 
