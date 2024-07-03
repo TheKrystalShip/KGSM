@@ -1,27 +1,5 @@
 #!/bin/bash
 
-# Check for KGSM_ROOT env variable
-if [ -z "$KGSM_ROOT" ]; then
-  # echo "${0##*/} WARNING: KGSM_ROOT environmental variable not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-
-  # If not found in /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    # Only kgsm.sh can use this, all other scripts will require KGSM_ROOT as
-    # an environment variable.
-    KGSM_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    export KGSM_ROOT
-  else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-
-    # Check if KGSM_ROOT is exported
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
-      export KGSM_ROOT
-    fi
-  fi
-fi
-
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
 }
@@ -41,6 +19,8 @@ Options:
     -h --help                   Prints this message
 
     --update                    Updates KGSM to the latest version
+      --force                   Ignores the version check and downloads the latest
+                                version available
 
     --requirements              Displays a list of the required packages needed to
                                 run KGSM.
@@ -131,6 +111,13 @@ function update_script() {
   local script_version=$(get_version)
   local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
   local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz"
+
+  local force=0
+  for arg in "$@"; do
+    shift
+    [ "$arg" = "--force" ] && force=1
+  done
+
   echo "Checking for updates..." >&2
 
   # Fetch the latest version number
@@ -144,7 +131,7 @@ function update_script() {
   fi
 
   # Compare the versions
-  if [ "$script_version" != "$LATEST_VERSION" ]; then
+  if [ "$script_version" != "$LATEST_VERSION" ] || [ "$force" -eq 1 ]; then
     echo "New version available: $LATEST_VERSION. Updating..." >&2
 
     # Backup the current script
@@ -175,6 +162,7 @@ function update_script() {
       for arg in "$@"; do
         shift
         [ "$arg" = "--update" ] && continue
+        [ "$arg" = "--force" ] && continue
         set -- "$@" "$arg"
       done
 
@@ -211,6 +199,36 @@ done
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
+
+# Read configuration file
+CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
+if [ -f "$CONFIG_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
+      continue
+    fi
+    # Export each key-value pair
+    export "${line?}"
+  done <"$CONFIG_FILE"
+
+  if [ -z "$KGSM_ROOT" ]; then
+    KGSM_ROOT="$(dirname "$0")"
+    export KGSM_ROOT
+  fi
+else
+  CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
+  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
+    cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
+    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
+    echo "${0##*/} Please ensure configuration is correct before running the script again" >&2
+    exit 0
+  else
+    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
+    echo "Try to repair the install by running ${0##*/} --update --force" >&2
+    exit 1
+  fi
+fi
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 
@@ -255,7 +273,7 @@ function _install() {
   # shellcheck disable=SC2155
   local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint")"
   # shellcheck disable=SC2155
-  local service_name=$(cat "$blueprint_abs_path" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
+  local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   # If the path doesn't contain the service name, append it
   if [[ "$blueprint" != *$service_name ]]; then
@@ -280,7 +298,7 @@ function _install() {
   # expect the blueprint to have a $SERVICE_WORKING_DIR variable
 
   # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
-  if cat "$blueprint_abs_path" | grep -q "SERVICE_WORKING_DIR="; then
+  if grep -q "SERVICE_WORKING_DIR=" <"$blueprint_abs_path"; then
     sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
   # Othwewise just append to the blueprint
   else
@@ -344,8 +362,8 @@ function get_installed_services() {
     local bp_file=$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$bp")
     if [ -z "$bp_file" ]; then continue; fi
 
-    service_name=$(cat "$bp_file" | grep "SERVICE_NAME=" | cut -d "=" -f2 | tr -d '"')
-    service_working_dir=$(cat "$bp_file" | grep "SERVICE_WORKING_DIR=" | cut -d "=" -f2 | tr -d '"')
+    service_name=$(grep "SERVICE_NAME=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
+    service_working_dir=$(grep "SERVICE_WORKING_DIR=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
     service_version_file="$service_working_dir/$service_name.version"
 
     # If there's no $service_working_dir, skip
@@ -454,9 +472,14 @@ Press CTRL+C to exit at any time.
   # Recursivelly call the script with the given params.
   # --install has a different arg order
   case "$action" in
-  # Arg splitting is intended
-  --install) ./"$0" $action $args ;;
-  *) ./"$0" --service $args $action ;;
+  --install)
+    # shellcheck disable=SC2086
+    ./"$0" $action $args
+    ;;
+  *)
+    # shellcheck disable=SC2086
+    ./"$0" --service $args $action
+    ;;
   esac
 }
 

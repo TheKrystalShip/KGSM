@@ -1,0 +1,36 @@
+# Configuration file for KGSM
+#
+# This file is used whenever interacting with kgsm.sh
+# All values from this file can also be set as environmental
+# but the variables in this file will take priority if they are found
+
+# Required
+# SteamCMD login username to download game server that require an account
+# and/or ownership of the game.
+# HIGHLY RECOMMENDED to be set as an environmental variable instead for more
+# security.
+# If they are already set as environmental variables, make sure to either remove
+# them from this file or comment them out, don't leave it blank
+STEAM_USERNAME=
+
+# Required
+# SteamCMD login password to download game server that require an account
+# and/or ownership of the game.
+# HIGHLY RECOMMENDED to be set as an environmental variable instead for more
+# security
+# If they are already set as environmental variables, make sure to either remove
+# them from this file or comment them out, don't leave it blank
+STEAM_PASSWORD=
+
+# Optional
+# The directory where kgsm.sh is located
+# It's only used if you want to run the individual modules standalone, not
+# needed otherwise
+# Remove or comment out if not used, don't leave it blank
+KGSM_ROOT=
+
+# Optional
+# Used when running the install process of a blueprint as a default
+# install directory, otherwise an install dir must be specified on every install
+# A subdirectory will be created with the same name as the blueprint
+KGSM_DEFAULT_INSTALL_DIRECTORY=
