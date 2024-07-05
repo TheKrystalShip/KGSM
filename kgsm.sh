@@ -1,5 +1,35 @@
 #!/bin/bash
 
+# Read configuration file
+CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
+if [ -f "$CONFIG_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
+      continue
+    fi
+    # Export each key-value pair
+    export "${line?}"
+  done <"$CONFIG_FILE"
+
+  if [ -z "$KGSM_ROOT" ]; then
+    KGSM_ROOT="$(dirname "$0")"
+    export KGSM_ROOT
+  fi
+else
+  CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
+  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
+    cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
+    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
+    echo "${0##*/} Please ensure configuration is correct before running the script again" >&2
+    exit 0
+  else
+    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
+    echo "Try to repair the install by running ${0##*/} --update --force" >&2
+    exit 1
+  fi
+fi
+
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
 }
@@ -157,17 +187,6 @@ function update_script() {
 
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
-
-      # Remove --update arg from $@
-      for arg in "$@"; do
-        shift
-        [ "$arg" = "--update" ] && continue
-        [ "$arg" = "--force" ] && continue
-        set -- "$@" "$arg"
-      done
-
-      # Restart the script
-      exec "$0" "$@"
     else
       echo "Error: Failed to extract the update. Reverting to the previous version." >&2
       mv "${0}.bak" "$0"
@@ -199,36 +218,6 @@ done
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
-
-# Read configuration file
-CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
-if [ -f "$CONFIG_FILE" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
-      continue
-    fi
-    # Export each key-value pair
-    export "${line?}"
-  done <"$CONFIG_FILE"
-
-  if [ -z "$KGSM_ROOT" ]; then
-    KGSM_ROOT="$(dirname "$0")"
-    export KGSM_ROOT
-  fi
-else
-  CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
-  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
-    cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
-    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
-    echo "${0##*/} Please ensure configuration is correct before running the script again" >&2
-    exit 0
-  else
-    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
-    echo "Try to repair the install by running ${0##*/} --update --force" >&2
-    exit 1
-  fi
-fi
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 
