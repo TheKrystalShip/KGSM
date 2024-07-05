@@ -387,7 +387,7 @@ Press CTRL+C to exit at any time.
   PS3="Choose an action: "
 
   local action=
-  local args=
+  local blueprint_or_service=
 
   declare -a menu_options=(
     "Install"
@@ -454,7 +454,7 @@ Press CTRL+C to exit at any time.
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
     else
-      args="$bp"
+      blueprint_or_service="$bp"
       break
     fi
   done
@@ -469,11 +469,43 @@ Press CTRL+C to exit at any time.
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
     # shellcheck disable=SC2086
-    "$0" $action $args --dir $install_directory
+    "$0" $action $blueprint_or_service --dir $install_directory
+    ;;
+  --restore-backup)
+    BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+    # shellcheck disable=SC1090
+    source "$BLUEPRINT_SCRIPT" "$blueprint_or_service" || exit 1
+    shopt -s extglob nullglob
+
+    # Restore backup requires specifying which one to restore
+    backup_to_restore=
+    # Create array
+    backups_array=("$SERVICE_BACKUPS_DIR"/*)
+    # remove leading $SERVICE_BACKUPS_DIR:
+    backups_array=("${backups_array[@]#"$SERVICE_BACKUPS_DIR/"}")
+
+    if ((${#backups_array[@]} < 1)); then
+      echo "No backups found. Exiting." >&2
+      return 0
+    fi
+
+    PS3="Choose a backup to restore: "
+
+    select backup in "${backups_array[@]}"; do
+      if [[ -z $backup ]]; then
+        echo "Didn't understand \"$REPLY\" " >&2
+        REPLY=
+      else
+        backup_to_restore="$backup"
+        break
+      fi
+    done
+    # shellcheck disable=SC2086
+    "$0" --service $blueprint_or_service $action "$backup_to_restore"
     ;;
   *)
     # shellcheck disable=SC2086
-    "$0" --service $args $action
+    "$0" --service $blueprint_or_service $action
     ;;
   esac
 }
@@ -490,7 +522,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     # [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit 0 ;;
+    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit $? ;;
     *) "$CREATE_BLUEPRINT_SCRIPT" "$@" && exit $? ;;
     esac
     ;;
@@ -524,7 +556,7 @@ while [[ "$#" -gt 0 ]]; do
     exit 0
     ;;
   --ip)
-    curl https://icanhazip.com 2>/dev/null && exit 0 || ret=$?
+    curl https://icanhazip.com 2>/dev/null && exit $?
     ;;
   --update)
     update_script "$@" && exit $?
@@ -537,22 +569,22 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && usage && exit 1
     case "$1" in
     --logs)
-      journalctl -n "10" -u "$service" --no-pager && exit 0 || ret=$?
+      journalctl -n "10" -u "$service" --no-pager && exit $?
       ;;
     --status)
-      systemctl status "$service" | head -n 3 && exit 0 || ret=$?
+      systemctl status "$service" | head -n 3 && exit $?
       ;;
     --is-active)
-      systemctl is-active "$service" && exit 0 || ret=$?
+      systemctl is-active "$service" && exit $?
       ;;
     --start)
-      systemctl start "$service" && exit 0 || ret=$?
+      systemctl start "$service" && exit $?
       ;;
     --stop)
-      systemctl stop "$service" && exit 0 || ret=$?
+      systemctl stop "$service" && exit $?
       ;;
     --restart)
-      systemctl restart "$service" && exit 0 || ret=$?
+      systemctl restart "$service" && exit $?
       ;;
     -v | --version)
       shift
@@ -565,30 +597,32 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --check-update)
       case "$1" in
-      -h | --help) "$VERSION_SCRIPT" --help && exit 0 ;;
+      -h | --help) "$VERSION_SCRIPT" --help && exit $? ;;
       *) "$VERSION_SCRIPT" -b "$service" --compare && exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
-      -h | --help) "$UPDATE_SCRIPT" --help && exit 0 ;;
-      *) "$UPDATE_SCRIPT" -b "$service" || ret=$? ;;
+      -h | --help) "$UPDATE_SCRIPT" --help && exit $? ;;
+      *) "$UPDATE_SCRIPT" -b "$service" && exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
-      -h | --help) "$BACKUP_SCRIPT" --help && exit 0 ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --create || ret=$? ;;
+      -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --create && exit $? ;;
       esac
       ;;
     --restore-backup)
+      [[ -z "$1" ]] && echo "${0##*/} Error: Missing argument <backup>" >&2 && exit 1
+      shift
       case "$1" in
-      -h | --help) "$BACKUP_SCRIPT" --help && exit 0 ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --create || ret=$? ;;
+      -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1" && exit $? ;;
       esac
       ;;
     --uninstall)
-      _uninstall "$service" || ret=$?
+      _uninstall "$service" && exit $?
       ;;
     *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1 ;;
     esac
@@ -596,8 +630,8 @@ while [[ "$#" -gt 0 ]]; do
   --interactive)
     shift
     case "$1" in
-    -h | --help) usage_interactive && exit 0 ;;
-    *) _interactive || ret=$? ;;
+    -h | --help) usage_interactive && exit $? ;;
+    *) _interactive && exit $? ;;
     esac
     ;;
   --requirements)
