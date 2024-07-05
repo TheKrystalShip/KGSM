@@ -61,7 +61,7 @@ if [ -z "$KGSM_ROOT" ]; then
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
     echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
-    return 1
+    exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
@@ -81,10 +81,10 @@ MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
 OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".bp.overrides.sh)"
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || return 1
+source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || return 1
+source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
 function __create_manage_file() {
   # MANAGE_TEMPLATE_FILE expects a $WORKING_DIR var

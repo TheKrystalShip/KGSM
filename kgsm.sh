@@ -14,8 +14,9 @@ if [ -f "$CONFIG_FILE" ]; then
 
   if [ -z "$KGSM_ROOT" ]; then
     KGSM_ROOT="$(dirname "$0")"
-    export KGSM_ROOT
   fi
+
+  export KGSM_ROOT
 else
   CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
@@ -253,7 +254,7 @@ REQUIREMENTS_SCRIPT="$(find "$KGSM_ROOT" -type f -name requirements.sh)"
 
 function _install() {
   local blueprint=$1
-  local install_dir=${2:-$KGSM_DEFAULT_INSTALL_DIR}
+  local install_dir=$2
 
   if [[ "$blueprint" != *.bp ]]; then
     blueprint="${blueprint}.bp"
@@ -265,7 +266,7 @@ function _install() {
   local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   # If the path doesn't contain the service name, append it
-  if [[ "$blueprint" != *$service_name ]]; then
+  if [[ "$install_dir" != *$service_name ]]; then
     install_dir=$install_dir/$service_name
   fi
 
@@ -303,15 +304,15 @@ function _install() {
   local latest_version=$("$VERSION_SCRIPT" -b "$blueprint" --latest)
 
   # First create directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install || return $?
   # Create necessary files
-  sudo "$FILES_SCRIPT" -b "$blueprint" --install
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install || return $?
   # Run the download process
-  "$DOWNLOAD_SCRIPT" -b "$blueprint"
+  "$DOWNLOAD_SCRIPT" -b "$blueprint" || return $?
   # Deploy newly downloaded
-  "$DEPLOY_SCRIPT" -b "$blueprint"
+  "$DEPLOY_SCRIPT" -b "$blueprint" || return $?
   # Save new version
-  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version"
+  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version" || return $?
 
   return 0
 }
@@ -324,9 +325,9 @@ function _uninstall() {
   fi
 
   # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall || return $?
   # Remove files
-  sudo "$FILES_SCRIPT" -b "$blueprint" --uninstall
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall || return $?
 }
 
 function get_blueprints() {
@@ -385,8 +386,8 @@ Press CTRL+C to exit at any time.
 "
   PS3="Choose an action: "
 
-  local action=""
-  local args=""
+  local action=
+  local args=
 
   declare -a menu_options=(
     "Install"
@@ -462,12 +463,17 @@ Press CTRL+C to exit at any time.
   # --install has a different arg order
   case "$action" in
   --install)
+    install_directory=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
+    if [ -z "$install_directory" ]; then
+      echo "KGSM_DEFAULT_INSTALL_DIRECTORY is not set in the configuration file, please specify an installation directory" >&2
+      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
+    fi
     # shellcheck disable=SC2086
-    ./"$0" $action $args
+    "$0" $action $args --dir $install_directory
     ;;
   *)
     # shellcheck disable=SC2086
-    ./"$0" --service $args $action
+    "$0" --service $args $action
     ;;
   esac
 }
@@ -489,19 +495,25 @@ while [[ "$#" -gt 0 ]]; do
     esac
     ;;
   --install)
-    blueprint=
-    install_dir=$KGSM_DEFAULT_INSTALL_DIR
     shift
     [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <blueprint>" >&2 && exit 1
-    blueprint="$1"
+    bp_to_install="$1"
+    install_dir=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
     shift
-    case "$1" in
-    --dir)
-      shift
-      install_dir="$1"
-      ;;
-    esac
-    _install "$blueprint" "$install_dir" && exit $?
+    if [ -n "$1" ]; then
+      case "$1" in
+      --dir)
+        shift
+        [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <dir>" >&2 && exit 1
+        install_dir="$1"
+        ;;
+      *)
+        echo ">>> ${0##*/} Error: Unknown argument $1" >&2 && exit 1
+        ;;
+      esac
+    fi
+    [[ -z "$install_dir" ]] && echo ">>> ${0##*/} Error: Missing argument <dir>" >&2 && exit 1
+    _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
     declare -a bps=()
@@ -592,7 +604,7 @@ while [[ "$#" -gt 0 ]]; do
     "$REQUIREMENTS_SCRIPT" --list && exit $?
     ;;
   --install-requirements)
-    sudo "$REQUIREMENTS_SCRIPT" && exit $?
+    sudo -E "$REQUIREMENTS_SCRIPT" && exit $?
     ;;
   -v | --version)
     get_version && exit 0
