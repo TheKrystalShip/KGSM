@@ -22,10 +22,6 @@
 #                               into SERVICE_INSTALL_DIR, do any more cleanup
 #                               that couldn't be done by func_download.
 #
-# func_setup                    Will set up any system config needed in order to
-#                               run the service, like systemd files, firewall
-#                               rules or anything else that's needed.
-#
 ################################################################################
 #
 # Available global vars:
@@ -81,13 +77,4 @@
 #   local source=$1
 #   local dest=$2
 #   return 0
-# }
-
-# INPUT:
-# - void
-#
-# OUTPUT:
-# - void
-# function func_setup() {
-#
 # }

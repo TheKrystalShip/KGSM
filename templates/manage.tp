@@ -1,56 +1,75 @@
 #!/bin/bash
 
-if [ \$# -eq 0 ]; then
-  echo "Launch script with: --start | --stop | --save | --input"
-  exit 1
-fi
+function usage() {
+  echo "$SERVICE_NAME.manage.sh
+Usage:
+  ./$SERVICE_NAME.manage.sh [option]
 
-# shellcheck disable=SC1091
-source /etc/environment
+Options:
+  -h --help         Prints this message
+
+  --start           Starts the service.
+                    Will cd into the working directory befores starting.
+
+  --stop            Stops the service.
+                    Will issue the save command to the input socket
+                    and wait 10 seconds before shutting down.
+
+  --save            Issue the save command to the input socket.
+
+  --input <input>   Issue an ad-hoc command to the input socket.
+"
+}
+
+[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && usage && exit 1
+
+[[ -f "/etc/environment" ]] && source /etc/environment
 
 WORKING_DIR="$SERVICE_WORKING_DIR"
 INSTALL_DIR="$SERVICE_INSTALL_DIR"
 SOCKET_FILE="$SERVICE_SOCKET_FILE"
 
-function start() {
-  (cd "\$INSTALL_DIR/$SERVICE_INSTALL_SUBDIRECTORY" && exec $SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS)
+function _start() {
+  cd "\$INSTALL_DIR/$SERVICE_INSTALL_SUBDIRECTORY"
+  exec $SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS
 }
 
-function stop() {
-  save
+function _stop() {
+  _save
   sleep 10
   echo "$SERVICE_SOCKET_STOP_COMMAND" >"\$SOCKET_FILE"
 }
 
-function save() {
+function _save() {
   echo "$SERVICE_SOCKET_SAVE_COMMAND" >"\$SOCKET_FILE"
 }
 
-function input() {
+function _input() {
   echo "\$1" >"\$SOCKET_FILE"
 }
 
 #Read the argument values
 while [ \$# -gt 0 ]; do
   case "\$1" in
+  -h | --help)
+    usage && exit 0
+    ;;
   --start)
-    start
-    shift
+    _start
     ;;
   --stop)
-    stop
-    shift
+    _stop
     ;;
   --save)
-    save
-    shift
+    _save
     ;;
   --input)
-    input "\$2"
     shift
+    [[ -z "\$1" ]] && echo "\${0##*/} ERROR: Missing argument <input>" >&2 && exit 1
+    _input "\$1"
     ;;
   *)
-    shift
+    echo "\${0##*/} ERROR: Unknown argument \$1" >&2 && exit 1
     ;;
   esac
   shift
