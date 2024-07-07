@@ -2,7 +2,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ${0##*/} ERROR: Service name not supplied" >&2
+  echo "${0##*/} ERROR: Service name not supplied" >&2
   exit 1
 fi
 
@@ -14,7 +14,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2

@@ -53,7 +53,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -87,7 +87,7 @@ function _install() {
   for dir in "${DIR_ARRAY[@]}"; do
     # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
     if ! mkdir -p "$dir"; then
-      printf ">>> ${0##*/} ERROR: Failed to create %s\n" "$dir" >&2
+      printf "${0##*/} ERROR: Failed to create %s\n" "$dir" >&2
       return 1
     fi
   done
@@ -97,7 +97,7 @@ function _install() {
 function _uninstall() {
   # Remove main working directory
   if ! rm -rf "$SERVICE_WORKING_DIR"; then
-    echo ">>> ${0##*/} ERROR: Failed to remove $SERVICE_WORKING_DIR" >&2
+    echo "${0##*/} ERROR: Failed to remove $SERVICE_WORKING_DIR" >&2
     return 1
   fi
   return 0
@@ -115,7 +115,7 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1
     ;;
   esac
   shift

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-  echo ">>> ${0##*/} ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
+  echo "${0##*/} ERROR: BLUEPRINT name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -13,7 +13,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -34,7 +34,7 @@ fi
 BLUEPRINT_FILE="$(find "$KGSM_ROOT" -type f -name "$BLUEPRINT")"
 
 if [ ! -f "$BLUEPRINT_FILE" ]; then
-  echo ">>> ${0##*/} ERROR: Could not find blueprint $BLUEPRINT_FILE, exiting" >&2
+  echo "${0##*/} ERROR: Could not find blueprint $BLUEPRINT_FILE, exiting" >&2
   exit 1
 fi
 

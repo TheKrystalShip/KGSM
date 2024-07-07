@@ -58,7 +58,7 @@ function func_get_latest_version() {
 
   # Fetch latest version manifest
   if ! curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >"$mc_versions_cache"; then
-    echo ">>> ${0##*/} ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
+    echo "${0##*/} ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
     return 1
   fi
 
@@ -86,7 +86,7 @@ function func_download() {
   local release_url="$(cat "$mc_versions_cache" | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
 
   if ! curl -sS "$release_url" >"$release_json"; then
-    echo ">>> ${0##*/} ERROR: curl -sS $release_url >$release_json"
+    echo "${0##*/} ERROR: curl -sS $release_url >$release_json"
     return 1
   fi
 
@@ -114,7 +114,7 @@ function func_deploy() {
   local dest=$2
 
   if ! mv -f "$source"/*.jar "$dest"/release.jar; then
-    echo ">>> ${0##*/} ERROR: mv -f $source/* $dest/"
+    echo "${0##*/} ERROR: mv -f $source/* $dest/"
     return 1
   fi
 

@@ -44,7 +44,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    echo "${0##*/} ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
@@ -58,7 +58,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2

@@ -105,7 +105,7 @@ while [ $# -gt 0 ]; do
     _install && exit $?
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    echo "${0##*/} ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac

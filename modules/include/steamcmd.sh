@@ -2,7 +2,7 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo ">>> ${0##*/} ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
+  echo "${0##*/} ERROR: Blueprint name not supplied. Run script like this: ./${0##*/} \"BLUEPRINT\"" >&2
   exit 1
 fi
 
@@ -14,7 +14,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -40,11 +40,11 @@ USERNAME="anonymous"
 # Anonymous login not allowed, load username & pass
 if [ "$SERVICE_STEAM_AUTH_LEVEL" != "0" ]; then
   if [ -z "$STEAM_USERNAME" ]; then
-    echo ">>> ${0##*/} ERROR: STEAM_USERNAME environmental variable not found, exiting" >&2
+    echo "${0##*/} ERROR: STEAM_USERNAME environmental variable not found, exiting" >&2
     exit 1
   fi
   if [ -z "$STEAM_PASSWORD" ]; then
-    echo ">>> ${0##*/} ERROR: STEAM_PASSWORD environmental variable not found, exiting" >&2
+    echo "${0##*/} ERROR: STEAM_PASSWORD environmental variable not found, exiting" >&2
     exit 1
   fi
 

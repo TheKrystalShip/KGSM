@@ -32,7 +32,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    echo "${0##*/} ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
@@ -46,7 +46,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -73,7 +73,7 @@ function func_deploy() {
 
   # Check if $source is empty
   if [ -z "$(ls -A -I .gitignore "$source")" ]; then
-    echo "${0##*/} WARNING: $source is empty, nothing to deploy. Exiting"
+    echo "${0##*/} WARNING: $source is empty, nothing to deploy. Exiting" >&2
     return 1
   fi
 
@@ -85,7 +85,7 @@ function func_deploy() {
 
   # Move everything from $source into $dest
   if ! mv "$source"/* "$dest"/; then
-    echo ">>> ${0##*/} ERROR: Failed to move contents from $source into $dest" >&2
+    echo "${0##*/} ERROR: Failed to move contents from $source into $dest" >&2
     return 1
   fi
 

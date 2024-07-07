@@ -226,31 +226,31 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 source "$COMMON_SCRIPT" || exit 1
 
 CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
-[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
+[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
 
 DIRECTORIES_SCRIPT="$(find "$KGSM_ROOT" -type f -name directories.sh)"
-[[ -z "$DIRECTORIES_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load directories.sh" >&2 && exit 1
+[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load directories.sh" >&2 && exit 1
 
 FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name files.sh)"
-[[ -z "$FILES_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load files.sh" >&2 && exit 1
+[[ -z "$FILES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load files.sh" >&2 && exit 1
 
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-[[ -z "$VERSION_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load version.sh" >&2 && exit 1
+[[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load version.sh" >&2 && exit 1
 
 DOWNLOAD_SCRIPT="$(find "$KGSM_ROOT" -type f -name download.sh)"
-[[ -z "$DOWNLOAD_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load download.sh" >&2 && exit 1
+[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load download.sh" >&2 && exit 1
 
 DEPLOY_SCRIPT="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
-[[ -z "$DEPLOY_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load deploy.sh" >&2 && exit 1
+[[ -z "$DEPLOY_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load deploy.sh" >&2 && exit 1
 
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
-[[ -z "$UPDATE_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load update.sh" >&2 && exit 1
+[[ -z "$UPDATE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load update.sh" >&2 && exit 1
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
-[[ -z "$BACKUP_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load backup.sh" >&2 && exit 1
+[[ -z "$BACKUP_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load backup.sh" >&2 && exit 1
 
 REQUIREMENTS_SCRIPT="$(find "$KGSM_ROOT" -type f -name requirements.sh)"
-[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo ">>> ${0##*/} ERROR: Failed to load requirements.sh" >&2 && exit 1
+[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load requirements.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -272,13 +272,13 @@ function _install() {
 
   if [ ! -d "$install_dir" ]; then
     if ! mkdir -p "$install_dir"; then
-      echo ">>> ${0##*/} ERROR: Failed to create directory $install_dir" >&2
+      echo "${0##*/} ERROR: Failed to create directory $install_dir" >&2
       return 1
     fi
   fi
 
   if [ ! -w "$install_dir" ]; then
-    echo ">>> ${0##*/} ERROR: You don't have write permissions for $install_dir" >&2
+    echo "${0##*/} ERROR: You don't have write permissions for $install_dir" >&2
     return 1
   fi
 
@@ -441,10 +441,10 @@ Press CTRL+C to exit at any time.
   --uninstall)
     get_installed_services blueprints_or_services
     ;;
-  *) echo ">>> ${0##*/} Error: Unknown action $action" >&2 && return 1 ;;
+  *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1 ;;
   esac
 
-  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo ">>> ${0##*/} Error: No blueprints or services found, exiting" >&2 && return 1
+  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo "${0##*/} ERROR: No blueprints or services found, exiting" >&2 && return 1
 
   PS3="Choose a blueprint/service: "
 
@@ -520,7 +520,7 @@ while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
     shift
-    # [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing arguments" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
     -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit $? ;;
     *) "$CREATE_BLUEPRINT_SCRIPT" "$@" && exit $? ;;
@@ -528,7 +528,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --install)
     shift
-    [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <blueprint>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
     bp_to_install="$1"
     install_dir=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
     shift
@@ -536,15 +536,15 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --dir)
         shift
-        [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <dir>" >&2 && exit 1
+        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
         install_dir="$1"
         ;;
       *)
-        echo ">>> ${0##*/} Error: Unknown argument $1" >&2 && exit 1
+        echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
         ;;
       esac
     fi
-    [[ -z "$install_dir" ]] && echo ">>> ${0##*/} Error: Missing argument <dir>" >&2 && exit 1
+    [[ -z "$install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
     _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
@@ -563,7 +563,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --service)
     shift
-    [[ -z "$1" ]] && echo ">>> ${0##*/} Error: Missing argument <service>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <service>" >&2 && exit 1
     service=$1
     shift
     [[ -z "$1" ]] && usage && exit 1
@@ -592,7 +592,7 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --installed) "$VERSION_SCRIPT" -b "$service" --installed && exit $? ;;
       --latest) "$VERSION_SCRIPT" -b "$service" --latest && exit $? ;;
-      *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && usage && exit 1 ;;
+      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
@@ -614,7 +614,7 @@ while [[ "$#" -gt 0 ]]; do
       esac
       ;;
     --restore-backup)
-      [[ -z "$1" ]] && echo "${0##*/} Error: Missing argument <backup>" >&2 && exit 1
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
       shift
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
@@ -624,7 +624,7 @@ while [[ "$#" -gt 0 ]]; do
     --uninstall)
       _uninstall "$service" && exit $?
       ;;
-    *) echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1 ;;
+    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --interactive)
@@ -644,7 +644,7 @@ while [[ "$#" -gt 0 ]]; do
     get_version && exit 0
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2 && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift

@@ -60,7 +60,7 @@ if [ -z "$KGSM_ROOT" ]; then
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo ">>> ${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
     echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
@@ -101,18 +101,18 @@ function __create_manage_file() {
 $(<"$MANAGE_TEMPLATE_FILE")
 EOF
 " >"$SERVICE_MANAGE_SCRIPT_FILE" 2>/dev/null; then
-    echo ">>> ${0##*/} ERROR: Could not copy $MANAGE_TEMPLATE_FILE to $SERVICE_MANAGE_SCRIPT_FILE" >&2
+    echo "${0##*/} ERROR: Could not copy $MANAGE_TEMPLATE_FILE to $SERVICE_MANAGE_SCRIPT_FILE" >&2
     return 1
   fi
 
   # Make sure file is owned by the user and not root
   if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_MANAGE_SCRIPT_FILE"; then
-    echo ">>> ${0##*/} ERROR: Failed to assing $SERVICE_MANAGE_SCRIPT_FILE to $SUDO_USER" >&2ç
+    echo "${0##*/} ERROR: Failed to assing $SERVICE_MANAGE_SCRIPT_FILE to $SUDO_USER" >&2
     return 1
   fi
 
   if ! chmod +x "$SERVICE_MANAGE_SCRIPT_FILE"; then
-    echo ">>> ${0##*/} ERROR: Failed to add +x permission to $SERVICE_MANAGE_SCRIPT_FILE" >&2
+    echo "${0##*/} ERROR: Failed to add +x permission to $SERVICE_MANAGE_SCRIPT_FILE" >&2
     return 1
   fi
 
@@ -124,18 +124,18 @@ function __create_overrides_file() {
   if [ -f "$OVERRIDES_FILE" ]; then
     # Make copy
     if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo ">>> ${0##*/} ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
+      echo "${0##*/} ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
       return 1
     fi
 
     # Make sure file is owned by the user and not root
     if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo ">>> ${0##*/} ERROR: Failed to assing $SERVICE_OVERRIDES_SCRIPT_FILE to $SUDO_USER" >&2ç
+      echo "${0##*/} ERROR: Failed to assing $SERVICE_OVERRIDES_SCRIPT_FILE to $SUDO_USER" >&2
       return 1
     fi
 
     if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo ">>> ${0##*/} ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
+      echo "${0##*/} ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
       return 1
     fi
   fi
@@ -147,7 +147,7 @@ function __systemd_uninstall() {
   # Remove service file
   if [ -f "$SERVICE_SYSTEMD_SERVICE_FILE" ]; then
     if ! rm "$SERVICE_SYSTEMD_SERVICE_FILE"; then
-      echo ">>> ${0##*/} ERROR: Failed to remove $SERVICE_SYSTEMD_SERVICE_FILE" >&2
+      echo "${0##*/} ERROR: Failed to remove $SERVICE_SYSTEMD_SERVICE_FILE" >&2
       return 1
     fi
   fi
@@ -155,14 +155,14 @@ function __systemd_uninstall() {
   # Remove socket file
   if [ -f "$SERVICE_SYSTEMD_SOCKET_FILE" ]; then
     if ! rm "$SERVICE_SYSTEMD_SOCKET_FILE"; then
-      echo ">>> ${0##*/} ERROR: Failed to remove $SERVICE_SYSTEMD_SOCKET_FILE" >&2
+      echo "${0##*/} ERROR: Failed to remove $SERVICE_SYSTEMD_SOCKET_FILE" >&2
       return 1
     fi
   fi
 
   # Reload systemd
   if ! systemctl daemon-reload; then
-    echo ">>> ${0##*/} ERROR: Failed to reload systemd" >&2
+    echo "${0##*/} ERROR: Failed to reload systemd" >&2
     return 1
   fi
 
@@ -174,7 +174,7 @@ function __systemd_install() {
   local service_template_file="$(find "$KGSM_ROOT" -type f -name service.tp)"
 
   if [ -z "$service_template_file" ]; then
-    echo ">>> ${0##*/} ERROR: Failed to locate service.tp template" >&2
+    echo "${0##*/} ERROR: Failed to locate service.tp template" >&2
     return 1
   fi
 
@@ -182,7 +182,7 @@ function __systemd_install() {
   local socket_template_file="$(find "$KGSM_ROOT" -type f -name socket.tp)"
 
   if [ -z "$socket_template_file" ]; then
-    echo ">>> ${0##*/} ERROR: Failed to locate socket.tp template" >&2
+    echo "${0##*/} ERROR: Failed to locate socket.tp template" >&2
     return 1
   fi
 
@@ -196,7 +196,7 @@ function __systemd_install() {
 $(<"$service_template_file")
 EOF
 " >"$SERVICE_SYSTEMD_SERVICE_FILE" 2>/dev/null; then
-    echo ">>> ${0##*/} ERROR: Could not copy $service_template_file to $SERVICE_SYSTEMD_SERVICE_FILE" >&2
+    echo "${0##*/} ERROR: Could not copy $service_template_file to $SERVICE_SYSTEMD_SERVICE_FILE" >&2
     return 1
   fi
 
@@ -205,13 +205,13 @@ EOF
 $(<"$socket_template_file")
 EOF
 " >"$SERVICE_SYSTEMD_SOCKET_FILE" 2>/dev/null; then
-    echo ">>> ${0##*/} ERROR: Could not copy $socket_template_file to $SERVICE_SYSTEMD_SOCKET_FILE" >&2
+    echo "${0##*/} ERROR: Could not copy $socket_template_file to $SERVICE_SYSTEMD_SOCKET_FILE" >&2
     return 1
   fi
 
   # Reload systemd
   if ! systemctl daemon-reload; then
-    echo ">>> ${0##*/} ERROR: Failed to reload systemd" >&2
+    echo "${0##*/} ERROR: Failed to reload systemd" >&2
     return 1
   fi
 
@@ -221,14 +221,14 @@ EOF
 function __ufw_uninstall() {
   # Remove ufw rule
   if ! ufw delete allow "$SERVICE_NAME" &>>/dev/null; then
-    echo ">>> ${0##*/} ERROR: Failed to remove UFW rule for $SERVICE_NAME" >&2
+    echo "${0##*/} ERROR: Failed to remove UFW rule for $SERVICE_NAME" >&2
     return 1
   fi
 
   if [ -f "$SERVICE_UFW_FIREWALL_FILE" ]; then
     # Delete firewall rule file
     if ! rm "$SERVICE_UFW_FIREWALL_FILE"; then
-      echo ">>> ${0##*/} ERROR: Failed to remove $SERVICE_UFW_FIREWALL_FILE" >&2
+      echo "${0##*/} ERROR: Failed to remove $SERVICE_UFW_FIREWALL_FILE" >&2
       return 1
     fi
   fi
@@ -247,13 +247,13 @@ function __ufw_install() {
   local ufw_template_file="$(find "$KGSM_ROOT" -type f -name ufw.tp)"
 
   if [ -z "$ufw_template_file" ]; then
-    echo ">>> ${0##*/} ERROR: Could not load ufw.tp template" >&2
+    echo "${0##*/} ERROR: Could not load ufw.tp template" >&2
     return 1
   fi
 
   # Create file
   if ! touch "$SERVICE_UFW_FIREWALL_FILE"; then
-    echo ">>> ${0##*/} ERROR: Failed to create file $SERVICE_UFW_FIREWALL_FILE" >&2
+    echo "${0##*/} ERROR: Failed to create file $SERVICE_UFW_FIREWALL_FILE" >&2
     return 1
   fi
 
@@ -262,13 +262,13 @@ function __ufw_install() {
 $(<"$ufw_template_file")
 EOF
 " >"$SERVICE_UFW_FIREWALL_FILE"; then
-    echo ">>> ${0##*/} ERROR: Failed writing rules to $SERVICE_UFW_FIREWALL_FILE" >&2
+    echo "${0##*/} ERROR: Failed writing rules to $SERVICE_UFW_FIREWALL_FILE" >&2
     return 1
   fi
 
   # Enable firewall rule
   if ! ufw allow "$SERVICE_NAME" &>>/dev/null; then
-    echo ">>> ${0##*/} ERROR: Failed to allow UFW rule for $SERVICE_NAME" >&2
+    echo "${0##*/} ERROR: Failed to allow UFW rule for $SERVICE_NAME" >&2
     return 1
   fi
 
@@ -311,7 +311,7 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   *)
-    echo ">>> ${0##*/} Error: Invalid argument $1" >&2
+    echo "${0##*/} ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
