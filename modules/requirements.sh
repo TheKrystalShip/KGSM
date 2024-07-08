@@ -6,7 +6,6 @@ required_packages=(
   "jq"
   "wget"
   "unzip"
-  "curl"
   "tar"
   "sed"
   "find"

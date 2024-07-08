@@ -57,13 +57,13 @@ function func_get_latest_version() {
   fi
 
   # Fetch latest version manifest
-  if ! curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >"$mc_versions_cache"; then
-    echo "${0##*/} ERROR: curl -sS https://launchermeta.mojang.com/mc/game/version_manifest.json >$mc_versions_cache"
+  if ! wget -qO "$mc_versions_cache" https://launchermeta.mojang.com/mc/game/version_manifest.json; then
+    echo "${0##*/} ERROR: wget -qO $mc_versions_cache https://launchermeta.mojang.com/mc/game/version_manifest.json" >&2
     return 1
   fi
 
   # shellcheck disable=SC2034
-  result=$(cat "$mc_versions_cache" | jq -r '{latest: .latest.release} | .[]')
+  result=$(jq -r '{latest: .latest.release} | .[]' <"$mc_versions_cache")
   echo "$result"
 }
 
@@ -83,20 +83,30 @@ function func_download() {
 
   # Pick URL
   # shellcheck disable=SC2155
-  local release_url="$(cat "$mc_versions_cache" | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
+  local release_url="$(jq <"$mc_versions_cache" -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
 
-  if ! curl -sS "$release_url" >"$release_json"; then
-    echo "${0##*/} ERROR: curl -sS $release_url >$release_json"
+  if [ -z "$release_url" ]; then
+    echo "${0##*/} ERROR: Could not find the URL of the latest release, exiting" >&2
+    return 1
+  fi
+
+  if ! wget -qO "$release_json" "$release_url"; then
+    echo "${0##*/} ERROR: wget -qO $release_json $release_url" >&2
     return 1
   fi
 
   # shellcheck disable=SC2155
-  local release_server_jar_url="$(cat "$release_json" | jq -r '{url: .downloads.server.url} | .[]')"
+  local release_server_jar_url="$(jq <"$release_json" -r '{url: .downloads.server.url} | .[]')"
+
+  if [ -z "$release_server_jar_url" ]; then
+    echo "${0##*/} ERROR: Could not find the URL of the JAR file" >&2
+    return 1
+  fi
 
   local local_release_jar="$dest/minecraft_server.$version.jar"
 
   if [ ! -f "$local_release_jar" ]; then
-    curl -sS "$release_server_jar_url" -o "$local_release_jar"
+    wget -qO "$local_release_jar" "$release_server_jar_url"
   fi
 
   return 0

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # Read configuration file
 CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
 if [ -f "$CONFIG_FILE" ]; then
@@ -152,30 +154,26 @@ function update_script() {
   echo "Checking for updates..." >&2
 
   # Fetch the latest version number
-  if command -v curl >/dev/null 2>&1; then
-    LATEST_VERSION=$(curl -s "$version_url")
-  elif command -v wget >/dev/null 2>&1; then
+  if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo "Error: curl or wget is required to check for updates." >&2
+    echo "${0##*/} ERROR: wget is required to check for updates." >&2
     return 1
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ] || [ "$force" -eq 1 ]; then
-    echo "New version available: $LATEST_VERSION. Updating..." >&2
+    echo "${0##*/} New version available: $LATEST_VERSION. Updating..." >&2
 
     # Backup the current script
     cp "$0" "${0}.bak"
-    echo "Backup of the current script created at ${0}.bak" >&2
+    echo "${0##*/} Backup of the current script created at ${0}.bak" >&2
 
     # Download the repository tarball
-    if command -v curl >/dev/null 2>&1; then
-      curl -L -o "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
-    elif command -v wget >/dev/null 2>&1; then
+    if command -v wget >/dev/null 2>&1; then
       wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
     else
-      echo "Error: curl or wget is required to download the update." >&2
+      echo "${0##*/} ERROR: wget is required to download the update." >&2
       return 1
     fi
 
@@ -184,16 +182,16 @@ function update_script() {
       # Overwrite the existing files with the new ones
       cp -r KGSM-main/* .
       chmod +x kgsm.sh modules/*.sh
-      echo "KGSM updated successfully to version $LATEST_VERSION." >&2
+      echo "${0##*/} KGSM updated successfully to version $LATEST_VERSION." >&2
 
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
-      echo "Error: Failed to extract the update. Reverting to the previous version." >&2
+      echo "${0##*/} ERROR: Failed to extract the update. Reverting to the previous version." >&2
       mv "${0}.bak" "$0"
     fi
   else
-    echo "You are already using the latest version: $script_version." >&2
+    echo "${0##*/} You are already using the latest version: $script_version." >&2
   fi
 
   return 0
@@ -556,7 +554,12 @@ while [[ "$#" -gt 0 ]]; do
     exit 0
     ;;
   --ip)
-    curl https://icanhazip.com 2>/dev/null && exit $?
+    if command -v wget >/dev/null 2>&1; then
+      wget -qO- https://icanhazip.com && exit $?
+    else
+      echo "${0##*/} ERROR: wget is required but not installed" >&2
+      exit 1
+    fi
     ;;
   --update)
     update_script "$@" && exit $?
