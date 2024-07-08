@@ -10,6 +10,7 @@ required_packages=(
   "sed"
   "find"
   "dirname"
+  "tr"
   "steamcmd"
 )
 
@@ -63,6 +64,8 @@ function _install() {
   missing_packages=()
   for package in "${required_packages[@]}"; do
     if ! is_package_installed "$package"; then
+      [[ "$package" == "find" ]] && package=findutils
+      [[ "$package" == "dirname" || "$package" == "tr" ]] && package=coreutils
       missing_packages+=("$package")
     fi
   done
