@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -euo pipefail
-
 # Read configuration file
 CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
 if [ -f "$CONFIG_FILE" ]; then
@@ -32,6 +30,8 @@ else
     exit 1
   fi
 fi
+
+set -euo pipefail
 
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
