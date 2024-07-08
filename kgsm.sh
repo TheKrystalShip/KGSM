@@ -45,7 +45,10 @@ function get_version() {
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
 
-Create, install and manage game servers on Linux."
+Create, install and manage game servers on Linux.
+
+If you have any problems while using KGSM, please don't hesitate to create an
+issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
 function usage() {
   printf "%s
