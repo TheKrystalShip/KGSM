@@ -17,6 +17,9 @@ required_packages=(
 function usage() {
   echo "Listing an installation of required packages for KGSM
 
+Required packages:
+  ${required_packages[*]}
+
 Usage:
   ./${0##*/} [option]
 

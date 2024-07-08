@@ -66,8 +66,8 @@ Options:
 
     --requirements              Displays a list of the required packages needed to
                                 run KGSM.
-
-    --install-requirements      Checks for required packages and installs them
+        -h --help               Prints a helpful description of each package
+        --install               Checks for required packages and installs them
                                 if they are not present.
 
     --ip                        Gets the external server IP used to connect to the
@@ -86,8 +86,7 @@ Options:
 
     --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing blueprint.
                                 \e[1mBLUEPRINT\e[0m must be the name of a blueprint.
-                                Run --get-blueprints to see a list of all available
-                                blueprints.
+                                Run --blueprints to see which are available.
 
   \e[4mServices\e[0m
     --service \e[1mSERVICE\e[0m [OPTION]  Issue commands to a service.
@@ -647,10 +646,17 @@ while [[ "$#" -gt 0 ]]; do
     esac
     ;;
   --requirements)
-    "$REQUIREMENTS_SCRIPT" --list && exit $?
-    ;;
-  --install-requirements)
-    sudo -E "$REQUIREMENTS_SCRIPT" && exit $?
+    shift
+    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list && exit $?
+    case "$1" in
+    -h | --help)
+      "$REQUIREMENTS_SCRIPT" --help && exit $?
+      ;;
+    --install)
+      sudo -E "$REQUIREMENTS_SCRIPT" --install && exit $?
+      ;;
+    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    esac
     ;;
   -v | --version)
     get_version && exit 0
