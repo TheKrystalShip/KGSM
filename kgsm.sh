@@ -31,7 +31,7 @@ else
   fi
 fi
 
-set -euo pipefail
+set -eo pipefail
 
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
