@@ -385,12 +385,15 @@ function get_installed_services() {
 }
 
 function _interactive() {
-  echo "KGSM - Interactive menu - $(get_version)
+  echo "$DESCRIPTION
 
-Start the script with '--interactive -h' or '--interactive --help' for a detailed description of each menu option
+Start the script with '--interactive -h' or '--interactive --help' for a
+detailed description of each menu option.
 Press CTRL+C to exit at any time.
 
+KGSM - Interactive menu
 "
+
   PS3="Choose an action: "
 
   local action=
