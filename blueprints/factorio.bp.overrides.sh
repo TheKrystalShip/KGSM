@@ -50,8 +50,8 @@
 # - 1: Error
 function func_get_latest_version() {
   # shellcheck disable=SC2034
-  result=$(wget -qO- 'https://factorio.com/api/latest-releases' | jq .stable.headless)
-  echo "$result"
+  result=$(wget -qO- 'https://factorio.com/api/latest-releases' | jq .stable.headless | tr -d '"')
+  echo -n "$result"
 }
 
 # INPUT:

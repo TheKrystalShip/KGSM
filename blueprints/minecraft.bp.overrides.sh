@@ -63,8 +63,8 @@ function func_get_latest_version() {
   fi
 
   # shellcheck disable=SC2034
-  result=$(jq -r '{latest: .latest.release} | .[]' <"$mc_versions_cache")
-  echo "$result"
+  result=$(jq -r '{latest: .latest.release} | .[]' <"$mc_versions_cache" | tr -d '"')
+  echo -n "$result"
 }
 
 # INPUT:
