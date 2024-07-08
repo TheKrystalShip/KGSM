@@ -85,14 +85,15 @@ trap "echo "" && exit" INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
-MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
-OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".bp.overrides.sh)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
+
+MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
+OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".bp.overrides.sh)"
 
 function __create_manage_file() {
   # MANAGE_TEMPLATE_FILE expects a $WORKING_DIR var
