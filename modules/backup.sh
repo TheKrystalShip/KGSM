@@ -26,6 +26,14 @@ Examples:
 "
 }
 
+set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
+
 if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
 while [[ "$#" -gt 0 ]]; do
@@ -46,16 +54,16 @@ done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
@@ -80,7 +88,7 @@ function _create() {
   # create a backup. If empty, skip
   if [ -z "$(ls -A -I .gitignore "$source")" ]; then
     # $source is empty, nothing to back up
-    echo "${0##*/} WARNING: $source is empty, skipping backup" >&2
+    echo "WARNING: $source is empty, skipping backup" >&2
     return 0
   fi
 
@@ -91,20 +99,20 @@ function _create() {
   # Create backup folder if it doesn't exit
   if [ ! -d "$output_dir" ]; then
     if ! mkdir -p "$output_dir"; then
-      echo "${0##*/} ERROR: Error creating backup folder $output_dir" >&2
+      echo "ERROR: Error creating backup folder $output_dir" >&2
       return 1
     fi
   fi
 
   # Move everything from the install directory into a backup folder
   if ! mv "$source"/* "$output_dir"/; then
-    echo "${0##*/} ERROR: Failed to move contents from $source into $output_dir" >&2
+    echo "ERROR: Failed to move contents from $source into $output_dir" >&2
     rm -rf "${output_dir:?}"
     return 1
   fi
 
   if ! echo "0" >"$SERVICE_VERSION_FILE"; then
-    echo "${0##*/} WARNING: Failed to reset version in $SERVICE_VERSION_FILE" >&2
+    echo "WARNING: Failed to reset version in $SERVICE_VERSION_FILE" >&2
   fi
 
   return 0
@@ -121,24 +129,24 @@ function _restore() {
 
   if [ -n "$(ls -A -I .gitignore "$SERVICE_INSTALL_DIR")" ]; then
     # $SERVICE_INSTALL_DIR is not empty
-    read -r -p "${0##*/} WARNING: $SERVICE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+    read -r -p "WARNING: $SERVICE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
   fi
 
   # $SERVICE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
   if ! mv "$SERVICE_BACKUPS_DIR/$source"/* "$SERVICE_INSTALL_DIR"/; then
-    echo "${0##*/} ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR" >&2
+    echo "ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR" >&2
     return 1
   fi
 
   # Updated $SERVICE_VERSION_FILE with $backup_version
   if ! echo "$backup_version" >"$SERVICE_VERSION_FILE"; then
-    echo "${0##*/} WARNING: Failed to update version in $SERVICE_VERSION_FILE" >&2
+    echo "WARNING: Failed to update version in $SERVICE_VERSION_FILE" >&2
     return 1
   fi
 
   # Remove empty backup directory
   if ! rm -rf "${SERVICE_BACKUPS_DIR:?}/${source:?}"; then
-    echo "${0##*/} WARNING: Failed to remove $source" >&2
+    echo "WARNING: Failed to remove $source" >&2
     return 1
   fi
 
@@ -156,11 +164,11 @@ while [ $# -gt 0 ]; do
     ;;
   --restore)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <source>" >&2
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <source>" >&2
     _restore "$1" && exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2
+    echo "ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac

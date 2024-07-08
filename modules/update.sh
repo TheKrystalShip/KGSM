@@ -37,6 +37,14 @@ Examples:
 "
 }
 
+set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
+
 if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
 while [[ "$#" -gt 0 ]]; do
@@ -49,7 +57,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2
+    echo "ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
@@ -58,16 +66,16 @@ done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
@@ -128,11 +136,11 @@ function func_main() {
   printf "\tInstalled version:\t%s\n" "$SERVICE_INSTALLED_VERSION"
 
   if [ "$latest_version" == "$EXITSTATUS_ERROR" ]; then
-    func_exit_error "${0##*/} ERROR: No new version found, exiting.\n"
+    func_exit_error "ERROR: No new version found, exiting.\n"
   fi
 
   if [ -z "$latest_version" ]; then
-    func_exit_error "${0##*/} ERROR: new version number is empty, exiting"
+    func_exit_error "ERROR: new version number is empty, exiting"
   fi
 
   printf "\tLatest version available:\t%s\n" "$latest_version"
@@ -150,7 +158,7 @@ function func_main() {
   printf "\n\tDownloading version %s\n\n" "$latest_version"
 
   if ! "$DOWNLOAD_SCRIPT_FILE" -b "$SERVICE_NAME"; then
-    func_exit_error "${0##*/} ERROR: Failed to download new version, exiting.\n"
+    func_exit_error "ERROR: Failed to download new version, exiting.\n"
   fi
 
   printf "\n\tDownload completed\n\n"
@@ -172,7 +180,7 @@ function func_main() {
     printf "\n\tWARNING: Service currently running, shutting down first...\n"
 
     if ! systemctl stop "$SERVICE_NAME"; then
-      func_exit_error "${0##*/} ERROR: Failed to shutdown service, exiting"
+      func_exit_error "ERROR: Failed to shutdown service, exiting"
     else
       printf "\n\tService shutdown complete, continuing\n\n"
     fi
@@ -191,7 +199,7 @@ function func_main() {
   sleep 1
 
   if ! "$BACKUP_SCRIPT_FILE" -b "$SERVICE_NAME" --create; then
-    func_exit_error "${0##*/} ERROR: Failed to create backup, exiting"
+    func_exit_error "ERROR: Failed to create backup, exiting"
   fi
 
   printf "\n\tBackup complete\n\n"
@@ -206,7 +214,7 @@ function func_main() {
   sleep 1
 
   if ! "$DEPLOY_SCRIPT_FILE" -b "$SERVICE_NAME"; then
-    func_exit_error "${0##*/} ERROR: Failed to deploy $latest_version, exiting" "$latest_version"
+    func_exit_error "ERROR: Failed to deploy $latest_version, exiting" "$latest_version"
   fi
 
   printf "\n\tDeployment complete.\n\n"
@@ -226,7 +234,7 @@ function func_main() {
     local restore_service_state_result=$(systemctl start "$SERVICE_NAME")
 
     if [ "$restore_service_state_result" == "$EXITSTATUS_ERROR" ]; then
-      func_exit_error "${0##*/} ERROR: Failed to restore service to running state, exiting"
+      func_exit_error "ERROR: Failed to restore service to running state, exiting"
     fi
 
     printf "\n\tService started successfully\n\n"

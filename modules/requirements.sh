@@ -30,6 +30,14 @@ Options:
 "
 }
 
+set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
+
 while [ $# -gt 0 ]; do
   case "$1" in
   -h | --help)
@@ -107,7 +115,7 @@ while [ $# -gt 0 ]; do
     _install && exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2
+    echo "ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac

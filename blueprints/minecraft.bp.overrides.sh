@@ -58,7 +58,7 @@ function func_get_latest_version() {
 
   # Fetch latest version manifest
   if ! wget -qO "$mc_versions_cache" https://launchermeta.mojang.com/mc/game/version_manifest.json; then
-    echo "${0##*/} ERROR: wget -qO $mc_versions_cache https://launchermeta.mojang.com/mc/game/version_manifest.json" >&2
+    echo "ERROR: wget -qO $mc_versions_cache https://launchermeta.mojang.com/mc/game/version_manifest.json" >&2
     return 1
   fi
 
@@ -86,12 +86,12 @@ function func_download() {
   local release_url="$(jq <"$mc_versions_cache" -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
 
   if [ -z "$release_url" ]; then
-    echo "${0##*/} ERROR: Could not find the URL of the latest release, exiting" >&2
+    echo "ERROR: Could not find the URL of the latest release, exiting" >&2
     return 1
   fi
 
   if ! wget -qO "$release_json" "$release_url"; then
-    echo "${0##*/} ERROR: wget -qO $release_json $release_url" >&2
+    echo "ERROR: wget -qO $release_json $release_url" >&2
     return 1
   fi
 
@@ -99,7 +99,7 @@ function func_download() {
   local release_server_jar_url="$(jq <"$release_json" -r '{url: .downloads.server.url} | .[]')"
 
   if [ -z "$release_server_jar_url" ]; then
-    echo "${0##*/} ERROR: Could not find the URL of the JAR file" >&2
+    echo "ERROR: Could not find the URL of the JAR file" >&2
     return 1
   fi
 
@@ -124,14 +124,14 @@ function func_deploy() {
   local dest=$2
 
   if ! mv -f "$source"/*.jar "$dest"/release.jar; then
-    echo "${0##*/} ERROR: mv -f $source/* $dest/"
+    echo "ERROR: mv -f $source/* $dest/"
     return 1
   fi
 
   local eula_file="$source"/eula.txt
 
   if ! echo "eula=true" >"$eula_file"; then
-    echo "${0##*/} WARNING: Failed to configure eula.txt file, continuing"
+    echo "WARNING: Failed to configure eula.txt file, continuing"
   fi
 
   return 0

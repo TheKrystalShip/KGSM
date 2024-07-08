@@ -21,17 +21,23 @@ else
   CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
-    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
+    echo "WARNING: config.cfg not found, created new file" >&2
     echo "${0##*/} Please ensure configuration is correct before running the script again" >&2
     exit 0
   else
-    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
+    echo "ERROR: Could not find config.cfg.example, install might be broken" >&2
     echo "Try to repair the install by running ${0##*/} --update --force" >&2
     exit 1
   fi
 fi
 
 set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
 
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
@@ -157,7 +163,7 @@ function update_script() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo "${0##*/} ERROR: wget is required to check for updates." >&2
+    echo "ERROR: wget is required to check for updates." >&2
     return 1
   fi
 
@@ -173,7 +179,7 @@ function update_script() {
     if command -v wget >/dev/null 2>&1; then
       wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
     else
-      echo "${0##*/} ERROR: wget is required to download the update." >&2
+      echo "ERROR: wget is required to download the update." >&2
       return 1
     fi
 
@@ -187,7 +193,7 @@ function update_script() {
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
-      echo "${0##*/} ERROR: Failed to extract the update. Reverting to the previous version." >&2
+      echo "ERROR: Failed to extract the update. Reverting to the previous version." >&2
       mv "${0}.bak" "$0"
     fi
   else
@@ -224,31 +230,31 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 source "$COMMON_SCRIPT" || exit 1
 
 CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
-[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
+[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
 
 DIRECTORIES_SCRIPT="$(find "$KGSM_ROOT" -type f -name directories.sh)"
-[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load directories.sh" >&2 && exit 1
+[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "ERROR: Failed to load directories.sh" >&2 && exit 1
 
 FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name files.sh)"
-[[ -z "$FILES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load files.sh" >&2 && exit 1
+[[ -z "$FILES_SCRIPT" ]] && echo "ERROR: Failed to load files.sh" >&2 && exit 1
 
 VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-[[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load version.sh" >&2 && exit 1
+[[ -z "$VERSION_SCRIPT" ]] && echo "ERROR: Failed to load version.sh" >&2 && exit 1
 
 DOWNLOAD_SCRIPT="$(find "$KGSM_ROOT" -type f -name download.sh)"
-[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load download.sh" >&2 && exit 1
+[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "ERROR: Failed to load download.sh" >&2 && exit 1
 
 DEPLOY_SCRIPT="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
-[[ -z "$DEPLOY_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load deploy.sh" >&2 && exit 1
+[[ -z "$DEPLOY_SCRIPT" ]] && echo "ERROR: Failed to load deploy.sh" >&2 && exit 1
 
 UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
-[[ -z "$UPDATE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load update.sh" >&2 && exit 1
+[[ -z "$UPDATE_SCRIPT" ]] && echo "ERROR: Failed to load update.sh" >&2 && exit 1
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
-[[ -z "$BACKUP_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load backup.sh" >&2 && exit 1
+[[ -z "$BACKUP_SCRIPT" ]] && echo "ERROR: Failed to load backup.sh" >&2 && exit 1
 
 REQUIREMENTS_SCRIPT="$(find "$KGSM_ROOT" -type f -name requirements.sh)"
-[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load requirements.sh" >&2 && exit 1
+[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo "ERROR: Failed to load requirements.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -270,13 +276,13 @@ function _install() {
 
   if [ ! -d "$install_dir" ]; then
     if ! mkdir -p "$install_dir"; then
-      echo "${0##*/} ERROR: Failed to create directory $install_dir" >&2
+      echo "ERROR: Failed to create directory $install_dir" >&2
       return 1
     fi
   fi
 
   if [ ! -w "$install_dir" ]; then
-    echo "${0##*/} ERROR: You don't have write permissions for $install_dir" >&2
+    echo "ERROR: You don't have write permissions for $install_dir" >&2
     return 1
   fi
 
@@ -439,10 +445,10 @@ Press CTRL+C to exit at any time.
   --uninstall)
     get_installed_services blueprints_or_services
     ;;
-  *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1 ;;
+  *) echo "ERROR: Unknown action $action" >&2 && return 1 ;;
   esac
 
-  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo "${0##*/} ERROR: No blueprints or services found, exiting" >&2 && return 1
+  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo "ERROR: No blueprints or services found, exiting" >&2 && return 1
 
   PS3="Choose a blueprint/service: "
 
@@ -508,17 +514,14 @@ Press CTRL+C to exit at any time.
   esac
 }
 
-# Exit code
-ret=0
-
 # If it's started with no args, default to interactive mode
-[[ "$#" -eq 0 ]] && _interactive || ret=$?
+[[ "$#" -eq 0 ]] && _interactive && exit $?
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
     -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit $? ;;
     *) "$CREATE_BLUEPRINT_SCRIPT" "$@" && exit $? ;;
@@ -526,7 +529,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --install)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <blueprint>" >&2 && exit 1
     bp_to_install="$1"
     install_dir=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
     shift
@@ -534,15 +537,15 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --dir)
         shift
-        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
+        [[ -z "$1" ]] && echo "ERROR: Missing argument <dir>" >&2 && exit 1
         install_dir="$1"
         ;;
       *)
-        echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+        echo "ERROR: Unknown argument $1" >&2 && exit 1
         ;;
       esac
     fi
-    [[ -z "$install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
+    [[ -z "$install_dir" ]] && echo "ERROR: Missing argument <dir>" >&2 && exit 1
     _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
@@ -557,7 +560,7 @@ while [[ "$#" -gt 0 ]]; do
     if command -v wget >/dev/null 2>&1; then
       wget -qO- https://icanhazip.com && exit $?
     else
-      echo "${0##*/} ERROR: wget is required but not installed" >&2
+      echo "ERROR: wget is required but not installed" >&2
       exit 1
     fi
     ;;
@@ -566,10 +569,10 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --service)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <service>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <service>" >&2 && exit 1
     service=$1
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
       journalctl -n "10" -u "$service" --no-pager && exit $?
@@ -595,7 +598,7 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --installed) "$VERSION_SCRIPT" -b "$service" --installed && exit $? ;;
       --latest) "$VERSION_SCRIPT" -b "$service" --latest && exit $? ;;
-      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
+      *) echo "ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
@@ -617,7 +620,7 @@ while [[ "$#" -gt 0 ]]; do
       esac
       ;;
     --restore-backup)
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
+      [[ -z "$1" ]] && echo "ERROR: Missing argument <backup>" >&2 && exit 1
       shift
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
@@ -627,7 +630,7 @@ while [[ "$#" -gt 0 ]]; do
     --uninstall)
       _uninstall "$service" && exit $?
       ;;
-    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --interactive)
@@ -647,10 +650,10 @@ while [[ "$#" -gt 0 ]]; do
     get_version && exit 0
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    echo "ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift
 done
 
-exit "$ret"
+exit 0

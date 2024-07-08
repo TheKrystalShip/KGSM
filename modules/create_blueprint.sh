@@ -49,18 +49,26 @@ Examples:
 "
 }
 
+set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
@@ -95,51 +103,51 @@ while [ $# -gt 0 ]; do
     ;;
   --name)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <name>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <name>" >&2 && exit 1
     _name="$1"
     ;;
   --port)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <port>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <port>" >&2 && exit 1
     _port="$1"
     ;;
   --app-id)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <app-id>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <app-id>" >&2 && exit 1
     _app_id="$1"
     ;;
   --steam-auth-level)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <steam-auth-level>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <steam-auth-level>" >&2 && exit 1
     _steam_auth_level="$1"
     ;;
   --launch-bin)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <launch-bin>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <launch-bin>" >&2 && exit 1
     _launch_bin="$1"
     ;;
   --install-subdirectory)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install-subdirectory>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <install-subdirectory>" >&2 && exit 1
     _install_subdirectory="$1"
     ;;
   --launch-args)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <launch-args>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <launch-args>" >&2 && exit 1
     _launch_args="$1"
     ;;
   --stop-command)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <stop-command>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <stop-command>" >&2 && exit 1
     _stop_command="$1"
     ;;
   --save-command)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <save-command>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <save-command>" >&2 && exit 1
     _save_command="$1"
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2
+    echo "ERROR: Invalid argument $1" >&2
     usage && exit 1
     ;;
   esac
@@ -147,25 +155,25 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$_name" ]; then
-  echo "${0##*/} ERROR: --name cannot be empty.
+  echo "ERROR: --name cannot be empty.
   Use \"--help\" to see available parameters." >&2
   exit 1
 fi
 
 if [ -z "$_port" ]; then
-  echo "${0##*/} ERROR: --port cannot be empty.
+  echo "ERROR: --port cannot be empty.
   Use \"--help\" to see available parameters." >&2
   exit 1
 fi
 
 if [ -z "$_launch_bin" ]; then
-  echo "${0##*/} ERROR: --launch-bin cannot be empty.
+  echo "ERROR: --launch-bin cannot be empty.
   Use \"--help\" to see available parameters." >&2
   exit 1
 fi
 
 if [ "$_steam_auth_level" == "1" ] && [ "$_app_id" == "0" ]; then
-  echo "${0##*/} ERROR: --app-id cannot be empty.
+  echo "ERROR: --app-id cannot be empty.
   Use \"--help\" to see available parameters." >&2
   exit 1
 fi
@@ -178,5 +186,5 @@ if ! eval "cat <<EOF
 $(<"$TEMPLATE_INPUT_FILE")
 EOF
 " >"$BLUEPRINT_OUTPUT_FILE" 2>/dev/null; then
-  echo "${0##*/} ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE" >&2
+  echo "ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE" >&2
 fi

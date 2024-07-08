@@ -27,6 +27,14 @@ Examples:
 "
 }
 
+set -eo pipefail
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+fi
+
 if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
 while [[ "$#" -gt 0 ]]; do
@@ -47,16 +55,16 @@ done
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
 
   # If not found in /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
-    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2
+    echo "ERROR: KGSM_ROOT not found, exiting." >&2
     exit 1
   else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
 
     # Check if KGSM_ROOT is exported
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
@@ -87,7 +95,7 @@ function _install() {
   for dir in "${DIR_ARRAY[@]}"; do
     # "mkdir -p" is crucial, see https://linux.die.net/man/1/mkdir
     if ! mkdir -p "$dir"; then
-      printf "${0##*/} ERROR: Failed to create %s\n" "$dir" >&2
+      printf "ERROR: Failed to create %s\n" "$dir" >&2
       return 1
     fi
   done
@@ -97,7 +105,7 @@ function _install() {
 function _uninstall() {
   # Remove main working directory
   if ! rm -rf "$SERVICE_WORKING_DIR"; then
-    echo "${0##*/} ERROR: Failed to remove $SERVICE_WORKING_DIR" >&2
+    echo "ERROR: Failed to remove $SERVICE_WORKING_DIR" >&2
     return 1
   fi
   return 0
@@ -115,7 +123,7 @@ while [ $# -gt 0 ]; do
     shift
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1
+    echo "ERROR: Invalid argument $1" >&2 && usage && exit 1
     ;;
   esac
   shift
