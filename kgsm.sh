@@ -569,7 +569,7 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <service>" >&2 && exit 1
     service=$1
     shift
-    [[ -z "$1" ]] && usage && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
       journalctl -n "10" -u "$service" --no-pager && exit $?
