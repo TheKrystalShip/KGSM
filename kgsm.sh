@@ -145,6 +145,25 @@ Menu options:
 " "$DESCRIPTION"
 }
 
+function check_for_update() {
+  # shellcheck disable=SC2155
+  local script_version=$(get_version)
+  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
+
+  # Fetch the latest version number
+  if command -v wget >/dev/null 2>&1; then
+    LATEST_VERSION=$(wget -q -O - "$version_url")
+  else
+    return 1
+  fi
+
+  # Compare the versions
+  if [ "$script_version" != "$LATEST_VERSION" ]; then
+    printf "\033[0;33mNew version available: %s
+Please run ./%s --update to get the latest version\033[0m\n\n" "$LATEST_VERSION" "${0##*/}" >&2
+  fi
+}
+
 # Define a function to update the script and other files
 function update_script() {
   # Define the raw URL of the script and version file
@@ -204,6 +223,8 @@ function update_script() {
 
   return 0
 }
+
+check_for_update
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
