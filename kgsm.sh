@@ -54,7 +54,7 @@ function get_version() {
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
 
-Create, install and manage game servers on Linux.
+Create, install, and manage game servers on Linux.
 
 If you have any problems while using KGSM, please don't hesitate to create an
 issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
@@ -63,72 +63,61 @@ function usage() {
   printf "%s
 
 Usage:
-  ./${0##*/} [option]
+  ./kgsm.sh [option]
 
 Options:
   \e[4mGeneral\e[0m
-    -h --help                   Prints this message
-
-    --update                    Updates KGSM to the latest version
-      --force                   Ignores the version check and downloads the
-                                latest version available
-
-    --requirements              Displays a list of the required packages needed
-                                to run KGSM.
-        -h --help               Prints a helpful description of each package
-        --install               Checks for required packages and installs them
-                                if they are not present.
-
-    --ip                        Gets the external server IP used to connect to
+    -h, --help                  Print this help message.
+    --update                    Update KGSM to the latest version.
+      --force                   Ignore version check and download the latest
+                                version available.
+    --requirements              Display a list of required packages needed to
+                                run KGSM.
+      -h, --help                Print a helpful description of each package.
+      --install                 Check for and install required packages if not
+                                present.
+    --ip                        Get the external server IP used to connect to
                                 the server.
-    --interactive               Starts the script in interactive mode.
-        -h --help               Prints the help information for the interactive
-                                mode.
-
-    -v --version                Prints the KGSM version
+    --interactive               Start the script in interactive mode.
+      -h, --help                Print help information for interactive mode.
+    -v, --version               Print the KGSM version.
 
   \e[4mBlueprints\e[0m
     --create-blueprint          Create a new blueprints file.
-        -h --help               Prints the help information about the blueprint
+      -h, --help                Print help information about the blueprint
                                 creation process.
-
-    --blueprints                Returns a list of all available blueprints
-
-    --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing
+    --blueprints                List all available blueprints.
+    --install BLUEPRINT         Run the installation process for an existing
                                 blueprint.
-                                \e[1mBLUEPRINT\e[0m must be the name of a blueprint.
-                                Run --blueprints to see which are available.
+                                BLUEPRINT must be the name of a blueprint.
+                                Run --blueprints to see available options.
 
   \e[4mServices\e[0m
-    --service \e[1mSERVICE\e[0m [OPTION]  Issue commands to a service.
-                                \e[1mSERVICE\e[0m must be the name of a server or a
+    --service SERVICE [OPTION]  Issue commands to a service.
+                                SERVICE must be the name of a server or a
                                 blueprint.
-                                OPTION represents one of the following
-
-        --logs                  Returns the last 10 lines of the service's log.
-        --status                Returns a detailed status of the service.
-        --is-active
-        --start                 Starts the service.
-        --stop                  Stops the service.
-        --restart               Restarts the service.
-        -v --version            Provides version information.
+                                OPTION represents one of the following:
+      --logs                    Return the last 10 lines of the service's log.
+      --status                  Return a detailed status of the service.
+      --is-active               Check if the service is active.
+      --start                   Start the service.
+      --stop                    Stop the service.
+      --restart                 Restart the service.
+      -v, --version             Provide version information.
                                 Running this with no other argument has the same
                                 outcome as adding the --installed argument.
-          --installed           Prints the currently installed version.
-          --latest              Prints the latest available version number.
-        --check-update          Checks if a new version is available.
-        --update                Runs the update process.
-            -h --help           Prints the help information for the update
-                                process
-        --create-backup         Creates a backup of the currently installed
-                                version if any.
-            -h --help           Prints the help information for the backup
-                                process.
-        --restore-backup \e[1mNAME\e[0m   Restores a backup.
-                                \e[1mNAME\e[0m is the backup name.
-            -h --help           Prints the help information for the backup
-                                process.
-        --uninstall             Run the uninstall process.
+        --installed             Print the currently installed version.
+        --latest                Print the latest available version number.
+      --check-update            Check if a new version is available.
+      --update                  Run the update process.
+        -h, --help              Print help information for the update process.
+      --create-backup           Create a backup of the currently installed
+                                version, if any.
+        -h, --help              Print help information for the backup process.
+      --restore-backup NAME     Restore a backup.
+                                NAME is the backup name.
+        -h, --help              Print help information for the backup process.
+      --uninstall               Run the uninstall process.
 " "$DESCRIPTION"
 }
 
