@@ -28,8 +28,15 @@ set -eo pipefail
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
   set -x
+  for a; do
+    shift
+    case $a in
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
 fi
 
 if [ "$#" -eq 0 ]; then usage && exit 1; fi
@@ -110,4 +117,6 @@ function func_download() {
 # shellcheck disable=SC1090
 source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
 
-func_download "$VERSION" "$SERVICE_TEMP_DIR" && exit $?
+func_download "$VERSION" "$SERVICE_TEMP_DIR" || exit $?
+
+exit 0

@@ -37,8 +37,15 @@ set -eo pipefail
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
   set -x
+  for a; do
+    shift
+    case $a in
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
 fi
 
 while [ $# -gt 0 ]; do
@@ -106,8 +113,6 @@ function _install() {
     fi
   fi
 
-  # Continue with the rest of your script knowing that required packages are installed
-  echo "All required packages are installed." >&2
   return 0
 }
 

@@ -21,22 +21,31 @@ else
   CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
-    echo "WARNING: config.cfg not found, created new file" >&2
-    echo "${0##*/} Please ensure configuration is correct before running the script again" >&2
+    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
+    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
     exit 0
   else
-    echo "ERROR: Could not find config.cfg.example, install might be broken" >&2
-    echo "Try to repair the install by running ${0##*/} --update --force" >&2
+    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
+    echo "${0##*/} INFO: Try to repair the install by running ${0##*/} --update --force" >&2
     exit 1
   fi
 fi
 
 set -eo pipefail
 
+debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  debug=" --debug"
+  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
   set -x
+  for a; do
+    shift
+    case $a in
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
 fi
 
 function get_version() {
@@ -61,19 +70,20 @@ Options:
     -h --help                   Prints this message
 
     --update                    Updates KGSM to the latest version
-      --force                   Ignores the version check and downloads the latest
-                                version available
+      --force                   Ignores the version check and downloads the
+                                latest version available
 
-    --requirements              Displays a list of the required packages needed to
-                                run KGSM.
+    --requirements              Displays a list of the required packages needed
+                                to run KGSM.
         -h --help               Prints a helpful description of each package
         --install               Checks for required packages and installs them
                                 if they are not present.
 
-    --ip                        Gets the external server IP used to connect to the
-                                server.
+    --ip                        Gets the external server IP used to connect to
+                                the server.
     --interactive               Starts the script in interactive mode.
-        -h --help               Prints the help information for the interactive mode
+        -h --help               Prints the help information for the interactive
+                                mode.
 
     -v --version                Prints the KGSM version
 
@@ -84,13 +94,15 @@ Options:
 
     --blueprints                Returns a list of all available blueprints
 
-    --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing blueprint.
+    --install \e[1mBLUEPRINT\e[0m         Run the installation process for an existing
+                                blueprint.
                                 \e[1mBLUEPRINT\e[0m must be the name of a blueprint.
                                 Run --blueprints to see which are available.
 
   \e[4mServices\e[0m
     --service \e[1mSERVICE\e[0m [OPTION]  Issue commands to a service.
-                                \e[1mSERVICE\e[0m must be the name of a server or a blueprint
+                                \e[1mSERVICE\e[0m must be the name of a server or a
+                                blueprint.
                                 OPTION represents one of the following
 
         --logs                  Returns the last 10 lines of the service's log.
@@ -106,12 +118,16 @@ Options:
           --latest              Prints the latest available version number.
         --check-update          Checks if a new version is available.
         --update                Runs the update process.
-            -h --help           Prints the help information for the update process
-        --create-backup         Creates a backup of the currently installed version if any.
-            -h --help           Prints the help information for the backup process.
+            -h --help           Prints the help information for the update
+                                process
+        --create-backup         Creates a backup of the currently installed
+                                version if any.
+            -h --help           Prints the help information for the backup
+                                process.
         --restore-backup \e[1mNAME\e[0m   Restores a backup.
                                 \e[1mNAME\e[0m is the backup name.
-            -h --help           Prints the help information for the backup process.
+            -h --help           Prints the help information for the backup
+                                process.
         --uninstall             Run the uninstall process.
 " "$DESCRIPTION"
 }
@@ -193,7 +209,7 @@ function update_script() {
     echo "${0##*/} New version available: $LATEST_VERSION. Updating..." >&2
 
     # Backup the current script
-    cp "$0" "${0}.bak"
+    cp "$0" "${0}.${script_version:-0}.bak"
     echo "${0##*/} Backup of the current script created at ${0}.bak" >&2
 
     # Download the repository tarball
@@ -215,7 +231,7 @@ function update_script() {
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
       echo "ERROR: Failed to extract the update. Reverting to the previous version." >&2
-      mv "${0}.bak" "$0"
+      mv "${0}.${script_version:-0}.bak" "$0"
     fi
   else
     echo "${0##*/} You are already using the latest version: $script_version." >&2
@@ -331,15 +347,15 @@ function _install() {
   local latest_version=$("$VERSION_SCRIPT" -b "$blueprint" --latest)
 
   # First create directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install || return $?
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install"$debug" || return $?
   # Create necessary files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install || return $?
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install"$debug" || return $?
   # Run the download process
-  "$DOWNLOAD_SCRIPT" -b "$blueprint" || return $?
+  "$DOWNLOAD_SCRIPT" -b "$blueprint""$debug" || return $?
   # Deploy newly downloaded
-  "$DEPLOY_SCRIPT" -b "$blueprint" || return $?
+  "$DEPLOY_SCRIPT" -b "$blueprint""$debug" || return $?
   # Save new version
-  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version" || return $?
+  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version""$debug" || return $?
 
   return 0
 }
@@ -352,9 +368,9 @@ function _uninstall() {
   fi
 
   # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall || return $?
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall"$debug" || return $?
   # Remove files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall || return $?
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall"$debug" || return $?
 }
 
 function get_blueprints() {
@@ -499,7 +515,7 @@ KGSM - Interactive menu
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
     # shellcheck disable=SC2086
-    "$0" $action $blueprint_or_service --dir $install_directory
+    "$0" $action $blueprint_or_service --dir $install_directory"$debug"
     ;;
   --restore-backup)
     BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -531,11 +547,11 @@ KGSM - Interactive menu
       fi
     done
     # shellcheck disable=SC2086
-    "$0" --service $blueprint_or_service $action "$backup_to_restore"
+    "$0" --service $blueprint_or_service $action "$backup_to_restore""$debug"
     ;;
   *)
     # shellcheck disable=SC2086
-    "$0" --service $blueprint_or_service $action
+    "$0" --service $blueprint_or_service $action"$debug"
     ;;
   esac
 }
@@ -549,8 +565,11 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help && exit $? ;;
-    *) "$CREATE_BLUEPRINT_SCRIPT" "$@" && exit $? ;;
+    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help"$debug" && exit $? ;;
+    *)
+      # shellcheck disable=SC2145
+      "$CREATE_BLUEPRINT_SCRIPT" "$@""$debug" && exit $?
+      ;;
     esac
     ;;
   --install)
@@ -620,29 +639,29 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     -v | --version)
       shift
-      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed && exit $?
+      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed"$debug" && exit $?
       case "$1" in
-      --installed) "$VERSION_SCRIPT" -b "$service" --installed && exit $? ;;
-      --latest) "$VERSION_SCRIPT" -b "$service" --latest && exit $? ;;
+      --installed) "$VERSION_SCRIPT" -b "$service" --installed"$debug" && exit $? ;;
+      --latest) "$VERSION_SCRIPT" -b "$service" --latest"$debug" && exit $? ;;
       *) echo "ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
       case "$1" in
       -h | --help) "$VERSION_SCRIPT" --help && exit $? ;;
-      *) "$VERSION_SCRIPT" -b "$service" --compare && exit $? ;;
+      *) "$VERSION_SCRIPT" -b "$service" --compare"$debug" && exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
       -h | --help) "$UPDATE_SCRIPT" --help && exit $? ;;
-      *) "$UPDATE_SCRIPT" -b "$service" && exit $? ;;
+      *) "$UPDATE_SCRIPT" -b "$service""$debug" && exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --create && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --create"$debug" && exit $? ;;
       esac
       ;;
     --restore-backup)
@@ -650,7 +669,7 @@ while [[ "$#" -gt 0 ]]; do
       shift
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1" && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1""$debug" && exit $? ;;
       esac
       ;;
     --uninstall)
@@ -668,13 +687,13 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --requirements)
     shift
-    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list && exit $?
+    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list"$debug" && exit $?
     case "$1" in
     -h | --help)
-      "$REQUIREMENTS_SCRIPT" --help && exit $?
+      "$REQUIREMENTS_SCRIPT" --help"$debug" && exit $?
       ;;
     --install)
-      sudo -E "$REQUIREMENTS_SCRIPT" --install && exit $?
+      sudo -E "$REQUIREMENTS_SCRIPT" --install"$debug" && exit $?
       ;;
     *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
