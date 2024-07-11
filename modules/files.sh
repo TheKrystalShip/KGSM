@@ -16,11 +16,21 @@ Options:
 
     -h --help             Prints this message
 
-    --install             Creates and enables systemd service/socket files and
-                          UFW firewall rule
+    --install             Generates all files:
+                          [service].manage.sh file, [service].override.sh file
+                          if applicable, systemd service and socket files and
+                          ufw firewall rules if applicable.
+
+        --manage          Creates the [service].manage.sh file
+        --override        Creates the [service].overrides.sh file if applicable
+        --systemd         Installs the systemd service and socket files
+        --ufw             Installs the ufw firewall rule file
 
     --uninstall           Removes and disables systemd service/socket files and
                           UFW firewall rule
+
+        --systemd         Removes the systemd service and socket files
+        --ufw             Removes the ufw firewall rule files
 
 Examples:
     ./${0##*/} -b valheim --install
@@ -137,7 +147,10 @@ EOF
 
 function __create_overrides_file() {
   # If overrides file exists, copy it
-  if [ -f "$OVERRIDES_FILE" ]; then
+  if [ ! -f "$OVERRIDES_FILE" ]; then
+    return 0
+  fi
+
     # Make copy
     if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
       echo "ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
@@ -153,7 +166,6 @@ function __create_overrides_file() {
     if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
       echo "ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
       return 1
-    fi
   fi
 
   return 0
@@ -319,17 +331,38 @@ function _uninstall() {
 while [ $# -gt 0 ]; do
   case "$1" in
   --install)
-    _install && exit $?
     shift
+    [[ -z "$1" ]] && _install && exit $?
+    case "$1" in
+    --manage)
+      __create_manage_file && exit $?
+      ;;
+    --override)
+      __create_overrides_file && exit $?
+      ;;
+    --systemd)
+      __systemd_install && exit $?
+      ;;
+    --ufw)
+      __ufw_install && exit $?
+      ;;
+    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    esac
     ;;
   --uninstall)
-    _uninstall && exit $?
     shift
+    [[ -z "$1" ]] && _uninstall && exit $?
+    case "$1" in
+    --systemd)
+      __systemd_uninstall && exit $?
+      ;;
+    --ufw)
+      __ufw_uninstall && exit $?
+      ;;
+    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    esac
     ;;
-  *)
-    echo "ERROR: Invalid argument $1" >&2
-    usage && exit 1
-    ;;
+  *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
   esac
   shift
 done
