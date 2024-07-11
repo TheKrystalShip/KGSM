@@ -15,19 +15,7 @@ I cannot guarantee it will work flawlessly with other distributions but the proj
 ### Download the project
 
 ```sh
-wget -O "kgsm.tar.gz" https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz
-```
-
-```sh
-tar -xzf "kgsm.tar.gz"
-```
-
-```sh
-cd ./KGSM-main
-```
-
-```sh
-chmod +x ./kgsm.sh ./modules/*.sh
+wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/installer.sh | sh
 ```
 
 ### Run the project
