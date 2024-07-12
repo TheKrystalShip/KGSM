@@ -37,7 +37,7 @@ SERVICE_INSTALL_SUBDIRECTORY=bin/x64
 # Any args passed onto the executable
 # $WORKING_DIR can be used as an absolute path to the service directory
 # $WORKING_DIR/install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS="--start-server \$SAVES_DIR/\$SERVICE_LEVEL_NAME"
+SERVICE_LAUNCH_ARGS="--start-server \$SAVES_DIR/$SERVICE_LEVEL_NAME"
 
 # (Optional) Stop command sent to the input socket
 SERVICE_SOCKET_STOP_COMMAND="/quit"
