@@ -25,31 +25,41 @@ if [ -z "$KGSM_ROOT" ]; then
   fi
 fi
 
+COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+
+# shellcheck disable=SC1090
+source "$COMMON_SCRIPT" || exit 1
+
 BLUEPRINT=$1
 
 if [[ "$BLUEPRINT" != *.bp ]]; then
   BLUEPRINT="${BLUEPRINT}.bp"
 fi
 
-BLUEPRINT_FILE="$(find "$KGSM_ROOT" -type f -name "$BLUEPRINT")"
+BLUEPRINT_FILE="$(find "$BLUEPRINTS_SOURCE_DIR" -maxdepth 1 -type f -name "$BLUEPRINT")"
 
 if [ ! -f "$BLUEPRINT_FILE" ]; then
-  echo "ERROR: Could not find blueprint $BLUEPRINT_FILE, exiting" >&2
-  exit 1
+  BLUEPRINT_FILE="$(find "$BLUEPRINTS_DEFAULT_SOURCE_DIR" -type f -name "$BLUEPRINT")"
+
+  if [ ! -f "$BLUEPRINT_FILE" ]; then
+    echo "ERROR: Could not find default blueprint for $BLUEPRINT, exiting" >&2
+    exit 1
+  fi
 fi
 
-COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-
-# shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
 
 # shellcheck disable=SC1090
 source "$BLUEPRINT_FILE" || exit 1
 
 export SERVICE_NAME
+export SERVICE_PORT
 export SERVICE_WORKING_DIR
 export SERVICE_APP_ID
 export SERVICE_STEAM_AUTH_LEVEL
+export SERVICE_LAUNCH_BIN
+export SERVICE_LEVEL_NAME
+export SERVICE_INSTALL_SUBDIRECTORY
+export SERVICE_LAUNCH_ARGS
 
 # shellcheck disable=SC2155
 export IS_STEAM_GAME=$(

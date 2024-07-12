@@ -90,3 +90,19 @@ function func_download() {
   # shellcheck disable=SC2034
   return 0
 }
+
+function func_deploy() {
+  local source=$1
+  local dest=$2
+
+  if ! mv -f "$source"/* "$dest"; then
+    echo "ERROR: Failed copy contents from $source into $dest" >&2 && return 1
+  fi
+
+  if [ -f "$SAVES_DIR/$SERVICE_LEVEL_NAME" ]; then
+    return 0
+  fi
+
+  cd "$SERVICE_INSTALL_DIR/bin/x64" || return 1
+  ./"$SERVICE_LAUNCH_BIN" --create "$SAVES_DIR/$SERVICE_LEVEL_NAME"
+}

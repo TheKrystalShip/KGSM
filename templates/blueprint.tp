@@ -24,6 +24,10 @@ SERVICE_STEAM_AUTH_LEVEL="$_steam_auth_level"
 # Values: start.sh / my_game.x86_64 / start_server
 SERVICE_LAUNCH_BIN="$_launch_bin"
 
+# Savefile name or world name, level, whichever is applicable
+# Values: my_world / de_dust2 / my_cool_factorio_map
+SERVICE_LEVEL_NAME="${_level_name:-default}"
+
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory

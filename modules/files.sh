@@ -101,22 +101,19 @@ fi
 trap "echo "" && exit" INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
+BLUEPRINT_SCRIPT="$(find "$SCRIPTS_INCLUDE_SOURCE_DIR" -type f -name blueprint.sh)"
+
 # shellcheck disable=SC1090
 source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
 
-MANAGE_TEMPLATE_FILE="$(find "$KGSM_ROOT" -type f -name manage.tp)"
-OVERRIDES_FILE="$(find "$KGSM_ROOT" -type f -name "$SERVICE_NAME".bp.overrides.sh)"
+MANAGE_TEMPLATE_FILE="$(find "$TEMPLATES_SOURCE_DIR" -type f -name manage.tp)"
+OVERRIDES_FILE="$(find "$OVERRIDES_SOURCE_DIR" -type f -name "$SERVICE_NAME".overrides.sh)"
 
 function __create_manage_file() {
-  # MANAGE_TEMPLATE_FILE expects a $WORKING_DIR var
-  # shellcheck disable=SC2034
-  WORKING_DIR="$SERVICE_WORKING_DIR"
-
   # Prepend "./" to $SERVICE_LAUNCH_BIN if it doesn't start with "./" or "/"
   if [[ "$SERVICE_LAUNCH_BIN" != ./* && "$SERVICE_LAUNCH_BIN" != /* ]]; then
     SERVICE_LAUNCH_BIN="./$SERVICE_LAUNCH_BIN"
@@ -151,21 +148,21 @@ function __create_overrides_file() {
     return 0
   fi
 
-    # Make copy
-    if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo "ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
-      return 1
-    fi
+  # Make copy
+  if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
+    echo "ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
+    return 1
+  fi
 
-    # Make sure file is owned by the user and not root
-    if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo "ERROR: Failed to assing $SERVICE_OVERRIDES_SCRIPT_FILE to $SUDO_USER" >&2
-      return 1
-    fi
+  # Make sure file is owned by the user and not root
+  if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
+    echo "ERROR: Failed to assing $SERVICE_OVERRIDES_SCRIPT_FILE to $SUDO_USER" >&2
+    return 1
+  fi
 
-    if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-      echo "ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
-      return 1
+  if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
+    echo "ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
+    return 1
   fi
 
   return 0

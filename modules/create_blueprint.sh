@@ -17,6 +17,9 @@ Options:
 
     --launch-bin <launch-bin>   Name of the file used to start the service.
 
+    --level-name <name>         Name of the savefile, world, level, whichever is
+                                applicable for the game server.
+
     --app-id <app-id>           (Optional) Steam APP ID if applicable.
                                 Default: 0
 
@@ -98,6 +101,7 @@ _port=""
 _app_id="0"
 _steam_auth_level="0"
 _launch_bin=""
+_level_name=""
 _install_subdirectory=""
 _launch_args=""
 _stop_command=""
@@ -132,6 +136,11 @@ while [ $# -gt 0 ]; do
     shift
     [[ -z "$1" ]] && echo "ERROR: Missing argument <launch-bin>" >&2 && exit 1
     _launch_bin="$1"
+    ;;
+  --level-name)
+    shift
+    [[ -z "$1" ]] && echo "ERROR: Missing argument <level-name>" >&2 && exit 1
+    _level_name="$1"
     ;;
   --install-subdirectory)
     shift

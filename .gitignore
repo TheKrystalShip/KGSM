@@ -1,1 +1,3 @@
 config.cfg
+blueprints/*.bp
+!blueprints/default/*.bp

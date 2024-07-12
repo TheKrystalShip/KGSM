@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Service name, lowercase with no spaces
-SERVICE_NAME=factorio
+SERVICE_NAME=minecraft
 
 # Port(s), used by UFW
 # Values: 1111:2222/tcp|1111:2222/udp
-SERVICE_PORT=34197
+SERVICE_PORT=25573
 
 # Working directory
-SERVICE_WORKING_DIR="/opt/factorio"
+SERVICE_WORKING_DIR="/opt/minecraft"
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
@@ -22,21 +22,48 @@ SERVICE_STEAM_AUTH_LEVEL=0
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-SERVICE_LAUNCH_BIN=factorio
+SERVICE_LAUNCH_BIN=java
+
+# Savefile name or world name, level, whichever is applicable
+# Values: my_world / de_dust2 / my_cool_factorio_map
+SERVICE_LEVEL_NAME="default"
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-SERVICE_INSTALL_SUBDIRECTORY=bin/x64
+SERVICE_INSTALL_SUBDIRECTORY=
 
 # Any args passed onto the executable
 # $WORKING_DIR can be used as an absolute path to the service directory
 # $WORKING_DIR/install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS="--start-server $WORKING_DIR/saves/tks.zip"
+SERVICE_LAUNCH_ARGS="\
+-Xmx4096M \
+-Xms4096M \
+-XX:+UseG1GC \
+-XX:+ParallelRefProcEnabled \
+-XX:MaxGCPauseMillis=200 \
+-XX:+UnlockExperimentalVMOptions \
+-XX:+DisableExplicitGC \
+-XX:+AlwaysPreTouch \
+-XX:G1NewSizePercent=30 \
+-XX:G1MaxNewSizePercent=40 \
+-XX:G1HeapRegionSize=8M \
+-XX:G1ReservePercent=20 \
+-XX:G1HeapWastePercent=5 \
+-XX:G1MixedGCCountTarget=4 \
+-XX:InitiatingHeapOccupancyPercent=15 \
+-XX:G1MixedGCLiveThresholdPercent=90 \
+-XX:G1RSetUpdatingPauseTimePercent=5 \
+-XX:SurvivorRatio=32 \
+-XX:+PerfDisableSharedMem \
+-XX:MaxTenuringThreshold=1 \
+-jar \
+release.jar \
+nogui"
 
 # (Optional) Stop command sent to the input socket
-SERVICE_SOCKET_STOP_COMMAND="/quit"
+SERVICE_SOCKET_STOP_COMMAND="/stop"
 
 # (Optional) Save command sent to the input socket
-SERVICE_SOCKET_SAVE_COMMAND="/save"
+SERVICE_SOCKET_SAVE_COMMAND="/save-all"

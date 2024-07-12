@@ -24,6 +24,14 @@ fi
 # shellcheck disable=SC2155
 export BLUEPRINTS_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name blueprints)"
 
+# Default blueprints (*.bp) are stored here
+# shellcheck disable=SC2155
+export BLUEPRINTS_DEFAULT_SOURCE_DIR="$(find "$BLUEPRINTS_SOURCE_DIR" -type d -name default)"
+
+# Specific game server overrides ([service].overrides.sh) are stored here
+# shellcheck disable=SC2155
+export OVERRIDES_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name overrides)"
+
 # Templates (*.tp) are stored here
 # shellcheck disable=SC2155
 export TEMPLATES_SOURCE_DIR="$(find "$KGSM_ROOT" -type d -name templates)"

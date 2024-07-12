@@ -1,28 +1,32 @@
 #!/bin/bash
 
 # Service name, lowercase with no spaces
-SERVICE_NAME=7dtd
+SERVICE_NAME=projectzomboid
 
 # Port(s), used by UFW
 # Values: 1111:2222/tcp|1111:2222/udp
-SERVICE_PORT=26900
+SERVICE_PORT="16261:16262/tcp|16261:16262/udp"
 
 # Working directory
-SERVICE_WORKING_DIR="/opt/7dtd"
+SERVICE_WORKING_DIR="/opt/projectzomboid"
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-SERVICE_APP_ID=294420
+SERVICE_APP_ID=380870
 
-# (Optional)
-# Only used if SERVICE_APP_ID != 0
+# (Optional) Only applicable if SERVICE_APP_ID != 0
 # Values: 0 for anonymous, 1 for account required
+# Default: 0
 SERVICE_STEAM_AUTH_LEVEL=0
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-SERVICE_LAUNCH_BIN=7DaysToDieServer.x86_64
+SERVICE_LAUNCH_BIN=start-server.sh
+
+# Savefile name or world name, level, whichever is applicable
+# Values: my_world / de_dust2 / my_cool_factorio_map
+SERVICE_LEVEL_NAME="default"
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
@@ -33,12 +37,10 @@ SERVICE_INSTALL_SUBDIRECTORY=
 # Any args passed onto the executable
 # $WORKING_DIR can be used as an absolute path to the service directory
 # $WORKING_DIR/install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated"
+SERVICE_LAUNCH_ARGS="-servername \$SERVICE_LEVEL_NAME -cachedir=\$SAVES_DIR"
 
-# (Optional)
-# Stop command sent to the input socket
-SERVICE_SOCKET_STOP_COMMAND=
+# (Optional) Stop command sent to the input socket
+SERVICE_SOCKET_STOP_COMMAND="quit"
 
-# (Optional)
-# Save command sent to the input socket
-SERVICE_SOCKET_SAVE_COMMAND=
+# (Optional) Save command sent to the input socket
+SERVICE_SOCKET_SAVE_COMMAND="save"
