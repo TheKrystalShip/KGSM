@@ -336,15 +336,15 @@ function _install() {
   local latest_version=$("$VERSION_SCRIPT" -b "$blueprint" --latest)
 
   # First create directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install"$debug" || return $?
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install $debug || return $?
   # Create necessary files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install"$debug" || return $?
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install $debug || return $?
   # Run the download process
-  "$DOWNLOAD_SCRIPT" -b "$blueprint""$debug" || return $?
+  "$DOWNLOAD_SCRIPT" -b "$blueprint" $debug || return $?
   # Deploy newly downloaded
-  "$DEPLOY_SCRIPT" -b "$blueprint""$debug" || return $?
+  "$DEPLOY_SCRIPT" -b "$blueprint" $debug || return $?
   # Save new version
-  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version""$debug" || return $?
+  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version" $debug || return $?
 
   return 0
 }
@@ -357,9 +357,9 @@ function _uninstall() {
   fi
 
   # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall"$debug" || return $?
+  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
   # Remove files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall"$debug" || return $?
+  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
 }
 
 function get_blueprints() {
@@ -504,7 +504,7 @@ KGSM - Interactive menu
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
     # shellcheck disable=SC2086
-    "$0" $action $blueprint_or_service --dir $install_directory"$debug"
+    "$0" $action $blueprint_or_service --dir $install_directory $debug
     ;;
   --restore-backup)
     BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
@@ -536,11 +536,11 @@ KGSM - Interactive menu
       fi
     done
     # shellcheck disable=SC2086
-    "$0" --service $blueprint_or_service $action "$backup_to_restore""$debug"
+    "$0" --service $blueprint_or_service $action $backup_to_restore $debug
     ;;
   *)
     # shellcheck disable=SC2086
-    "$0" --service $blueprint_or_service $action"$debug"
+    $0 --service $blueprint_or_service $action $debug
     ;;
   esac
 }
@@ -554,10 +554,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help"$debug" && exit $? ;;
+    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help $debug && exit $? ;;
     *)
-      # shellcheck disable=SC2145
-      "$CREATE_BLUEPRINT_SCRIPT" "$@""$debug" && exit $?
+      # shellcheck disable=SC2068
+      "$CREATE_BLUEPRINT_SCRIPT" $@ $debug && exit $?
       ;;
     esac
     ;;
@@ -628,29 +628,29 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     -v | --version)
       shift
-      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed"$debug" && exit $?
+      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed $debug && exit $?
       case "$1" in
-      --installed) "$VERSION_SCRIPT" -b "$service" --installed"$debug" && exit $? ;;
-      --latest) "$VERSION_SCRIPT" -b "$service" --latest"$debug" && exit $? ;;
+      --installed) "$VERSION_SCRIPT" -b "$service" --installed $debug && exit $? ;;
+      --latest) "$VERSION_SCRIPT" -b "$service" --latest $debug && exit $? ;;
       *) echo "ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
       case "$1" in
       -h | --help) "$VERSION_SCRIPT" --help && exit $? ;;
-      *) "$VERSION_SCRIPT" -b "$service" --compare"$debug" && exit $? ;;
+      *) "$VERSION_SCRIPT" -b "$service" --compare $debug && exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
       -h | --help) "$UPDATE_SCRIPT" --help && exit $? ;;
-      *) "$UPDATE_SCRIPT" -b "$service""$debug" && exit $? ;;
+      *) "$UPDATE_SCRIPT" -b "$service" $debug && exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --create"$debug" && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --create $debug && exit $? ;;
       esac
       ;;
     --restore-backup)
@@ -658,7 +658,7 @@ while [[ "$#" -gt 0 ]]; do
       shift
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1""$debug" && exit $? ;;
+      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1" $debug && exit $? ;;
       esac
       ;;
     --uninstall)
@@ -676,13 +676,13 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --requirements)
     shift
-    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list"$debug" && exit $?
+    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list $debug && exit $?
     case "$1" in
     -h | --help)
-      "$REQUIREMENTS_SCRIPT" --help"$debug" && exit $?
+      "$REQUIREMENTS_SCRIPT" --help $debug && exit $?
       ;;
     --install)
-      sudo -E "$REQUIREMENTS_SCRIPT" --install"$debug" && exit $?
+      sudo -E "$REQUIREMENTS_SCRIPT" --install $debug && exit $?
       ;;
     *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
