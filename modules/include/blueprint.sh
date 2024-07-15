@@ -36,15 +36,11 @@ if [[ "$BLUEPRINT" != *.bp ]]; then
   BLUEPRINT="${BLUEPRINT}.bp"
 fi
 
-BLUEPRINT_FILE="$(find "$BLUEPRINTS_SOURCE_DIR" -maxdepth 1 -type f -name "$BLUEPRINT")"
+BLUEPRINT_FILE="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$BLUEPRINT" -print -quit)"
 
 if [ ! -f "$BLUEPRINT_FILE" ]; then
-  BLUEPRINT_FILE="$(find "$BLUEPRINTS_DEFAULT_SOURCE_DIR" -type f -name "$BLUEPRINT")"
-
-  if [ ! -f "$BLUEPRINT_FILE" ]; then
-    echo "ERROR: Could not find default blueprint for $BLUEPRINT, exiting" >&2
-    exit 1
-  fi
+  echo "ERROR: Could not find default blueprint for $BLUEPRINT, exiting" >&2
+  exit 1
 fi
 
 

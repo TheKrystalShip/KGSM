@@ -368,9 +368,9 @@ function get_blueprints() {
   shopt -s extglob nullglob
 
   # Create array
-  ref_blueprints_array=("$BLUEPRINTS_SOURCE_DIR"/*.bp)
-  # remove leading $BLUEPRINTS_SOURCE_DIR:
-  ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
+  ref_blueprints_array=("$BLUEPRINTS_DEFAULT_SOURCE_DIR"/*.bp)
+  # remove leading $BLUEPRINTS_DEFAULT_SOURCE_DIR:
+  ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
 }
 
 function get_installed_services() {
@@ -381,8 +381,8 @@ function get_installed_services() {
 
   for bp in "${blueprints[@]}"; do
     # shellcheck disable=SC2155
-    local bp_file=$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$bp")
-    if [ -z "$bp_file" ]; then continue; fi
+    local bp_file=$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$bp" -print -quit)
+    [[ ! -f "$bp_file" ]] && continue
 
     service_name=$(grep "SERVICE_NAME=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
     service_working_dir=$(grep "SERVICE_WORKING_DIR=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
