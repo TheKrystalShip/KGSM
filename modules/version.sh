@@ -60,6 +60,8 @@ if [[ $@ =~ "--debug" ]]; then
   done
 fi
 
+[[ $# -eq 0 ]] && usage && exit 1
+
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -168,8 +170,7 @@ while [[ "$#" -gt 0 ]]; do
     exit 0
     ;;
   *)
-    echo "ERROR: Invalid argument $1" >&2
-    usage && exit 1
+    echo "ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
 done
