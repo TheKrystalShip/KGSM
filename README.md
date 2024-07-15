@@ -21,7 +21,7 @@ While it aims for broad compatibility with minimal dependencies, functionality o
 ### Download the Project
 
 ```sh
-wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/installer.sh | sh
+wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/install.sh | sh
 ```
 
 ### Run the Project
