@@ -159,7 +159,7 @@ function check_for_update() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    return 1
+    echo "ERROR: wget is required but not installed" >&2 && return 1
   fi
 
   # Compare the versions
@@ -228,6 +228,9 @@ function update_script() {
 
   return 0
 }
+
+# Only call subscripts with sudo if the current user isn't root
+SUDO=$([[ "$EUID" -eq 0 ]] && echo "" || echo "sudo -E")
 
 check_for_update
 
@@ -338,7 +341,7 @@ function _install() {
   # First create directory structure
   "$DIRECTORIES_SCRIPT" -b "$blueprint" --install $debug || return $?
   # Create necessary files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --install $debug || return $?
+  $SUDO "$FILES_SCRIPT" -b "$blueprint" --install $debug || return $?
   # Run the download process
   "$DOWNLOAD_SCRIPT" -b "$blueprint" $debug || return $?
   # Deploy newly downloaded
@@ -359,7 +362,7 @@ function _uninstall() {
   # Remove directory structure
   "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
   # Remove files
-  sudo -E "$FILES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
+  $SUDO "$FILES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
 }
 
 function get_blueprints() {
@@ -682,7 +685,7 @@ while [[ "$#" -gt 0 ]]; do
       "$REQUIREMENTS_SCRIPT" --help $debug && exit $?
       ;;
     --install)
-      sudo -E "$REQUIREMENTS_SCRIPT" --install $debug && exit $?
+      $SUDO "$REQUIREMENTS_SCRIPT" --install $debug && exit $?
       ;;
     *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
