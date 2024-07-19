@@ -16,6 +16,15 @@ rm "$tarball"
 mv KGSM-main kgsm
 cd kgsm || exit 1
 chmod +x kgsm.sh modules/*.sh
+
+# kgsm.sh expects a config.cfg file to be present before doing anything
+# so this creates a temporary one
+cp config.cfg.example config.cfg
+
 # Install dependencies
 ./kgsm.sh --requirements --install
+
+# Remove temporary config.cfg file
+rm config.cfg
+
 echo "INFO: KGSM version $latest_version downloaded successfully." >&2 && exit 0
