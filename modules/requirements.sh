@@ -147,7 +147,7 @@ function _install() {
     echo "The following packages are required but not installed: ${missing_packages[@]}" >&2
     read -rp "Do you want to install them now? (Y/n): " choice
 
-    if [[ "$choice" =~ ^[Nn]?$ ]]; then
+    if [[ "$choice" == [Nn] ]]; then
       echo "Exiting script. Please install required packages manually." >&2
       return 1
     fi
