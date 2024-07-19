@@ -77,122 +77,44 @@ function is_package_installed() {
   fi
 }
 
-# https://developer.valvesoftware.com/wiki/SteamCMD#Package_From_Repositories
-function _install_steamcmd() {
-  local steamcmdUrl="https://developer.valvesoftware.com/wiki/SteamCMD"
-  local manualInstallRequired="Manual installation required: $steamcmdUrl"
+# Debian-based distros
+function install_steamcmd_debian() {
+  apt-get update
+  apt-get install -y software-properties-common
+  add-apt-repository multiverse
+  dpkg --add-architecture i386
+  apt-get update
+  apt-get install -y steamcmd
+}
 
-  # Function to check for command existence
-  command_exists() {
-    command -v "$1" &> /dev/null
-  }
+# RHEL-based distros
+function install_steamcmd_rhel() {
+  yum check-update
+  yum install -y epel-release
+  yum install -y steamcmd
+}
 
-  if command_exists steamcmd &>/dev/null; then
-    echo "SteamCMD is installed" >&2
-    return 0
-  fi
+# Arch-based distros
+function install_steamcmd_arch() {
+  pacman -Syu --noconfirm
+  pacman -S --noconfirm base-devel git
+  git clone https://aur.archlinux.org/steamcmd.git
+  cd steamcmd
+  makepkg -si --noconfirm
+  cd ..
+  rm -rf steamcmd
+}
 
-  # Ubuntu/Debian
-  if command_exists apt-get; then
-    apt-get update
-
-    # Install software-properties-common if necessary
-    if ! command_exists add-apt-repository; then
-      if ! apt-get install -y software-properties-common; then
-        echo "ERROR: Command failed: sudo apt-get install software-properties-common" >&2
-        echo "$manualInstallRequired" >&2
-        return 1
-      fi
-    fi
-
-    # Add the new repository and update package list
-    if ! add-apt-repository -y multiverse; then
-      echo "ERROR: Command failed: sudo add-apt-repository multiverse" >&2
-      echo "$manualInstallRequired" >&2
-      return 1
-    fi
-
-    if ! dpkg --add-architecture i386; then
-      echo "ERROR: Command failed: sudo dpkg --add-architecture i386" >&2
-      echo "$manualInstallRequired" >&2
-      return 1
-    fi
-
-    apt-get update
-
-    # Install steamcmd
-    if ! apt-get install -y steamcmd; then
-      echo "ERROR: Command failed: sudo apt-get install steamcmd" >&2
-      echo "$manualInstallRequired" >&2
-      return 1
-    fi
-
-    if ! command_exists steamcmd; then
-      echo "ERROR: steamcmd not available on the \$PATH after successful install" >&2
-      echo "$manualInstallRequired" >&2
-      return 1
-    fi
-
-    echo "SteamCMD installation completed successfully!"
-    return 0
-
-  # Fedora/CentOS/RHEL
-  elif command_exists yum; then
-    yum check-update
-
-    # Install EPEL repository if not already present
-    if ! rpm -qa | grep -qw epel-release; then
-      if ! sudo yum install -y epel-release; then
-        echo "ERROR: Command failed: sudo yum install epel-release" >&2
-          echo "$manualInstallRequired" >&2
-            return 1
-      fi
-    fi
-
-    # Install steamcmd
-    if ! yum install -y steamcmd; then
-      echo "ERROR: Command failed: sudo yum install steamcmd" >&2
-      echo "$manualInstallRequired" >&2
-      return 1
-    fi
-
-    echo "SteamCMD installation completed successfully!"
-    return 0
-
-  # Arch Linux
-  elif command_exists pacman; then
-    pacman -Syu --noconfirm
-
-    # Install base-devel and git if not present
-    if ! command_exists makepkg; then
-      if ! pacman -S --noconfirm base-devel; then
-        echo "ERROR: Command failed: sudo pacman -S base-devel" >&2
-          echo "$manualInstallRequired" >&2
-            return 1
-      fi
-    fi
-
-    if ! command_exists git; then
-      if ! pacman -S --noconfirm git; then
-        echo "ERROR: Command failed: sudo pacman -S git" >&2
-        echo "$manualInstallRequired" >&2
-        return 1
-      fi
-    fi
-
-    # Clone and install steamcmd from AUR
-    git clone https://aur.archlinux.org/steamcmd.git
-    cd steamcmd
-    makepkg -si --noconfirm
-    cd ..
-    rm -rf steamcmd
-
-    echo "SteamCMD installation completed successfully!"
-    return 0
-
+function install_steamcmd() {
+  if command -v apt-get &>/dev/null; then
+    install_steamcmd_debian
+  elif command -v yum &>/dev/null; then
+    install_steamcmd_rhel
+  elif command -v pacman &>/dev/null; then
+    install_steamcmd_arch
   else
-    echo "ERROR: Unsupported package manager. Please install steamcmd manually." >&2
-    echo "$steamcmdUrl" >&2
+    echo "Unsupported package manager. Please install SteamCMD manually" >&2
+    echo "https://developer.valvesoftware.com/wiki/SteamCMD" >&2
     return 1
   fi
 }
@@ -211,6 +133,15 @@ function _install() {
 
   # If there are missing packages, prompt the user to install them
   if [ ${#missing_packages[@]} -gt 0 ]; then
+
+    # SteamCMD is a bit more convoluted to install than the other packages
+    # so it's managed separately
+    # shellcheck disable=SC2199
+    if [[ "${missing_packages[@]}" =~ "steamcmd" ]]; then
+      install_steamcmd
+      missing_packages=( "${missing_packages[@]/"steamcmd"}" )
+    fi
+
 
     # shellcheck disable=SC2145
     echo "The following packages are required but not installed: ${missing_packages[@]}" >&2

@@ -16,4 +16,6 @@ rm "$tarball"
 mv KGSM-main kgsm
 cd kgsm || exit 1
 chmod +x kgsm.sh modules/*.sh
+# Install dependencies
+./kgsm.sh --requirements --install
 echo "INFO: KGSM version $latest_version downloaded successfully." >&2 && exit 0
