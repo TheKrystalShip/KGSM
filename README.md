@@ -18,6 +18,19 @@ While it aims for broad compatibility with minimal dependencies, functionality o
 
 ## Installation
 
+### Requirements
+
+The following packages are required in order to use KGSM:
+
+```sh
+grep jq wget unzip tar sed findutils steamcmd
+
+```
+
+- If [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) is not available through your distribution's package manager, you will need to manually set it up and ensure `steamcmd` is available from the `$PATH`.
+
+- (Optional) KGSM can integrate with [ufw](https://en.wikipedia.org/wiki/Uncomplicated_Firewall) if detected, but it is not required for usage.
+
 ### Download the Project
 
 ```sh
@@ -39,24 +52,6 @@ To use named arguments for automation, run:
 ```sh
 ./kgsm.sh --help
 ```
-
-### Requirements
-
-To view a list of required dependencies, run:
-
-```sh
-./kgsm.sh --requirements
-```
-
-To attempt automatic installation of dependencies, run:
-
-```sh
-./kgsm.sh --requirements --install
-```
-
-- If [SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD) is not available through your distribution's package manager, you will need to manually set it up and ensure `steamcmd` is in the `$PATH`.
-
-- (Optional) KGSM can integrate with [`UFW`](https://en.wikipedia.org/wiki/Uncomplicated_Firewall) if detected, but it is not required for usage.
 
 ## Configuration
 

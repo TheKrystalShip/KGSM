@@ -71,11 +71,6 @@ Options:
     --update                    Update KGSM to the latest version.
       --force                   Ignore version check and download the latest
                                 version available.
-    --requirements              Display a list of required packages needed to
-                                run KGSM.
-      -h, --help                Print a helpful description of each package.
-      --install                 Check for and install required packages if not
-                                present.
     --ip                        Get the external server IP used to connect to
                                 the server.
     --interactive               Start the script in interactive mode.
@@ -283,9 +278,6 @@ UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
 
 BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 [[ -z "$BACKUP_SCRIPT" ]] && echo "ERROR: Failed to load backup.sh" >&2 && exit 1
-
-REQUIREMENTS_SCRIPT="$(find "$KGSM_ROOT" -type f -name requirements.sh)"
-[[ -z "$REQUIREMENTS_SCRIPT" ]] && echo "ERROR: Failed to load requirements.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -675,19 +667,6 @@ while [[ "$#" -gt 0 ]]; do
     case "$1" in
     -h | --help) usage_interactive && exit $? ;;
     *) _interactive && exit $? ;;
-    esac
-    ;;
-  --requirements)
-    shift
-    [[ -z "$1" ]] && "$REQUIREMENTS_SCRIPT" --list $debug && exit $?
-    case "$1" in
-    -h | --help)
-      "$REQUIREMENTS_SCRIPT" --help $debug && exit $?
-      ;;
-    --install)
-      $SUDO "$REQUIREMENTS_SCRIPT" --install $debug && exit $?
-      ;;
-    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   -v | --version)
