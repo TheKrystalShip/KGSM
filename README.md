@@ -67,4 +67,4 @@ To ensure you are using the latest version, run:
 
 ## License
 
-KGSM © 2024 by Cristian Moraru is licensed under CC BY-NC 4.0. To view a copy of this license, visit [Creative Commons](https://creativecommons.org/licenses/by-nc/4.0/).
+KGSM is licensed under the terms of GPL-3.0, check the [LICENSE](LICENSE) file for more information.
