@@ -613,13 +613,13 @@ while [[ "$#" -gt 0 ]]; do
       systemctl is-active "$service" && exit $?
       ;;
     --start)
-      systemctl start "$service" && exit $?
+      $SUDO systemctl start "$service" && exit $?
       ;;
     --stop)
-      systemctl stop "$service" && exit $?
+      $SUDO systemctl stop "$service" && exit $?
       ;;
     --restart)
-      systemctl restart "$service" && exit $?
+      $SUDO systemctl restart "$service" && exit $?
       ;;
     -v | --version)
       shift
