@@ -2,6 +2,8 @@
 
 KGSM is a simple and efficient tool for installing, updating, and managing game servers on Linux systems.
 
+KGSM streamlines the setup of game servers and allows users to interact with them while maintaining a hands-off approach once the servers are created. By providing scripts for starting, stopping, and restarting game servers, KGSM eliminates the need for ongoing involvement. This is achieved through the creation of a systemd service file and a [server].manage.sh file that handle all necessary operations.
+
 ## Compatibility
 
 KGSM is designed to work with `bash`, `systemd`, and optionally `ufw`.
