@@ -99,10 +99,10 @@ function func_deploy() {
     echo "ERROR: Failed copy contents from $source into $dest" >&2 && return 1
   fi
 
-  if [ -f "$SAVES_DIR/$SERVICE_LEVEL_NAME" ]; then
+  if [ -f "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME" ]; then
     return 0
   fi
 
   cd "$SERVICE_INSTALL_DIR/bin/x64" || return 1
-  ./"$SERVICE_LAUNCH_BIN" --create "$SAVES_DIR/$SERVICE_LEVEL_NAME"
+  ./"$SERVICE_LAUNCH_BIN" --create "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME"
 }
