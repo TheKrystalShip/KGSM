@@ -288,7 +288,7 @@ function _install() {
   fi
 
   # shellcheck disable=SC2155
-  local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint")"
+  local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint" -print -quit)"
   # shellcheck disable=SC2155
   local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
@@ -316,7 +316,7 @@ function _install() {
 
   # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
   if grep -q "SERVICE_WORKING_DIR=" <"$blueprint_abs_path"; then
-    sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=\"$install_dir\"" "$blueprint_abs_path" >/dev/null
+    sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=$install_dir" "$blueprint_abs_path" >/dev/null
   # Othwewise just append to the blueprint
   else
     {
