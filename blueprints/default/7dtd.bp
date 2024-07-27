@@ -5,10 +5,10 @@ SERVICE_NAME=7dtd
 
 # Port(s), used by UFW
 # Values: 1111:2222/tcp|1111:2222/udp
-SERVICE_PORT=26900
+SERVICE_PORT=26900:26903
 
 # Working directory
-SERVICE_WORKING_DIR="/opt/7dtd"
+SERVICE_WORKING_DIR=/opt/7dtd
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
@@ -37,7 +37,7 @@ SERVICE_INSTALL_SUBDIRECTORY=
 # Any args passed onto the executable
 # $WORKING_DIR can be used as an absolute path to the service directory
 # $WORKING_DIR/install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated"
+SERVICE_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated -configfile=\$INSTALL_DIR/serverconfig.xml"
 
 # (Optional)
 # Stop command sent to the input socket
