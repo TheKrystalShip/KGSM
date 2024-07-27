@@ -216,6 +216,11 @@ function __systemd_install() {
     if ! _uninstall; then return 1; fi
   fi
 
+  SERVICE_USER=$USER
+  if [ "$EUID" -eq 0 ]; then
+    SERVICE_USER=$SUDO_USER
+  fi
+
   # Create the service file
   if ! eval "cat <<EOF
 $(<"$service_template_file")

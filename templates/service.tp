@@ -3,7 +3,7 @@ Description=${SERVICE_NAME^} Dedicated Server
 Requires=$SERVICE_NAME.socket
 
 [Service]
-User=$USER
+User=$SERVICE_USER
 WorkingDirectory=$SERVICE_WORKING_DIR
 ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
 ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
