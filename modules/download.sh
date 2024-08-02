@@ -6,21 +6,22 @@ It will look for an override if it's available, otherwise it will use the
 default SteamCMD download.
 
 Usage:
-    ./${0##*/} [-b | --blueprint] <bp> [-v | --version] <v>
+  ./${0##*/} [-i | --instance] <instance> OPTIONS
 
 Options:
-    -b --blueprint <bp>   Name of the blueprint file.
-                          The .bp extension in the name is optional
+  -i, --instance <instance>   Full name of the instance, equivalent of
+                              INSTANCE_FULL_NAME from the instance config file
+                              The .ini extension is not required
 
-    -v --version <v>      Optional: Version number to download.
-                          This feature is not currently used
+  -v, --version <v>          Optional: Version number to download.
+                             This feature is not currently used
 
-    -h --help             Prints this message
+  -h, --help                 Prints this message
 
 Examples:
-    ./${0##*/} -b valheim
+  ./${0##*/} -i factorio-9d52mZ.ini
 
-    ./${0##*/} --blueprint terraria -v 1449
+  ./${0##*/} --instance minecraft-gC6dmh -v 1.20
 "
 }
 
@@ -41,28 +42,26 @@ fi
 
 if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
-VERSION=0
-
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   -h | --help)
     usage && exit 0
     ;;
-  -b | --blueprint)
+  -i | --instance)
     shift
-    BLUEPRINT=$1
-    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    INSTANCE=$1
     ;;
   -v | --version)
     shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
     VERSION=$1
-    shift
     ;;
   *)
-    echo "ERROR: Invalid argument $1" >&2
-    usage && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
+  shift
 done
 
 # Check for KGSM_ROOT env variable
@@ -70,39 +69,49 @@ if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
+  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
+  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+fi
 
-  # If not found in /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    echo "ERROR: KGSM_ROOT not found, exiting." >&2
-    exit 1
-  else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-
-    # Check if KGSM_ROOT is exported
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
-      export KGSM_ROOT
-    fi
-  fi
+# Read configuration file
+if [ -z "$KGSM_CONFIG_LOADED" ]; then
+  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini)"
+  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  export KGSM_CONFIG_LOADED=1
 fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
-STEAMCMD_SCRIPT="$(find "$KGSM_ROOT" -type f -name steamcmd.sh)"
 OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-
-# shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
-
-# shellcheck disable=SC1090
-source "$STEAMCMD_SCRIPT" "$BLUEPRINT" || exit 1
+[[ -z "$OVERRIDES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
 
 # If no version is passed, just fetch the latest
-if [ "$VERSION" -eq 0 ]; then
-  VERSION=$("$VERSION_SCRIPT" -b "$SERVICE_NAME" --latest)
+if [[ -z "$VERSION" ]]; then
+  VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
+  [[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
+  VERSION=$("$VERSION_SCRIPT" -i "$INSTANCE" --latest)
 fi
+
+COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+
+# shellcheck disable=SC1090
+source "$COMMON_SCRIPT" || exit 1
+
+[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
+
+INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
+[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
+
+# shellcheck disable=SC1090
+source "$INSTANCE_CONFIG_FILE" || exit 1
 
 # Calls SteamCMD to handle the download
 function func_download() {
@@ -110,13 +119,29 @@ function func_download() {
   local version=$1
   local dest=$2
 
-  steamcmd_download "$version" "$dest"
-  return $?
+  [[ -z "$INSTANCE_APP_ID" ]] && echo "${0##*/} ERROR: INSTANCE_APP_ID is expected but it's not set" >&2 && return 1
+  [[ -z "$INSTANCE_STEAM_ACCOUNT_NEEDED" ]] && echo "${0##*/} ERROR: INSTANCE_STEAM_ACCOUNT_NEEDED is expected but it's not set" >&2 && return 1
+
+  username=anonymous
+  if [[ $INSTANCE_STEAM_ACCOUNT_NEEDED -ne 0 ]]; then
+    [[ -z "$STEAM_USERNAME" ]] && echo "${0##*/} ERROR: STEAM_USERNAME is expected but it's not set" >&2 && return 1
+    [[ -z "$STEAM_PASSWORD" ]] && echo "${0##*/} ERROR: STEAM_PASSWORD is expected but it's not set" >&2 && return 1
+
+    username="$STEAM_USERNAME $STEAM_PASSWORD"
+  fi
+
+  steamcmd \
+    +@sSteamCmdForcePlatformType linux \
+    +force_install_dir $dest \
+    +login $username \
+    +app_update $INSTANCE_APP_ID \
+    validate \
+    +quit
 }
 
 # shellcheck disable=SC1090
-source "$OVERRIDES_SCRIPT" "$SERVICE_NAME" || exit 1
+source "$OVERRIDES_SCRIPT" "$INSTANCE" || exit 1
 
-func_download "$VERSION" "$SERVICE_TEMP_DIR" || exit $?
+func_download "$VERSION" "$INSTANCE_TEMP_DIR" || exit $?
 
 exit 0

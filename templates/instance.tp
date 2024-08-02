@@ -1,0 +1,31 @@
+# KGSM Instance template
+
+# Unique identifier
+INSTANCE_ID=$instance_id
+
+# Instance name, same as blueprint SERVICE_NAME
+INSTANCE_NAME=$instance_name
+
+# Full name, INSTANCE_NAME + INSTANCE_ID
+INSTANCE_FULL_NAME=$instance_full_name
+
+# Working directory where the instance is located
+INSTANCE_WORKING_DIR=$instance_working_dir
+
+# DateTime when instance was spawned
+INSTANCE_INSTALL_DATETIME=$instance_install_datetime
+
+# Path to the blueprints used to spawn the instance
+INSTANCE_BLUEPRINT_FILE=$instance_blueprint_file
+
+# Savefile name / world name / level, whichever is applicable
+INSTANCE_LEVEL_NAME=$instance_level_name
+
+# Network port
+INSTANCE_PORT=$instance_port
+
+# The executable in charge of starting the service
+INSTANCE_LAUNCH_BIN=$instance_launch_bin
+
+# The arguments passed to the INSTANCE_LAUNCH_BIN
+INSTANCE_LAUNCH_ARGS=$instance_launch_args

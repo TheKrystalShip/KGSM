@@ -1,80 +1,59 @@
 #!/bin/bash
 
 function usage() {
-  echo "$SERVICE_NAME.manage.sh
+  echo "$INSTANCE_FULL_NAME.manage.sh
 Usage:
-  ./$SERVICE_NAME.manage.sh [option]
+  ./$INSTANCE_FULL_NAME.manage.sh [option]
 
 Options:
-  -h --help         Prints this message
+  -h, --help        Prints this message
 
   --start           Starts the service.
                     Will cd into the working directory befores starting.
 
   --stop            Stops the service.
-                    Will issue the save command to the input socket
+                    Will issue the save command to the console
                     and wait 10 seconds before shutting down.
 
-  --save            Issue the save command to the input socket.
+  --save            Issue the save command to the console.
 
-  --input <input>   Issue an ad-hoc command to the input socket.
+  --input <input>   Issue an ad-hoc command to the console.
 "
 }
 
-[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && usage && exit 1
-
-[[ -f "/etc/environment" ]] && source /etc/environment
-
-WORKING_DIR="$SERVICE_WORKING_DIR"
-BACKUPS_DIR="$SERVICE_BACKUPS_DIR"
-CONFIG_DIR="$SERVICE_CONFIG_DIR"
-INSTALL_DIR="$SERVICE_INSTALL_DIR"
-SAVES_DIR="$SERVICE_SAVES_DIR"
-TEMP_DIR="$SERVICE_TEMP_DIR"
-SOCKET_FILE="$SERVICE_SOCKET_FILE"
+[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
 
 function _start() {
-  cd "\$INSTALL_DIR/$SERVICE_INSTALL_SUBDIRECTORY" || return 1
-  exec $SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS
+  cd "$INSTANCE_LAUNCH_DIR" || return 1
+  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
 }
 
 function _stop() {
   _save
-  sleep 10
-  echo "$SERVICE_SOCKET_STOP_COMMAND" >"\$SOCKET_FILE"
+  echo "$INSTANCE_STOP_COMMAND" >"$INSTANCE_SOCKET_FILE"
 }
 
 function _save() {
-  echo "$SERVICE_SOCKET_SAVE_COMMAND" >"\$SOCKET_FILE"
+  echo "$INSTANCE_SAVE_COMMAND" >"$INSTANCE_SOCKET_FILE"
+  sleep 10
 }
 
 function _input() {
-  echo "\$1" >"\$SOCKET_FILE"
+  echo "\$1" >"$INSTANCE_SOCKET_FILE"
 }
 
 #Read the argument values
 while [ \$# -gt 0 ]; do
   case "\$1" in
-  -h | --help)
-    usage && exit 0
-    ;;
-  --start)
-    _start
-    ;;
-  --stop)
-    _stop
-    ;;
-  --save)
-    _save
-    ;;
+  -h | --help)  usage && exit 0 ;;
+  --start)      _start ;;
+  --stop)       _stop ;;
+  --save)       _save ;;
   --input)
     shift
     [[ -z "\$1" ]] && echo "\${0##*/} ERROR: Missing argument <input>" >&2 && exit 1
-    _input "\$1"
-    ;;
-  *)
-    echo "\${0##*/} ERROR: Unknown argument \$1" >&2 && exit 1
-    ;;
+    _input "\$1" ;;
+  *) echo "\${0##*/} ERROR: Unknown argument \$1" >&2 && exit 1 ;;
   esac
   shift
 done

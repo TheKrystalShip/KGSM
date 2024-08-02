@@ -7,9 +7,6 @@ SERVICE_NAME=starbound
 # Values: 1111:2222/tcp|1111:2222/udp
 SERVICE_PORT=21025
 
-# Working directory
-SERVICE_WORKING_DIR="/opt/starbound"
-
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
@@ -26,7 +23,7 @@ SERVICE_LAUNCH_BIN=starbound_server
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-SERVICE_LEVEL_NAME="default"
+SERVICE_LEVEL_NAME=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
@@ -35,8 +32,16 @@ SERVICE_LEVEL_NAME="default"
 SERVICE_INSTALL_SUBDIRECTORY=linux
 
 # Any args passed onto the executable
-# $WORKING_DIR can be used as an absolute path to the service directory
-# $WORKING_DIR/install is the complete path to where the service is installed
+# Availble vars that can be used:
+#   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_LEVEL_NAME
+#   $INSTANCE_WORKING_DIR
+#   $INSTANCE_BACKUPS_DIR
+#   $INSTANCE_TEMP_DIR
+#   $INSTANCE_CONFIG_DIR
+#   $INSTANCE_INSTALL_DIR
+#   $INSTANCE_SAVES_DIR
+#   $INSTANCE_LEVEL_NAME
 SERVICE_LAUNCH_ARGS=
 
 # (Optional) Stop command sent to the input socket

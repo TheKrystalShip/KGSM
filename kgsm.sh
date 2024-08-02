@@ -1,38 +1,5 @@
 #!/bin/bash
 
-# Read configuration file
-CONFIG_FILE="$(find "$(dirname "$0")" -type f -name config.cfg)"
-if [ -f "$CONFIG_FILE" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then
-      continue
-    fi
-    # Export each key-value pair
-    export "${line?}"
-  done <"$CONFIG_FILE"
-
-  if [ -z "$KGSM_ROOT" ]; then
-    KGSM_ROOT="$(dirname "$0")"
-  fi
-
-  export KGSM_ROOT
-else
-  CONFIG_FILE_EXAMPLE="$(find "$(dirname "$0")" -type f -name config.cfg.example)"
-  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
-    cp "$CONFIG_FILE_EXAMPLE" "$(dirname "$0")"/config.cfg
-    echo "${0##*/} WARNING: config.cfg not found, created new file" >&2
-    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
-    exit 0
-  else
-    echo "${0##*/} ERROR: Could not find config.cfg.example, install might be broken" >&2
-    echo "${0##*/} INFO: Try to repair the install by running ${0##*/} --update --force" >&2
-    exit 1
-  fi
-fi
-
-set -eo pipefail
-
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -47,6 +14,38 @@ if [[ $@ =~ "--debug" ]]; then
     esac
   done
 fi
+
+# Absolute path to this script file
+SELF_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+# Read configuration file
+CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini)"
+if [ -f "$CONFIG_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    # Export each key-value pair
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  # shellcheck disable=SC2155
+  [[ -z "$KGSM_ROOT" ]] && KGSM_ROOT="$SELF_PATH"
+  export KGSM_ROOT
+  export KGSM_CONFIG_LOADED=1
+else
+  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.example.ini)"
+  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
+    cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
+    echo "${0##*/} WARNING: config.ini not found, created new file" >&2
+    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
+    exit 0
+  else
+    echo "${0##*/} ERROR: Could not find config.example.ini, install might be broken" >&2
+    echo "${0##*/} INFO: Try to repair the install by running ${0##*/} --update --force" >&2
+    exit 1
+  fi
+fi
+
+set -eo pipefail
 
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
@@ -86,23 +85,28 @@ Options:
                                 blueprint.
                                 BLUEPRINT must be the name of a blueprint.
                                 Run --blueprints to see available options.
+      --install-dir <dir>       Needed in case KGSM_DEFAULT_INSTALL_DIR is not
+                                set
 
-  \e[4mServices\e[0m
-    --service SERVICE [OPTION]  Issue commands to a service.
-                                SERVICE must be the name of a server or a
-                                blueprint.
+  \e[4mInstances\e[0m
+    --instances [blueprint]     List all installed instances.
+                                Optionally a blueprint name can be specified in
+                                order to only list instances of that blueprint
+
+    --instance INSTANCE OPTION  Interact with an instance.
                                 OPTION represents one of the following:
-      --logs                    Return the last 10 lines of the service's log.
-      --status                  Return a detailed status of the service.
-      --is-active               Check if the service is active.
-      --start                   Start the service.
-      --stop                    Stop the service.
-      --restart                 Restart the service.
+
+      --logs                    Return the last 10 lines of the log.
+      --status                  Return a detailed running status.
+      --is-active               Check if the instance is active.
+      --start                   Start the instance.
+      --stop                    Stop the instance.
+      --restart                 Restart the instance.
       -v, --version             Provide version information.
                                 Running this with no other argument has the same
                                 outcome as adding the --installed argument.
         --installed             Print the currently installed version.
-        --latest                Print the latest available version number.
+        --latest                Print the latest available version.
       --check-update            Check if a new version is available.
       --update                  Run the update process.
         -h, --help              Print help information for the update process.
@@ -154,7 +158,7 @@ function check_for_update() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo "ERROR: wget is required but not installed" >&2 && return 1
+    echo "${0##*/} ERROR: wget is required but not installed" >&2 && return 1
   fi
 
   # Compare the versions
@@ -184,7 +188,7 @@ function update_script() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo "ERROR: wget is required to check for updates." >&2
+    echo "${0##*/} ERROR: wget is required to check for updates." >&2
     return 1
   fi
 
@@ -200,7 +204,7 @@ function update_script() {
     if command -v wget >/dev/null 2>&1; then
       wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
     else
-      echo "ERROR: wget is required to download the update." >&2
+      echo "${0##*/} ERROR: wget is required to download the update." >&2
       return 1
     fi
 
@@ -214,7 +218,7 @@ function update_script() {
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
-      echo "ERROR: Failed to extract the update. Reverting to the previous version." >&2
+      echo "${0##*/} ERROR: Failed to extract the update. Reverting to the previous version." >&2
       mv "${0}.${script_version:-0}.bak" "$0"
     fi
   else
@@ -227,7 +231,7 @@ function update_script() {
 # Only call subscripts with sudo if the current user isn't root
 SUDO=$([[ "$EUID" -eq 0 ]] && echo "" || echo "sudo -E")
 
-check_for_update
+[[ "$CHECK_UPDATE_ON_START" -eq 1 ]] && check_for_update
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -251,110 +255,88 @@ done
 trap "echo "" && exit" INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-CREATE_BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name create_blueprint.sh)"
-[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "ERROR: Failed to load create_blueprint.sh" >&2 && exit 1
+CREATE_BLUEPRINT_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name create_blueprint.sh)"
+[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module create_blueprint.sh" >&2 && exit 1
 
-DIRECTORIES_SCRIPT="$(find "$KGSM_ROOT" -type f -name directories.sh)"
-[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "ERROR: Failed to load directories.sh" >&2 && exit 1
+DIRECTORIES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name directories.sh)"
+[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module directories.sh" >&2 && exit 1
 
-FILES_SCRIPT="$(find "$KGSM_ROOT" -type f -name files.sh)"
-[[ -z "$FILES_SCRIPT" ]] && echo "ERROR: Failed to load files.sh" >&2 && exit 1
+FILES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name files.sh)"
+[[ -z "$FILES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module files.sh" >&2 && exit 1
 
-VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-[[ -z "$VERSION_SCRIPT" ]] && echo "ERROR: Failed to load version.sh" >&2 && exit 1
+VERSION_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name version.sh)"
+[[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
 
-DOWNLOAD_SCRIPT="$(find "$KGSM_ROOT" -type f -name download.sh)"
-[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "ERROR: Failed to load download.sh" >&2 && exit 1
+DOWNLOAD_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name download.sh)"
+[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module download.sh" >&2 && exit 1
 
-DEPLOY_SCRIPT="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
-[[ -z "$DEPLOY_SCRIPT" ]] && echo "ERROR: Failed to load deploy.sh" >&2 && exit 1
+DEPLOY_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name deploy.sh)"
+[[ -z "$DEPLOY_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module deploy.sh" >&2 && exit 1
 
-UPDATE_SCRIPT="$(find "$KGSM_ROOT" -type f -name update.sh)"
-[[ -z "$UPDATE_SCRIPT" ]] && echo "ERROR: Failed to load update.sh" >&2 && exit 1
+UPDATE_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name update.sh)"
+[[ -z "$UPDATE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module update.sh" >&2 && exit 1
 
-BACKUP_SCRIPT="$(find "$KGSM_ROOT" -type f -name backup.sh)"
-[[ -z "$BACKUP_SCRIPT" ]] && echo "ERROR: Failed to load backup.sh" >&2 && exit 1
+BACKUP_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name backup.sh)"
+[[ -z "$BACKUP_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module backup.sh" >&2 && exit 1
+
+INSTANCE_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name instance.sh)"
+[[ -z "$INSTANCE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module instance.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
   local install_dir=$2
+  local version=${3:-""}
 
   if [[ "$blueprint" != *.bp ]]; then
     blueprint="${blueprint}.bp"
   fi
 
+  # TODO: Add option for user to specify instance name, for easy identificiation
+
   # shellcheck disable=SC2155
-  local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint" -print -quit)"
-  # shellcheck disable=SC2155
-  local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local instance_full_name="$("$INSTANCE_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
 
-  # If the path doesn't contain the service name, append it
-  if [[ "$install_dir" != *$service_name ]]; then
-    install_dir=$install_dir/$service_name
-  fi
+  # Create directory structure
+  "$DIRECTORIES_SCRIPT" -i "$instance_full_name" --install $debug || return $?
 
-  if [ ! -d "$install_dir" ]; then
-    if ! mkdir -p "$install_dir"; then
-      echo "ERROR: Failed to create directory $install_dir" >&2
-      return 1
-    fi
-  fi
-
-  if [ ! -w "$install_dir" ]; then
-    echo "ERROR: You don't have write permissions for $install_dir" >&2
-    return 1
-  fi
-
-  # IMPORTANT
-  # Once the installation directory has been established, it is essential
-  # that it gets saved into the blueprint itself because all other scripts
-  # expect the blueprint to have a $SERVICE_WORKING_DIR variable
-
-  # If SERVICE_WORKING_DIR already exists in the blueprint, replace the value
-  if grep -q "SERVICE_WORKING_DIR=" <"$blueprint_abs_path"; then
-    sed -i "/SERVICE_WORKING_DIR=*/c\SERVICE_WORKING_DIR=$install_dir" "$blueprint_abs_path" >/dev/null
-  # Othwewise just append to the blueprint
-  else
-    {
-      echo ""
-      echo "# Directory where service is installed"
-      echo "SERVICE_WORKING_DIR=\"$install_dir\""
-    } >>"$blueprint_abs_path"
-  fi
-
-  # Get the latest version that's gonna be downloaded
-  # shellcheck disable=SC2155
-  local latest_version=$("$VERSION_SCRIPT" -b "$blueprint" --latest)
-
-  # First create directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --install $debug || return $?
   # Create necessary files
-  $SUDO "$FILES_SCRIPT" -b "$blueprint" --install $debug || return $?
-  # Run the download process
-  "$DOWNLOAD_SCRIPT" -b "$blueprint" $debug || return $?
-  # Deploy newly downloaded
-  "$DEPLOY_SCRIPT" -b "$blueprint" $debug || return $?
-  # Save new version
-  "$VERSION_SCRIPT" -b "$blueprint" --save "$latest_version" $debug || return $?
+  $SUDO "$FILES_SCRIPT" -i "$instance_full_name" --install $debug || return $?
 
-  return 0
+  if [[ -z "$version" ]]; then
+    # Get the latest version that's gonna be downloaded
+    version=$("$VERSION_SCRIPT" -i "$instance_full_name" --latest)
+  fi
+
+  # Run the download process
+  "$DOWNLOAD_SCRIPT" -i "$instance_full_name" -v "$version" $debug || return $?
+
+  # Deploy newly downloaded
+  "$DEPLOY_SCRIPT" -i "$instance_full_name" $debug || return $?
+
+  # Save new version
+  "$VERSION_SCRIPT" -i "$instance_full_name" --save "$version" $debug || return $?
+
+  echo "Instance $instance_full_name has been created in $install_dir" >&2 && return 0
 }
 
 function _uninstall() {
-  local blueprint=$1
+  local instance=$1
 
-  if [[ "$blueprint" != *.bp ]]; then
-    blueprint="${blueprint}.bp"
+  if [[ "$instance" != *.ini ]]; then
+    instance="${instance}.ini"
   fi
 
   # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
+  "$DIRECTORIES_SCRIPT" -i "$instance" --uninstall $debug || return $?
   # Remove files
-  $SUDO "$FILES_SCRIPT" -b "$blueprint" --uninstall $debug || return $?
+  $SUDO "$FILES_SCRIPT" -i "$instance" --uninstall $debug || return $?
+  # Remove instance
+  "$INSTANCE_SCRIPT" --uninstall "$instance" $debug || return $?
 }
 
 function get_blueprints() {
@@ -368,39 +350,33 @@ function get_blueprints() {
   ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
 }
 
-function get_installed_services() {
-  # shellcheck disable=SC2178
-  local -n ref_services_array=$1
-  declare -a blueprints=()
-  get_blueprints blueprints
+function get_instances() {
+  local -n ref_instances_array=$1
+  local blueprint=${2:-}
 
-  for bp in "${blueprints[@]}"; do
-    # shellcheck disable=SC2155
-    local bp_file=$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$bp" -print -quit)
-    [[ ! -f "$bp_file" ]] && continue
+  shopt -s extglob nullglob
 
-    service_name=$(grep "SERVICE_NAME=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
-    service_working_dir=$(grep "SERVICE_WORKING_DIR=" <"$bp_file" | cut -d "=" -f2 | tr -d '"')
-    service_version_file="$service_working_dir/$service_name.version"
+  if [[ -z "$blueprint" ]]; then
+    ref_instances_array=( "$INSTANCES_SOURCE_DIR"/**/*.ini )
+  else
+    # shellcheck disable=SC2034
+    ref_instances_array=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
+  fi
 
-    # If there's no $service_working_dir, skip
-    if [ ! -d "$service_working_dir" ]; then
-      continue
-    fi
+  # Remove trailing directories from path, leave only filename
+  for i in "${!ref_instances_array[@]}"; do
+    ref_instances_array["$i"]=$(basename "${ref_instances_array[$i]}")
+  done
+}
 
-    # If there's no .version file, skip
-    if [ ! -f "$service_version_file" ]; then
-      continue
-    fi
+function _print_instances() {
+  local instances_array=()
+  get_instances instances_array
 
-    service_version=$(cat "$service_version_file")
+  printf "\e[4mAvailable instances\e[0m\n\n"
 
-    # Check if there's a version number stored in the file
-    if [ -z "$service_version" ] || [[ "$service_version" == "0" ]]; then
-      continue
-    fi
-
-    ref_services_array+=("$service_name")
+  for instance in "${instances_array[@]}"; do
+    "$INSTANCE_SCRIPT" --print-info "$instance"
   done
 }
 
@@ -417,7 +393,7 @@ KGSM - Interactive menu
   PS3="Choose an action: "
 
   local action=
-  local blueprint_or_service=
+  local blueprint_or_instance=
 
   declare -a menu_options=(
     "Install"
@@ -448,43 +424,48 @@ KGSM - Interactive menu
     fi
   done
 
-  # Depending on the action, load up a list of all blueprints,
-  # all services or only the installed services
-  declare -a blueprints_or_services=()
+  # Depending on the action, load up a list of all blueprints or all instances
+  declare -a blueprints_or_instances=()
+
+  PS3="Choose an instance: "
 
   case "$action" in
   --install)
-    get_blueprints blueprints_or_services
+    get_blueprints blueprints_or_instances
+    PS3="Choose a blueprint: "
     ;;
   --check-update)
-    get_installed_services blueprints_or_services
+    get_instances blueprints_or_instances
+    _print_instances
     ;;
   --update)
-    get_installed_services blueprints_or_services
+    get_instances blueprints_or_instances
+    _print_instances
     ;;
   --create-backup)
-    get_installed_services blueprints_or_services
+    get_instances blueprints_or_instances
+    _print_instances
     ;;
   --restore-backup)
-    get_blueprints blueprints_or_services
+    get_instances blueprints_or_instances
+    _print_instances
     ;;
   --uninstall)
-    get_installed_services blueprints_or_services
+    get_instances blueprints_or_instances
+    _print_instances
     ;;
-  *) echo "ERROR: Unknown action $action" >&2 && return 1 ;;
+  *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1 ;;
   esac
 
-  [[ "${#blueprints_or_services[@]}" -eq 0 ]] && echo "ERROR: No blueprints or services found, exiting" >&2 && return 1
+  [[ "${#blueprints_or_instances[@]}" -eq 0 ]] && echo "${0##*/} INFO: No instances found" >&2 && return 0
 
-  PS3="Choose a blueprint/service: "
-
-  # Select blueprint/service for the action
-  select bp in "${blueprints_or_services[@]}"; do
+  # Select blueprint/instance for the action
+  select bp in "${blueprints_or_instances[@]}"; do
     if [[ -z $bp ]]; then
       echo "Didn't understand \"$REPLY\" " >&2
       REPLY=
     else
-      blueprint_or_service="$bp"
+      blueprint_or_instance="$bp"
       break
     fi
   done
@@ -499,20 +480,25 @@ KGSM - Interactive menu
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
     # shellcheck disable=SC2086
-    "$0" $action $blueprint_or_service --dir $install_directory $debug
+    "$0" $action $blueprint_or_instance --install-dir $install_directory $debug
     ;;
   --restore-backup)
-    BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+    instance=$blueprint_or_instance
+    [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+    instance_config_file="$(find "$KGSM_ROOT" -type f -name "$instance")"
+    [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
     # shellcheck disable=SC1090
-    source "$BLUEPRINT_SCRIPT" "$blueprint_or_service" || exit 1
+    source "$instance_config_file" || exit 1
+
     shopt -s extglob nullglob
 
     # Restore backup requires specifying which one to restore
     backup_to_restore=
     # Create array
-    backups_array=("$SERVICE_BACKUPS_DIR"/*)
-    # remove leading $SERVICE_BACKUPS_DIR:
-    backups_array=("${backups_array[@]#"$SERVICE_BACKUPS_DIR/"}")
+    backups_array=("$INSTANCE_BACKUPS_DIR"/*)
+    # remove leading $INSTANCE_BACKUPS_DIR:
+    backups_array=("${backups_array[@]#"$INSTANCE_BACKUPS_DIR/"}")
 
     if ((${#backups_array[@]} < 1)); then
       echo "No backups found. Exiting." >&2
@@ -531,11 +517,11 @@ KGSM - Interactive menu
       fi
     done
     # shellcheck disable=SC2086
-    "$0" --service $blueprint_or_service $action $backup_to_restore $debug
+    "$0" --instance $instance $action $backup_to_restore $debug
     ;;
   *)
     # shellcheck disable=SC2086
-    $0 --service $blueprint_or_service $action $debug
+    $0 --instance $blueprint_or_instance $action $debug
     ;;
   esac
 }
@@ -547,7 +533,7 @@ while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
     shift
-    [[ -z "$1" ]] && echo "ERROR: Missing arguments" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
     -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help $debug && exit $? ;;
     *)
@@ -558,108 +544,109 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --install)
     shift
-    [[ -z "$1" ]] && echo "ERROR: Missing argument <blueprint>" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
     bp_to_install="$1"
     install_dir=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
     shift
     if [ -n "$1" ]; then
       case "$1" in
-      --dir)
+      --install-dir)
         shift
-        [[ -z "$1" ]] && echo "ERROR: Missing argument <dir>" >&2 && exit 1
+        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
         install_dir="$1"
         ;;
       *)
-        echo "ERROR: Unknown argument $1" >&2 && exit 1
+        echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
         ;;
       esac
     fi
-    [[ -z "$install_dir" ]] && echo "ERROR: Missing argument <dir>" >&2 && exit 1
+    [[ -z "$install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
     _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
     declare -a bps=()
     get_blueprints bps
-    for bp in "${bps[@]}"; do
-      echo "$bp"
-    done
+    for bp in "${bps[@]}"; do echo "$bp"; done
     exit 0
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
       wget -qO- https://icanhazip.com && exit $?
     else
-      echo "ERROR: wget is required but not installed" >&2
+      echo "${0##*/} ERROR: wget is required but not installed" >&2
       exit 1
     fi
     ;;
   --update)
     update_script "$@" && exit $?
     ;;
-  --service)
+  --instances)
+    _print_instances && exit $?
+    ;;
+  --instance)
     shift
-    [[ -z "$1" ]] && echo "ERROR: Missing argument <service>" >&2 && exit 1
-    service=$1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
     shift
-    [[ -z "$1" ]] && echo "ERROR: Missing argument [OPTION]" >&2 && exit 1
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      journalctl -n "10" -u "$service" --no-pager && exit $?
+      journalctl -n "10" -u "$instance" --no-pager && exit $?
       ;;
     --status)
-      systemctl status "$service" | head -n 3 && exit $?
+      systemctl status "$instance" | head -n 3 && exit $?
       ;;
     --is-active)
-      systemctl is-active "$service" && exit $?
+      systemctl is-active "$instance" && exit $?
       ;;
     --start)
-      $SUDO systemctl start "$service" && exit $?
+      $SUDO systemctl start "$instance" && exit $?
       ;;
     --stop)
-      $SUDO systemctl stop "$service" && exit $?
+      $SUDO systemctl stop "$instance" && exit $?
       ;;
     --restart)
-      $SUDO systemctl restart "$service" && exit $?
+      $SUDO systemctl restart "$instance" && exit $?
       ;;
     -v | --version)
       shift
-      [[ -z "$1" ]] && "$VERSION_SCRIPT" -b "$service" --installed $debug && exit $?
+      [[ -z "$1" ]] && "$VERSION_SCRIPT" -i "$instance" --installed $debug && exit $?
       case "$1" in
-      --installed) "$VERSION_SCRIPT" -b "$service" --installed $debug && exit $? ;;
-      --latest) "$VERSION_SCRIPT" -b "$service" --latest $debug && exit $? ;;
-      *) echo "ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
+      --installed) "$VERSION_SCRIPT" -i "$instance" --installed $debug && exit $? ;;
+      --latest) "$VERSION_SCRIPT" -i "$instance" --latest $debug && exit $? ;;
+      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
       case "$1" in
       -h | --help) "$VERSION_SCRIPT" --help && exit $? ;;
-      *) "$VERSION_SCRIPT" -b "$service" --compare $debug && exit $? ;;
+      *) "$VERSION_SCRIPT" -i "$instance" --compare $debug && exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
       -h | --help) "$UPDATE_SCRIPT" --help && exit $? ;;
-      *) "$UPDATE_SCRIPT" -b "$service" $debug && exit $? ;;
+      *) "$UPDATE_SCRIPT" -i "$instance" $debug && exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --create $debug && exit $? ;;
+      *) "$BACKUP_SCRIPT" -i "$instance" --create $debug && exit $? ;;
       esac
       ;;
     --restore-backup)
-      [[ -z "$1" ]] && echo "ERROR: Missing argument <backup>" >&2 && exit 1
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
       shift
       case "$1" in
       -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -b "$service" --restore "$1" $debug && exit $? ;;
+      *) "$BACKUP_SCRIPT" -i "$instance" --restore "$1" $debug && exit $? ;;
       esac
       ;;
     --uninstall)
-      _uninstall "$service" && exit $?
+      _uninstall "$instance" && exit $?
       ;;
-    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --interactive)
@@ -673,7 +660,7 @@ while [[ "$#" -gt 0 ]]; do
     get_version && exit 0
     ;;
   *)
-    echo "ERROR: Invalid argument $1" >&2 && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift

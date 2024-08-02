@@ -7,35 +7,36 @@ also creates the UFW firewall rule on install.
 Removes everything on uninstall
 
 Usage:
-    Must be called with root privilages
-    sudo ./${0##*/} [-b | --blueprint] <blueprint> <option>
+  Must be called with root privilages
+  sudo ./${0##*/} [-i | --instance] <instance> OPTION
 
 Options:
-    -b --blueprint <bp>   Name of the blueprint file.
-                          The .bp extension in the name is optional
+  -i, --instance <instance>   Full name of the instance, equivalent of
+                              INSTANCE_FULL_NAME from the instance config file
+                              The .ini extension is not required
 
-    -h --help             Prints this message
+  -h, --help                 Prints this message
 
-    --install             Generates all files:
-                          [service].manage.sh file, [service].override.sh file
-                          if applicable, systemd service and socket files and
-                          ufw firewall rules if applicable.
+  --install                  Generates all files:
+                             [instance].manage.sh file, [instance].override.sh file
+                             if applicable, systemd service/ socket files and ufw
+                             firewall rules if applicable.
 
-        --manage          Creates the [service].manage.sh file
-        --override        Creates the [service].overrides.sh file if applicable
-        --systemd         Installs the systemd service and socket files
-        --ufw             Installs the ufw firewall rule file
+    --manage                 Creates the [instance].manage.sh file
+    --override               Creates the [instance].overrides.sh file if applicable
+    --systemd                Installs the systemd service/socket files
+    --ufw                    Installs the ufw firewall rule file
 
-    --uninstall           Removes and disables systemd service/socket files and
-                          UFW firewall rule
+  --uninstall                Removes and disables systemd service/socket files and
+                             UFW firewall rule
 
-        --systemd         Removes the systemd service and socket files
-        --ufw             Removes the ufw firewall rule files
+    --systemd                Removes the systemd service and socket files
+    --ufw                    Removes the ufw firewall rule files
 
 Examples:
-    ./${0##*/} -b valheim --install
+  ./${0##*/} -i factorio-L2ZeLQ.ini --install
 
-    ./${0##*/} --blueprint terraria --uninstall
+  ./${0##*/} -i 7dtd-fqcLvt --uninstall --ufw
 "
 }
 
@@ -57,8 +58,7 @@ fi
 if [ "$#" -eq 0 ]; then usage && return 1; fi
 
 if [ "$EUID" -ne 0 ]; then
-  echo "${0##*/} Please run as root" >&2
-  exit 1
+  echo "${0##*/} Please run as root" >&2 && exit 1
 fi
 
 while [[ "$#" -gt 0 ]]; do
@@ -66,15 +66,16 @@ while [[ "$#" -gt 0 ]]; do
   -h | --help)
     usage && exit 0
     ;;
-  -b | --blueprint)
+  -i | --instance)
     shift
-    BLUEPRINT=$1
-    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    INSTANCE=$1
     ;;
   *)
     break
     ;;
   esac
+  shift
 done
 
 # Check for KGSM_ROOT env variable
@@ -82,137 +83,195 @@ if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
+  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
+  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+fi
 
-  # If not found in /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    echo "ERROR: KGSM_ROOT not found, exiting." >&2
-    exit 1
-  else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-
-    # Check if KGSM_ROOT is exported
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
-      export KGSM_ROOT
-    fi
-  fi
+# Read configuration file
+if [ -z "$KGSM_CONFIG_LOADED" ]; then
+  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini)"
+  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  export KGSM_CONFIG_LOADED=1
 fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
+COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-BLUEPRINT_SCRIPT="$(find "$SCRIPTS_INCLUDE_SOURCE_DIR" -type f -name blueprint.sh)"
+[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
+
+INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
+[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
-
-MANAGE_TEMPLATE_FILE="$(find "$TEMPLATES_SOURCE_DIR" -type f -name manage.tp)"
-OVERRIDES_FILE="$(find "$OVERRIDES_SOURCE_DIR" -type f -name "$SERVICE_NAME".overrides.sh)"
+source "$INSTANCE_CONFIG_FILE" || exit 1
 
 function __create_manage_file() {
-  # Prepend "./" to $SERVICE_LAUNCH_BIN if it doesn't start with "./" or "/"
-  if [[ "$SERVICE_LAUNCH_BIN" != ./* && "$SERVICE_LAUNCH_BIN" != /* ]]; then
-    SERVICE_LAUNCH_BIN="./$SERVICE_LAUNCH_BIN"
+  # shellcheck disable=SC2155
+  local manage_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name manage.tp)"
+  [[ -z "$manage_template_file" ]] && echo "${0##*/} ERROR: Failed to load manage.tp" >&2 && return 1
+
+  local instance_manage_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.in
+
+  # shellcheck disable=SC2155
+  local instance_install_subdir=$(grep "SERVICE_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
+
+  # Used by the template
+  INSTANCE_LAUNCH_DIR=$INSTANCE_INSTALL_DIR
+  if [[ -n "$instance_install_subdir" ]]; then
+    INSTANCE_LAUNCH_DIR=$INSTANCE_INSTALL_DIR/$instance_install_subdir
   fi
 
-  # Create manage.sh from template and put it in $SERVICE_MANAGE_SCRIPT_FILE
+  # Required by the template
+  export INSTANCE_LAUNCH_DIR
+
+  # Create manage.sh from template and put it in $instance_manage_file
   if ! eval "cat <<EOF
-$(<"$MANAGE_TEMPLATE_FILE")
+$(<"$manage_template_file")
 EOF
-" >"$SERVICE_MANAGE_SCRIPT_FILE" 2>/dev/null; then
-    echo "ERROR: Could not copy $MANAGE_TEMPLATE_FILE to $SERVICE_MANAGE_SCRIPT_FILE" >&2
-    return 1
+" >"$instance_manage_file" 2>/dev/null; then
+    echo "${0##*/} ERROR: Could not generate template for $instance_manage_file" >&2 && return 1
+  fi
+
+  SERVICE_USER=$USER
+  if [ "$EUID" -eq 0 ]; then
+    SERVICE_USER=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_MANAGE_SCRIPT_FILE"; then
-    echo "ERROR: Failed to assing $SERVICE_MANAGE_SCRIPT_FILE to $SUDO_USER" >&2
-    return 1
+  if ! chown "$SERVICE_USER":"$SERVICE_USER" "$instance_manage_file"; then
+    echo "${0##*/} ERROR: Failed to assing $instance_manage_file to $SERVICE_USER" >&2 && return 1
   fi
 
-  if ! chmod +x "$SERVICE_MANAGE_SCRIPT_FILE"; then
-    echo "ERROR: Failed to add +x permission to $SERVICE_MANAGE_SCRIPT_FILE" >&2
-    return 1
+  if ! chmod +x "$instance_manage_file"; then
+    echo "${0##*/} ERROR: Failed to add +x permission to $instance_manage_file" >&2 && return 1
+  fi
+
+  if grep -q "INSTANCE_MANAGE_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_MANAGE_FILE=*/c\INSTANCE_MANAGE_FILE=$instance_manage_file" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the [instance].manage.sh script file"
+      echo "INSTANCE_MANAGE_FILE=$instance_manage_file"
+    } >>"$INSTANCE_CONFIG_FILE"
   fi
 
   return 0
 }
 
 function __create_overrides_file() {
-  # If overrides file exists, copy it
-  if [ ! -f "$OVERRIDES_FILE" ]; then
-    return 0
-  fi
+  # shellcheck disable=SC2155
+  local overrides_file="$(find "$OVERRIDES_SOURCE_DIR" -type f -name "$INSTANCE_NAME".overrides.sh)"
+  [[ ! -f "$overrides_file" ]] && return 0
+
+  local instance_overrides_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.overrides.sh
 
   # Make copy
-  if ! cp -f "$OVERRIDES_FILE" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-    echo "ERROR: Could not copy $OVERRIDES_FILE to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
-    return 1
+  if ! cp -f "$overrides_file" "$instance_overrides_file"; then
+    echo "${0##*/} ERROR: Could not copy $overrides_file to $instance_overrides_file" >&2 && return 1
+  fi
+
+  SERVICE_USER=$USER
+  if [ "$EUID" -eq 0 ]; then
+    SERVICE_USER=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$SUDO_USER":"$SUDO_USER" "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-    echo "ERROR: Failed to assing $SERVICE_OVERRIDES_SCRIPT_FILE to $SUDO_USER" >&2
-    return 1
+  if ! chown "$SERVICE_USER":"$SERVICE_USER" "$instance_overrides_file"; then
+    echo "${0##*/} ERROR: Failed to assing $instance_overrides_file to $SERVICE_USER" >&2 && return 1
   fi
 
-  if ! chmod +x "$SERVICE_OVERRIDES_SCRIPT_FILE"; then
-    echo "ERROR: Failed to add +x permission to $SERVICE_OVERRIDES_SCRIPT_FILE" >&2
-    return 1
+  # if ! chmod +x "$instance_overrides_file"; then
+  #   echo "${0##*/} ERROR: Failed to add +x permission to $instance_overrides_file" >&2 && return 1
+  # fi
+
+  if grep -q "INSTANCE_OVERRIDES_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_OVERRIDES_FILE=*/c\INSTANCE_OVERRIDES_FILE=$instance_overrides_file" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the [instance].overrides.sh script file"
+      echo "INSTANCE_OVERRIDES_FILE=$instance_overrides_file"
+    } >>"$INSTANCE_CONFIG_FILE"
   fi
 
   return 0
 }
 
 function __systemd_uninstall() {
+  [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a systemd service file set" >&2 && return 1
+  [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a systemd socket file set" >&2 && return 1
+
+  if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
+    if ! systemctl stop "$INSTANCE_FULL_NAME" &>/dev/null; then
+      echo "${0##*/} ERROR: Failed to stop $INSTANCE_FULL_NAME before uninstalling systemd files" >&2 && return 1
+    fi
+  fi
+
+  if systemctl is-enabled "$INSTANCE_FULL_NAME" &>/dev/null; then
+    if ! systemctl disable "$INSTANCE_FULL_NAME"; then
+      echo "WARNING: Failed to disable $INSTANCE_FULL_NAME" >&2
+    fi
+  fi
+
   # Remove service file
-  if [ -f "$SERVICE_SYSTEMD_SERVICE_FILE" ]; then
-    if ! rm "$SERVICE_SYSTEMD_SERVICE_FILE"; then
-      echo "ERROR: Failed to remove $SERVICE_SYSTEMD_SERVICE_FILE" >&2
-      return 1
+  # shellcheck disable=SC2153
+  if [ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]; then
+    if ! rm "$INSTANCE_SYSTEMD_SERVICE_FILE"; then
+      echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SERVICE_FILE" >&2 && return 1
     fi
   fi
 
   # Remove socket file
-  if [ -f "$SERVICE_SYSTEMD_SOCKET_FILE" ]; then
-    if ! rm "$SERVICE_SYSTEMD_SOCKET_FILE"; then
-      echo "ERROR: Failed to remove $SERVICE_SYSTEMD_SOCKET_FILE" >&2
-      return 1
+  # shellcheck disable=SC2153
+  if [ -f "$INSTANCE_SYSTEMD_SOCKET_FILE" ]; then
+    if ! rm "$INSTANCE_SYSTEMD_SOCKET_FILE"; then
+      echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SOCKET_FILE" >&2 && return 1
     fi
   fi
 
   # Reload systemd
   if ! systemctl daemon-reload; then
-    echo "ERROR: Failed to reload systemd" >&2
-    return 1
+    echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
   fi
 
   return 0
 }
 
 function __systemd_install() {
-  # shellcheck disable=SC2155
-  local service_template_file="$(find "$KGSM_ROOT" -type f -name service.tp)"
-
-  if [ -z "$service_template_file" ]; then
-    echo "ERROR: Failed to locate service.tp template" >&2
-    return 1
-  fi
+  [[ -z "$SYSTEMD_DIR" ]] && echo "${0##*/} ERROR: SYSTEMD_DIR is expected but it's not set" >&2 && return 1
 
   # shellcheck disable=SC2155
-  local socket_template_file="$(find "$KGSM_ROOT" -type f -name socket.tp)"
+  local service_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name service.tp)"
+  [[ -z "$service_template_file" ]] && echo "${0##*/} ERROR: Failed to locate service.tp template" >&2 && return 1
 
-  if [ -z "$socket_template_file" ]; then
-    echo "ERROR: Failed to locate socket.tp template" >&2
-    return 1
-  fi
+  # shellcheck disable=SC2155
+  local socket_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name socket.tp)"
+  [[ -z "$socket_template_file" ]] && echo "${0##*/} ERROR: Failed to locate socket.tp template" >&2 && return 1
+
+  local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.service
+  local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.socket
+
+  # Required by template
+  # shellcheck disable=SC2155
+  export INSTANCE_MANAGE_FILE=$(grep "INSTANCE_MANAGE_FILE=" <"$INSTANCE_CONFIG_FILE" | cut -d "=" -f2 | tr -d '"')
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.in
 
   # If either files already exist, uninstall first
-  if [ -f "$SERVICE_SYSTEMD_SERVICE_FILE" ] || [ -f "$SERVICE_SYSTEMD_SOCKET_FILE" ]; then
+  if [ -f "$instance_systemd_service_file" ] || [ -f "$instance_systemd_socket_file" ]; then
     if ! _uninstall; then return 1; fi
   fi
 
@@ -225,41 +284,59 @@ function __systemd_install() {
   if ! eval "cat <<EOF
 $(<"$service_template_file")
 EOF
-" >"$SERVICE_SYSTEMD_SERVICE_FILE" 2>/dev/null; then
-    echo "ERROR: Could not copy $service_template_file to $SERVICE_SYSTEMD_SERVICE_FILE" >&2
-    return 1
+" >"$instance_systemd_service_file" 2>/dev/null; then
+    echo "${0##*/} ERROR: Could not copy $service_template_file to $instance_systemd_service_file" >&2 && return 1
   fi
 
   # Create the socket file
   if ! eval "cat <<EOF
 $(<"$socket_template_file")
 EOF
-" >"$SERVICE_SYSTEMD_SOCKET_FILE" 2>/dev/null; then
-    echo "ERROR: Could not copy $socket_template_file to $SERVICE_SYSTEMD_SOCKET_FILE" >&2
-    return 1
+" >"$instance_systemd_socket_file" 2>/dev/null; then
+    echo "${0##*/} ERROR: Could not copy $socket_template_file to $instance_systemd_socket_file" >&2 && return 1
   fi
 
   # Reload systemd
   if ! systemctl daemon-reload; then
-    echo "ERROR: Failed to reload systemd" >&2
-    return 1
+    echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
+  fi
+
+  if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_SYSTEMD_SERVICE_FILE=*/c\INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the systemd [instance].service file"
+      echo "INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file"
+    } >>"$INSTANCE_CONFIG_FILE"
+  fi
+
+  if grep -q "INSTANCE_SYSTEMD_SOCKET_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_SYSTEMD_SOCKET_FILE=*/c\INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the systemd [instance].socket file"
+      echo "INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file"
+    } >>"$INSTANCE_CONFIG_FILE"
   fi
 
   return 0
 }
 
 function __ufw_uninstall() {
+  [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
+  [[ -z "$INSTANCE_UFW_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a UFW rule file set" >&2 && return 1
+
   # Remove ufw rule
-  if ! ufw delete allow "$SERVICE_NAME" &>>/dev/null; then
-    echo "ERROR: Failed to remove UFW rule for $SERVICE_NAME" >&2
-    return 1
+  if ! ufw delete allow "$INSTANCE_FULL_NAME" &>/dev/null; then
+    echo "${0##*/} ERROR: Failed to remove UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
   fi
 
-  if [ -f "$SERVICE_UFW_FIREWALL_FILE" ]; then
+  if [ -f "$INSTANCE_UFW_FILE" ]; then
     # Delete firewall rule file
-    if ! rm "$SERVICE_UFW_FIREWALL_FILE"; then
-      echo "ERROR: Failed to remove $SERVICE_UFW_FIREWALL_FILE" >&2
-      return 1
+    if ! rm "$INSTANCE_UFW_FILE"; then
+      echo "${0##*/} ERROR: Failed to remove $INSTANCE_UFW_FILE" >&2 && return 1
     fi
   fi
 
@@ -267,66 +344,75 @@ function __ufw_uninstall() {
 }
 
 function __ufw_install() {
+  [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
+
+  local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_FULL_NAME}
+
   # If firewall rule file already exists, remove it
-  if [ -f "$SERVICE_UFW_FIREWALL_FILE" ]; then
-    # echo "WARNING: UFW rule for $SERVICE_NAME already exists, removing" >&2
+  if [ -f "$instance_ufw_file" ]; then
     if ! __ufw_uninstall; then return 1; fi
   fi
 
   # shellcheck disable=SC2155
-  local ufw_template_file="$(find "$KGSM_ROOT" -type f -name ufw.tp)"
-
-  if [ -z "$ufw_template_file" ]; then
-    echo "ERROR: Could not load ufw.tp template" >&2
-    return 1
-  fi
+  local ufw_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name ufw.tp)"
+  [[ -z "$ufw_template_file" ]] && echo "${0##*/} ERROR: Could not load ufw.tp template" >&2 && return 1
 
   # Create file
-  if ! touch "$SERVICE_UFW_FIREWALL_FILE"; then
-    echo "ERROR: Failed to create file $SERVICE_UFW_FIREWALL_FILE" >&2
-    return 1
+  if ! touch "$instance_ufw_file"; then
+    echo "${0##*/} ERROR: Failed to create file $instance_ufw_file" >&2 && return 1
   fi
 
   # Create firewall rule file from template
   if ! eval "cat <<EOF
 $(<"$ufw_template_file")
 EOF
-" >"$SERVICE_UFW_FIREWALL_FILE"; then
-    echo "ERROR: Failed writing rules to $SERVICE_UFW_FIREWALL_FILE" >&2
-    return 1
+" >"$instance_ufw_file"; then
+    echo "${0##*/} ERROR: Failed writing rules to $instance_ufw_file" >&2 && return 1
   fi
 
   # Enable firewall rule
-  if ! ufw allow "$SERVICE_NAME" &>>/dev/null; then
-    echo "ERROR: Failed to allow UFW rule for $SERVICE_NAME" >&2
-    return 1
+  if ! ufw allow "$INSTANCE_FULL_NAME" &>/dev/null; then
+    echo "${0##*/} ERROR: Failed to allow UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
+  fi
+
+  if grep -q "INSTANCE_UFW_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_UFW_FILE=*/c\INSTANCE_UFW_FILE=$instance_ufw_file" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path the the UFW firewall rule file"
+      echo "INSTANCE_UFW_FILE=$instance_ufw_file"
+    } >>"$INSTANCE_CONFIG_FILE"
   fi
 
   return 0
 }
 
 function _install() {
-  local ret=0
-  __create_manage_file || ret=$?
-  __create_overrides_file || ret=$?
-  __systemd_install || ret=$?
+  __create_manage_file || return 1
+  __create_overrides_file || return 1
 
-  if command -v ufw &>/dev/null; then
-    __ufw_install || ret=$?
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    __systemd_install || return 1
   fi
 
-  return "$ret"
+  if [[ "$USE_UFW" -eq 1 ]]; then
+    __ufw_install || return 1
+  fi
+
+  return 0
 }
 
 function _uninstall() {
-  local ret=0
-  __systemd_uninstall || ret=$?
-
-  if command -v ufw &>/dev/null; then
-    __ufw_uninstall || ret=$?
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    __systemd_uninstall || return 1
   fi
 
-  return "$ret"
+  if [[ "$USE_UFW" -eq 1 ]]; then
+    __ufw_uninstall || return 1
+  fi
+
+  return 0
 }
 
 #Read the argument values
@@ -348,7 +434,7 @@ while [ $# -gt 0 ]; do
     --ufw)
       __ufw_install && exit $?
       ;;
-    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --uninstall)
@@ -361,10 +447,10 @@ while [ $# -gt 0 ]; do
     --ufw)
       __ufw_uninstall && exit $?
       ;;
-    *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
-  *) echo "ERROR: Invalid argument $1" >&2 && exit 1 ;;
+  *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
   esac
   shift
 done

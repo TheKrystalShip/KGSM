@@ -1,19 +1,19 @@
 [Unit]
-Description=${SERVICE_NAME^} Dedicated Server
-Requires=$SERVICE_NAME.socket
+Description=$INSTANCE_FULL_NAME Dedicated Server
+Requires=$INSTANCE_FULL_NAME.socket
 
 [Service]
 User=$SERVICE_USER
-WorkingDirectory=$SERVICE_WORKING_DIR
-ExecStart=$SERVICE_MANAGE_SCRIPT_FILE --start
-ExecStop=$SERVICE_MANAGE_SCRIPT_FILE --stop
+WorkingDirectory=$INSTANCE_WORKING_DIR
+ExecStart=$INSTANCE_MANAGE_FILE --start
+ExecStop=$INSTANCE_MANAGE_FILE --stop
 NonBlocking=true
 
 Restart=on-failure
 RestartSec=5
 StartLimitBurst=1
 
-Sockets=$SERVICE_NAME.socket
+Sockets=$INSTANCE_FULL_NAME.socket
 StandardInput=socket
 StandardOutput=journal
 StandardError=journal

@@ -49,9 +49,7 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function func_get_latest_version() {
-  # shellcheck disable=SC2034
-  result=$(wget -qO- 'https://factorio.com/api/latest-releases' | jq .stable.headless | tr -d '"')
-  echo -n "$result"
+  wget -qO - 'https://factorio.com/api/latest-releases' | jq .stable.headless | tr -d '"'
 }
 
 # INPUT:
@@ -70,20 +68,20 @@ function func_download() {
   local output_file="$dest/factorio_headless.tar.xz"
 
   # Download
-  if ! wget https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
-    echo "ERROR: wget https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
+  if ! wget -q https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
+    echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
     return
   fi
 
   # Extract
   if ! tar -xf "$output_file" --strip-components=1 -C "$dest"; then
-    echo "ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2
+    echo "${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2
     return
   fi
 
   # Remove trailing file
   if ! rm "$output_file"; then
-    echo "ERROR: rm $output_file" >&2
+    echo "${0##*/} ERROR: rm $output_file" >&2
     return
   fi
 
@@ -96,13 +94,13 @@ function func_deploy() {
   local dest=$2
 
   if ! mv -f "$source"/* "$dest"; then
-    echo "ERROR: Failed copy contents from $source into $dest" >&2 && return 1
+    echo "${0##*/} ERROR: Failed copy contents from $source into $dest" >&2 && return 1
   fi
 
-  if [ -f "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME" ]; then
+  if [ -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]; then
     return 0
   fi
 
-  cd "$SERVICE_INSTALL_DIR/bin/x64" || return 1
-  ./"$SERVICE_LAUNCH_BIN" --create "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME"
+  cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
+  ./"$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME"
 }

@@ -4,25 +4,24 @@ function usage() {
   echo "Creates or restores backups
 
 Usage:
-    ./${0##*/} [-b | --blueprint] <bp> <option>
+  ./${0##*/} [-i | --instance] <instance> OPTION
 
 Options:
-    -b --blueprint <bp>   Name of the blueprint file.
-                          The .bp extension in the name is optional
+  -i, --instance <instance>   Full name of the instance, equivalent of
+                              INSTANCE_FULL_NAME from the instance config file
+                              The .ini extension is not required
 
-    -h --help             Prints this message
+  -h, --help                  Prints this message
 
-    --create              Creates a new backup for the specified blueprint
+  --create                    Creates a new backup for the specified blueprint
 
-    --restore <source>    Restore a specific backup.
-                          <source> must be the name of the backup to restore
+  --restore <source>          Restore a specific backup.
+                              <source> must be the name of the backup to restore
 
 Examples:
-    ./${0##*/} -b valheim --create
+  ./${0##*/} -i valheim-9d52mZ.ini --create
 
-    ./${0##*/} --blueprint terraria --restore
-
-    ./${0##*/} -b 7dtd --restore 7dtd-12966454-2024-05-2011:07:50.backup
+  ./${0##*/} --instance valheim-9d52mZ --restore valheim-14349389-2024-05-1712:40:24.backup
 "
 }
 
@@ -48,15 +47,16 @@ while [[ "$#" -gt 0 ]]; do
   -h | --help)
     usage && exit 0
     ;;
-  -b | --blueprint)
+  -i | --instance)
     shift
-    BLUEPRINT=$1
-    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    INSTANCE=$1
     ;;
   *)
     break
     ;;
   esac
+  shift
 done
 
 # Check for KGSM_ROOT env variable
@@ -64,32 +64,43 @@ if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
+  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
+  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+fi
 
-  # If not found in /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    echo "ERROR: KGSM_ROOT not found, exiting." >&2
-    exit 1
-  else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-
-    # Check if KGSM_ROOT is exported
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then
-      export KGSM_ROOT
-    fi
-  fi
+# Read configuration file
+if [ -z "$KGSM_CONFIG_LOADED" ]; then
+  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini)"
+  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find config.ini file" >&2 && exit 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  export KGSM_CONFIG_LOADED=1
 fi
 
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-BLUEPRINT_SCRIPT="$(find "$KGSM_ROOT" -type f -name blueprint.sh)"
+COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$BLUEPRINT_SCRIPT" "$BLUEPRINT" || exit 1
+source "$COMMON_SCRIPT" || exit 1
+
+[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
+
+INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
+[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
+
+# shellcheck disable=SC1090
+source "$INSTANCE_CONFIG_FILE" || exit 1
 
 function _create() {
-  local source="$SERVICE_INSTALL_DIR"
-  local dest="$SERVICE_BACKUPS_DIR"
+  local source="$INSTANCE_INSTALL_DIR"
+  local dest="$INSTANCE_BACKUPS_DIR"
 
   # Check for content inside the install directory before attempting to
   # create a backup. If empty, skip
@@ -101,25 +112,25 @@ function _create() {
 
   # shellcheck disable=SC2155
   local datetime=$(exec date +"%Y-%m-%d%T")
-  local output_dir="${dest}/${SERVICE_NAME}-${SERVICE_INSTALLED_VERSION}-${datetime}.backup"
+  local output_dir="${dest}/${INSTANCE_FULL_NAME}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
 
   # Create backup folder if it doesn't exit
   if [ ! -d "$output_dir" ]; then
     if ! mkdir -p "$output_dir"; then
-      echo "ERROR: Error creating backup folder $output_dir" >&2
+      echo "${0##*/} ERROR: Error creating backup folder $output_dir" >&2
       return 1
     fi
   fi
 
   # Move everything from the install directory into a backup folder
   if ! mv "$source"/* "$output_dir"/; then
-    echo "ERROR: Failed to move contents from $source into $output_dir" >&2
+    echo "${0##*/} ERROR: Failed to move contents from $source into $output_dir" >&2
     rm -rf "${output_dir:?}"
     return 1
   fi
 
-  if ! echo "0" >"$SERVICE_VERSION_FILE"; then
-    echo "WARNING: Failed to reset version in $SERVICE_VERSION_FILE" >&2
+  if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/cINSTANCE_INSTALLED_VERSION=0" "$INSTANCE_CONFIG_FILE" >/dev/null; then
+    echo "WARNING: Failed to reset version in $INSTANCE_CONFIG_FILE" >&2
   fi
 
   return 0
@@ -131,28 +142,35 @@ function _restore() {
 
   # Get version number from $source
   IFS='-' read -ra backup_name <<<"$source"
-  backup_version="${backup_name[1]}"
+  backup_version="${backup_name[2]}"
   unset IFS
 
-  if [ -n "$(ls -A -I .gitignore "$SERVICE_INSTALL_DIR")" ]; then
-    # $SERVICE_INSTALL_DIR is not empty
-    read -r -p "WARNING: $SERVICE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+  if [ -n "$(ls -A -I .gitignore "$INSTANCE_INSTALL_DIR")" ]; then
+    # $INSTANCE_INSTALL_DIR is not empty
+    read -r -p "WARNING: $INSTANCE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
   fi
 
-  # $SERVICE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
-  if ! mv "$SERVICE_BACKUPS_DIR/$source"/* "$SERVICE_INSTALL_DIR"/; then
-    echo "ERROR: Failed to move contents from $source into $SERVICE_INSTALL_DIR" >&2
+  # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
+  if ! mv "$INSTANCE_BACKUPS_DIR/$source"/* "$INSTANCE_INSTALL_DIR"/; then
+    echo "${0##*/} ERROR: Failed to move contents from $source into $INSTANCE_INSTALL_DIR" >&2
     return 1
   fi
 
-  # Updated $SERVICE_VERSION_FILE with $backup_version
-  if ! echo "$backup_version" >"$SERVICE_VERSION_FILE"; then
-    echo "WARNING: Failed to update version in $SERVICE_VERSION_FILE" >&2
-    return 1
+  # Updated $INSTANCE_INSTALLED_VERSION with $backup_version
+  if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/cINSTANCE_INSTALLED_VERSION=$backup_version" "$INSTANCE_CONFIG_FILE" >/dev/null; then
+    echo "WARNING: Failed to update version in $INSTANCE_CONFIG_FILE" >&2 && return 1
+  fi
+
+  # Update instance version file with $backup_version
+  instance_version_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version
+  if [[ -f "$instance_version_file" ]]; then
+    if ! echo "$backup_version" >"$instance_version_file"; then
+      echo "${0##*/} WARNING: Failed to restore version in $instance_version_file" >&2
+    fi
   fi
 
   # Remove empty backup directory
-  if ! rm -rf "${SERVICE_BACKUPS_DIR:?}/${source:?}"; then
+  if ! rm -rf "${INSTANCE_BACKUPS_DIR:?}/${source:?}"; then
     echo "WARNING: Failed to remove $source" >&2
     return 1
   fi
@@ -171,12 +189,11 @@ while [ $# -gt 0 ]; do
     ;;
   --restore)
     shift
-    [[ -z "$1" ]] && echo "ERROR: Missing argument <source>" >&2
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <source>" >&2
     _restore "$1" && exit $?
     ;;
   *)
-    echo "ERROR: Invalid argument $1" >&2
-    usage && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift

@@ -35,8 +35,16 @@ SERVICE_LEVEL_NAME="${_level_name:-default}"
 SERVICE_INSTALL_SUBDIRECTORY="$_install_subdirectory"
 
 # Any args passed onto the executable
-# $WORKING_DIR can be used as an absolute path to the service directory
-# $WORKING_DIR/install is the complete path to where the service is installed
+# Availble vars that can be used:
+#   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_LEVEL_NAME
+#   $INSTANCE_WORKING_DIR
+#   $INSTANCE_BACKUPS_DIR
+#   $INSTANCE_TEMP_DIR
+#   $INSTANCE_CONFIG_DIR
+#   $INSTANCE_INSTALL_DIR
+#   $INSTANCE_SAVES_DIR
+#   $INSTANCE_LEVEL_NAME
 SERVICE_LAUNCH_ARGS="$_launch_args"
 
 # (Optional) Stop command sent to the input socket
