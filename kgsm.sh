@@ -231,7 +231,7 @@ function update_script() {
 # Only call subscripts with sudo if the current user isn't root
 SUDO=$([[ "$EUID" -eq 0 ]] && echo "" || echo "sudo -E")
 
-[[ "$CHECK_UPDATE_ON_START" -eq 1 ]] && check_for_update
+[[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]] && check_for_update
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -474,9 +474,9 @@ KGSM - Interactive menu
   # --install has a different arg order
   case "$action" in
   --install)
-    install_directory=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
+    install_directory=${INSTANCE_DEFAULT_INSTALL_DIR:-}
     if [ -z "$install_directory" ]; then
-      echo "KGSM_DEFAULT_INSTALL_DIRECTORY is not set in the configuration file, please specify an installation directory" >&2
+      echo "INSTANCE_DEFAULT_INSTALL_DIR is not set in the configuration file, please specify an installation directory" >&2
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
     # shellcheck disable=SC2086
@@ -546,7 +546,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
     bp_to_install="$1"
-    install_dir=${KGSM_DEFAULT_INSTALL_DIRECTORY:-}
+    install_dir=${INSTANCE_DEFAULT_INSTALL_DIR:-}
     shift
     if [ -n "$1" ]; then
       case "$1" in
