@@ -8,47 +8,88 @@ Usage:
 Options:
   -h, --help        Prints this message
 
-  --start           Starts the service.
-                    Will cd into the working directory befores starting.
+  --start           Starts the service in the current tty.
+    --background    Starts the service in the background.
+                    This will detach stdin meaning no commands can be issued
+                    to the running service.
 
   --stop            Stops the service.
                     Will issue the save command to the console
                     and wait 10 seconds before shutting down.
+                    This won't work if the process is has been started
+                    with the --background argument.
 
   --save            Issue the save command to the console.
+                    This won't work if the process is has been started
+                    with the --background argument.
 
   --input <input>   Issue an ad-hoc command to the console.
+                    This won't work if the process is has been started
+                    with the --background argument.
 "
 }
 
 [[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
+
+INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
+INSTANCE_PID_FILE=$INSTANCE_PID_FILE
 
 function _start() {
   cd "$INSTANCE_LAUNCH_DIR" || return 1
   exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
 }
 
+function _start_background() {
+  _start $INSTANCE_LOGS_REDIRECT &
+  pid=\$!
+  echo "\$pid" >\$INSTANCE_PID_FILE
+  echo "$INSTANCE_FULL_NAME started with PID \$pid, saved to \$INSTANCE_PID_FILE"
+}
+
 function _stop() {
   _save
-  echo "$INSTANCE_STOP_COMMAND" >"$INSTANCE_SOCKET_FILE"
+
+  if [[ -f "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "$INSTANCE_STOP_COMMAND" >"\$INSTANCE_SOCKET_FILE"
+  elif [[ -f "\$INSTANCE_PID_FILE" ]]; then
+    kill "\$(cat "\$INSTANCE_PID_FILE")"
+    [[ -f "\$INSTANCE_PID_FILE" ]] && rm -f "\$INSTANCE_PID_FILE"
+  fi
 }
 
 function _save() {
-  echo "$INSTANCE_SAVE_COMMAND" >"$INSTANCE_SOCKET_FILE"
-  sleep 10
+  if [[ -f "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "$INSTANCE_SAVE_COMMAND" >"\$INSTANCE_SOCKET_FILE"
+    sleep 10
+  fi
 }
 
 function _input() {
-  echo "\$1" >"$INSTANCE_SOCKET_FILE"
+  if [[ -f "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "\$1" >"$INSTANCE_SOCKET_FILE"
+  fi
 }
 
 #Read the argument values
 while [ \$# -gt 0 ]; do
   case "\$1" in
   -h | --help)  usage && exit 0 ;;
-  --start)      _start ;;
-  --stop)       _stop ;;
-  --save)       _save ;;
+  --start)
+    shift
+    [[ -z "\$1" ]] && _start
+    case "\$1" in
+      --background)
+      _start_background
+      ;;
+      *) echo "\${0##*/} ERROR: Unknown argument \$1" >&2 && exit 1 ;;
+    esac
+    ;;
+  --stop)
+    _stop
+    ;;
+  --save)
+    _save
+    ;;
   --input)
     shift
     [[ -z "\$1" ]] && echo "\${0##*/} ERROR: Missing argument <input>" >&2 && exit 1

@@ -123,7 +123,7 @@ function __create_manage_file() {
   [[ -z "$manage_template_file" ]] && echo "${0##*/} ERROR: Failed to load manage.tp" >&2 && return 1
 
   local instance_manage_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.in
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.stdin
 
   # shellcheck disable=SC2155
   local instance_install_subdir=$(grep "SERVICE_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
@@ -136,6 +136,16 @@ function __create_manage_file() {
 
   # Required by the template
   export INSTANCE_LAUNCH_DIR
+
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    INSTANCE_LOGS_REDIRECT=""
+  else
+    stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".stdout.log"
+    stderr_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".stderr.log"
+
+    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stderr_file"
+    export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/$INSTANCE_FULL_NAME.pid"
+  fi
 
   # Create manage.sh from template and put it in $instance_manage_file
   if ! eval "cat <<EOF
@@ -268,7 +278,7 @@ function __systemd_install() {
   # Required by template
   # shellcheck disable=SC2155
   export INSTANCE_MANAGE_FILE=$(grep "INSTANCE_MANAGE_FILE=" <"$INSTANCE_CONFIG_FILE" | cut -d "=" -f2 | tr -d '"')
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.in
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.stdin
 
   # If either files already exist, uninstall first
   if [ -f "$instance_systemd_service_file" ] || [ -f "$instance_systemd_socket_file" ]; then
