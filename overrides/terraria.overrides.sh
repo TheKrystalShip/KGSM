@@ -142,12 +142,5 @@ function func_deploy() {
     echo "${0##*/} ERROR: rm -rf ${source:?}/*" >&2 && return 1
   fi
 
-  if [ -n "$(ls -A "$INSTANCE_CONFIG_DIR")" ]; then
-    # Config file must be in the same dir as executable, copy it
-    if ! cp "$INSTANCE_CONFIG_DIR"/* "$dest"/; then
-      echo "${0##*/} ERROR: cp $INSTANCE_CONFIG_DIR/* $dest/" >&2 && return 1
-    fi
-  fi
-
   return 0
 }
