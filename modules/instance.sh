@@ -244,12 +244,29 @@ function _print_info() {
   # shellcheck disable=SC1090
   source "$instance_config_file" || return 1
 
-  echo "Instance:            $INSTANCE_FULL_NAME
-Directory:           $INSTANCE_WORKING_DIR
-Installation date:   $INSTANCE_INSTALL_DATETIME
-Version:             $INSTANCE_INSTALLED_VERSION
-Blueprint:           $INSTANCE_BLUEPRINT_FILE
-" >&1
+  {
+    echo "Instance:            $INSTANCE_FULL_NAME"
+
+    local status=""
+    if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+      status=$(systemctl is-active "$INSTANCE_FULL_NAME")
+    else
+      status=$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")
+    fi
+
+    echo "Status:              $status"
+
+    if [[ -f "$INSTANCE_PID_FILE" ]]; then
+    echo "PID:                 $(cat "$INSTANCE_PID_FILE")"
+    fi
+    if [[ "$USE_SYSTEMD" -eq 0 ]]; then
+    echo "Logs directory:      $INSTANCE_LOGS_DIR"
+    fi
+    echo "Directory:           $INSTANCE_WORKING_DIR"
+    echo "Installation date:   $INSTANCE_INSTALL_DATETIME"
+    echo "Version:             $INSTANCE_INSTALLED_VERSION"
+    echo "Blueprint:           $INSTANCE_BLUEPRINT_FILE"
+  } >&1
 }
 
 while [[ $# -gt 0 ]]; do
