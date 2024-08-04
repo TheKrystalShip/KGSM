@@ -1,13 +1,13 @@
 # KGSM - Krystal Game Server Manager
 
-KGSM is a simple and efficient tool for installing, updating, and managing game
+A simple and efficient tool for installing, updating, and managing game
 servers on Linux systems.
 
 KGSM streamlines the setup of game servers and allows users to interact with them while maintaining a hands-off approach once the servers are created. By providing scripts for starting, stopping, and restarting game servers, KGSM eliminates the need for ongoing involvement.
 
 ## Compatibility
 
-KGSM is designed to work with `bash`, `systemd`, and optionally `ufw`.
+KGSM is designed to work with `bash`, and optionally `systemd` and `ufw`.
 
 Tested and developed on:
 
@@ -27,7 +27,7 @@ on other distributions is not guaranteed.
 The following packages are required in order to use KGSM:
 
 ```sh
-grep jq wget unzip tar sed findutils steamcmd
+grep jq wget unzip tar sed coreutils findutils steamcmd
 ```
 
 - If [SteamCMD][1] is not
@@ -56,7 +56,7 @@ arguments starts it in interactive mode.
 For a description of menu options, run:
 
 ```sh
-./kgsm.sh --interactive --help
+./kgsm.sh --help --interactive
 ```
 
 To use named arguments for automation, run:

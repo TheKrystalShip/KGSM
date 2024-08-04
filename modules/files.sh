@@ -140,6 +140,7 @@ function __create_manage_file() {
   if [[ "$USE_SYSTEMD" -eq 1 ]]; then
     INSTANCE_LOGS_REDIRECT=""
   else
+    # shellcheck disable=SC2140
     stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".log"
 
     export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stdout_file"

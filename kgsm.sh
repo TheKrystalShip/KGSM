@@ -151,7 +151,7 @@ Menu options:
 
      \e[4mCreate backup\e[0m      Creates a backup of an instance.
 
-     \e[4mRestore Backup\e[0m     Restores a backup of an instance
+     \e[4mRestore backup\e[0m     Restores a backup of an instance
                         It will prompt to select a backup to restore and
                         also if the current installation directory of the
                         instance is not empty.
