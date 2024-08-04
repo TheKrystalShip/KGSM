@@ -321,6 +321,16 @@ EOF
     echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
   fi
 
+  if grep -q "INSTANCE_SOCKET_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the Unix Domain Socket"
+      echo "INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE"
+    } >>"$INSTANCE_CONFIG_FILE"
+  fi
+
   if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" <"$INSTANCE_CONFIG_FILE"; then
     sed -i "/INSTANCE_SYSTEMD_SERVICE_FILE=*/c\INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file" "$INSTANCE_CONFIG_FILE" >/dev/null
   else

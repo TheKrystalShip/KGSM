@@ -266,6 +266,16 @@ function _print_info() {
     echo "Installation date:   $INSTANCE_INSTALL_DATETIME"
     echo "Version:             $INSTANCE_INSTALLED_VERSION"
     echo "Blueprint:           $INSTANCE_BLUEPRINT_FILE"
+
+    if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+      if [[ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
+        echo "Service file:        $INSTANCE_SYSTEMD_SERVICE_FILE"
+      fi
+      if [[ -n "$INSTANCE_SOCKET_FILE" ]]; then
+        echo "Socket file:        $INSTANCE_SOCKET_FILE"
+      fi
+    fi
+
   } >&1
 }
 
