@@ -67,13 +67,12 @@ Usage:
 Options:
   \e[4mGeneral\e[0m
     -h, --help                  Print this help message.
+      --interactive             Print help information for interactive mode.
     --update                    Update KGSM to the latest version.
       --force                   Ignore version check and download the latest
                                 version available.
     --ip                        Get the external server IP used to connect to
                                 the server.
-    --interactive               Start the script in interactive mode.
-      -h, --help                Print help information for interactive mode.
     -v, --version               Print the KGSM version.
 
   \e[4mBlueprints\e[0m
@@ -125,27 +124,43 @@ function usage_interactive() {
 
 Menu options:
      \e[4mInstall\e[0m            Run the installation process for an existing blueprint.
-                        It will only prompt for input if there's any issues
-                        during the install process.
 
-     \e[4mCheck for update\e[0m   Check if a new version of a server is available.
-                        It will print if a new version is found, otherwise
+     \e[4mList blueprints\e[0m    Display a list of all blueprints.
+
+     \e[4mList instances\e[0m     Display a list of all active instances with a detailed
+                        description of each.
+
+     \e[4mStart\e[0m              Start up an instance
+
+     \e[4mStop\e[0m               Stop a running instance
+
+     \e[4mRestart\e[0m            Restart an instance
+
+     \e[4mStatus\e[0m             Print a detailed information about the instance
+
+     \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
+                        It will print out the new version if found, otherwise
                         it will fail with exit code 1.
 
-     \e[4mUpdate\e[0m             Runs a check for a new version, creates a backup
-                        of the current installation if any, downloads the new
+     \e[4mUpdate\e[0m             Runs a check for a new instance version, creates a
+                        backup of the current installation if any, downloads the new
                         version and deploys it.
 
-     \e[4mCreate backup\e[0m      Creates a backup of the current installation if any.
+     \e[4mLogs\e[0m               Print out the last 10 lines of the latest instance
+                        log file.
 
-     \e[4mRestore Backup\e[0m     Restores a backup of a server
+     \e[4mCreate backup\e[0m      Creates a backup of an instance.
+
+     \e[4mRestore Backup\e[0m     Restores a backup of an instance
                         It will prompt to select a backup to restore and
                         also if the current installation directory of the
-                        server is not empty.
+                        instance is not empty.
 
-     \e[4mUninstall\e[0m          Runs the uninstall process for a server.
+     \e[4mUninstall\e[0m          Runs the uninstall process for an instance.
                         Warning: This will remove everything other than the
-                        blueprint file the server is based on.
+                        blueprint file the instance is based on.
+
+     \e[4mHelp\e[0m               Prints this message
 " "$DESCRIPTION"
 }
 
@@ -186,10 +201,9 @@ function update_script() {
 
   # Fetch the latest version number
   if command -v wget >/dev/null 2>&1; then
-    LATEST_VERSION=$(wget -q -O - "$version_url")
+    LATEST_VERSION=$(wget -qO - "$version_url")
   else
-    echo "${0##*/} ERROR: wget is required to check for updates." >&2
-    return 1
+    echo "${0##*/} ERROR: wget is required to check for updates." >&2 && return 1
   fi
 
   # Compare the versions
@@ -197,8 +211,9 @@ function update_script() {
     echo "${0##*/} New version available: $LATEST_VERSION. Updating..." >&2
 
     # Backup the current script
-    cp "$0" "${0}.${script_version:-0}.bak"
-    echo "${0##*/} Backup of the current script created at ${0}.bak" >&2
+    local backup_file="${0}.${script_version:-0}.bak"
+    cp "$0" "$backup_file"
+    echo "${0##*/} Backup of the current script created at $backup_file" >&2
 
     # Download the repository tarball
     if command -v wget >/dev/null 2>&1; then
@@ -236,7 +251,14 @@ SUDO=$([[ "$EUID" -eq 0 ]] && echo "" || echo "sudo -E")
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   -h | --help)
-    usage && exit 0
+    shift
+    [[ -z "$1" ]] && usage && exit 0
+    case "$1" in
+      --interactive)
+      usage_interactive && exit 0
+      ;;
+      *) echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+    esac
     ;;
   --update)
     update_script "$@" && exit $?
@@ -373,6 +395,8 @@ function _print_instances() {
   local instances_array=()
   get_instances instances_array
 
+  [[ "${#instances_array[@]}" -eq 0 ]] && echo "${0##*/} INFO: No instances found" >&2 && return 0
+
   printf "\e[4mAvailable instances\e[0m\n\n"
 
   for instance in "${instances_array[@]}"; do
@@ -403,11 +427,56 @@ function _get_instance_logs() {
   tail "$instance_logs_dir/$latest_log_file"
 }
 
+function __manage_instance() {
+  local instance=$1
+  local action=$2
+
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    "$SUDO" systemctl $action "$instance" && return $?
+  fi
+
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC2155
+  local instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
+
+  case "$action" in
+    start)
+      "$instance_manage_file" --start --background
+    ;;
+    stop)
+      "$instance_manage_file" --stop
+    ;;
+    restart)
+      "$instance_manage_file" --stop
+      "$instance_manage_file" --start --background
+    ;;
+    status)
+      "$INSTANCE_SCRIPT" --print-info "$instance"
+    ;;
+    is-active)
+      # shellcheck disable=SC2155
+      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" | tr -d '"')
+      [[ -z "$instance_pid_file" ]] && echo "inactive" && return 1
+      [[ ! -f "$instance_pid_file" ]] && echo "inactive" && return 1
+
+      if [[ -n $(cat "$instance_pid_file") ]]; then echo "active" && return 0; fi
+
+      echo "inactive" && return 1
+    ;;
+    *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
+  esac
+}
+
 function _interactive() {
   echo "$DESCRIPTION
 
-Start the script with '--interactive -h' or '--interactive --help' for a
-detailed description of each menu option.
+KGSM also accepts named arguments for automation, to see all options run:
+$0 --help
+
 Press CTRL+C to exit at any time.
 
 KGSM - Interactive menu
@@ -420,20 +489,36 @@ KGSM - Interactive menu
 
   declare -a menu_options=(
     "Install"
+    "List blueprints"
+    "List instances"
+    "Start"
+    "Stop"
+    "Restart"
+    "Status"
     "Check for update"
     "Update"
+    "Logs"
     "Create backup"
     "Restore backup"
     "Uninstall"
+    "Help"
   )
 
   declare -A arg_map=(
     ["Install"]=--install
+    ["List blueprints"]=--blueprints
+    ["List instances"]=--instances
+    ["Start"]=--start
+    ["Stop"]=--stop
+    ["Restart"]=--restart
+    ["Status"]=--status
     ["Check for update"]=--check-update
     ["Update"]=--update
+    ["Logs"]=--logs
     ["Create backup"]=--create-backup
     ["Restore backup"]=--restore-backup
     ["Uninstall"]=--uninstall
+    ["Help"]=--help
   )
 
   # Select action first
@@ -477,9 +562,33 @@ KGSM - Interactive menu
     get_instances blueprints_or_instances
     _print_instances
     ;;
+  --blueprints)
+    exec $0 --blueprints
+    ;;
+  --instances)
+    exec $0 --instances
+    ;;
+  --help)
+    exec $0 --help --interactive
+    ;;
+  --start)
+    get_instances blueprints_or_instances
+    _print_instances
+    ;;
+  --stop)
+    get_instances blueprints_or_instances
+    _print_instances
+    ;;
+  --restart)
+    get_instances blueprints_or_instances
+    _print_instances
+    ;;
   --logs)
     get_instances blueprints_or_instances
     _print_instances
+    ;;
+  --status)
+    get_instances blueprints_or_instances
     ;;
   *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1 ;;
   esac
@@ -621,19 +730,19 @@ while [[ "$#" -gt 0 ]]; do
       _get_instance_logs "$instance" && exit $?
       ;;
     --status)
-      systemctl status "$instance" | head -n 3 && exit $?
+      __manage_instance "$instance" "status" && exit $?
       ;;
     --is-active)
-      systemctl is-active "$instance" && exit $?
+      __manage_instance "$instance" "is-active" && exit $?
       ;;
     --start)
-      $SUDO systemctl start "$instance" && exit $?
+      __manage_instance "$instance" "start" && exit $?
       ;;
     --stop)
-      $SUDO systemctl stop "$instance" && exit $?
+      __manage_instance "$instance" "stop" && exit $?
       ;;
     --restart)
-      $SUDO systemctl restart "$instance" && exit $?
+      __manage_instance "$instance" "restart" && exit $?
       ;;
     -v | --version)
       shift
@@ -676,15 +785,13 @@ while [[ "$#" -gt 0 ]]; do
     *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
-  --interactive)
-    shift
-    case "$1" in
-    -h | --help) usage_interactive && exit $? ;;
-    *) _interactive && exit $? ;;
-    esac
-    ;;
   -v | --version)
-    get_version && exit 0
+    echo "KGSM, version $(get_version)
+Copyright (C) 2024 TheKrystalShip
+License GPL-3.0: GNU GPL version 3 <https://www.gnu.org/licenses/gpl-3.0.en.html>
+
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law." && exit 0
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
