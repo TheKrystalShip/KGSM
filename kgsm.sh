@@ -96,7 +96,7 @@ Options:
     --instance INSTANCE OPTION  Interact with an instance.
                                 OPTION represents one of the following:
 
-      --logs                    Return the last 10 lines of the log.
+      --logs                    Return the last 10 lines of the instance log.
       --status                  Return a detailed running status.
       --is-active               Check if the instance is active.
       --start                   Start the instance.
@@ -380,6 +380,29 @@ function _print_instances() {
   done
 }
 
+function _get_instance_logs() {
+  local instance=$1
+
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    journalctl -n 10 -u "$instance" --no-pager && return $?
+  fi
+
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC2155
+  local instance_logs_dir=$(grep "INSTANCE_LOGS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  [[ -z "$instance_logs_dir" ]] && echo "${0##*/} ERROR: Malformed instance config, no INSTANCE_LOGS_DIR found" >&2 && return 1
+
+  # shellcheck disable=SC2012
+  # shellcheck disable=SC2155
+  local latest_log_file=$(ls "$instance_logs_dir" -t | head -1)
+  [[ -z "$latest_log_file" ]] && echo "${0##*/} INFO: No logs found for $instance" >&2 && return 0
+
+  tail "$instance_logs_dir/$latest_log_file"
+}
+
 function _interactive() {
   echo "$DESCRIPTION
 
@@ -451,6 +474,10 @@ KGSM - Interactive menu
     _print_instances
     ;;
   --uninstall)
+    get_instances blueprints_or_instances
+    _print_instances
+    ;;
+  --logs)
     get_instances blueprints_or_instances
     _print_instances
     ;;
@@ -591,7 +618,7 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      journalctl -n "10" -u "$instance" --no-pager && exit $?
+      _get_instance_logs "$instance" && exit $?
       ;;
     --status)
       systemctl status "$instance" | head -n 3 && exit $?

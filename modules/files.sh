@@ -140,11 +140,20 @@ function __create_manage_file() {
   if [[ "$USE_SYSTEMD" -eq 1 ]]; then
     INSTANCE_LOGS_REDIRECT=""
   else
-    stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".stdout.log"
-    stderr_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".stderr.log"
+    stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".log"
 
-    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stderr_file"
+    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stdout_file"
     export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/$INSTANCE_FULL_NAME.pid"
+
+    if grep -q "INSTANCE_PID_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+      sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
+    else
+      {
+        echo ""
+        echo "# File where the instance process ID will be stored while the instance is running"
+        echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
+      } >>"$INSTANCE_CONFIG_FILE"
+    fi
   fi
 
   # Create manage.sh from template and put it in $instance_manage_file
