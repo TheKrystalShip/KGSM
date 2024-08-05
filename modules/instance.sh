@@ -276,6 +276,12 @@ function _print_info() {
       fi
     fi
 
+    if [[ "$USE_UFW" -eq 1 ]]; then
+      if [[ -f "$INSTANCE_UFW_FILE" ]]; then
+        echo "Firewall rule:       $INSTANCE_UFW_FILE"
+      fi
+    fi
+
   } >&1
 }
 
