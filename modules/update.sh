@@ -153,8 +153,6 @@ function func_main() {
 
   [[ "$VERBOSE" ]] && printf "\tInstalled version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
 
-  [[ "$latest_version" -eq 1 ]] && echo "${0##*/} ERROR: No new version found, exiting" >&2 && return 1
-
   [[ -z "$latest_version" ]] && echo "${0##*/} ERROR: new version number is empty, exiting" >&2 && return 1
 
   [[ "$VERBOSE" ]] && printf "\tLatest version available:\t%s\n" "$latest_version"
