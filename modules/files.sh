@@ -136,15 +136,15 @@ function __create_manage_file() {
 
   # Required by the template
   export INSTANCE_LAUNCH_DIR
+  export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/$INSTANCE_FULL_NAME.pid"
 
-  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     INSTANCE_LOGS_REDIRECT=""
   else
     # shellcheck disable=SC2140
     stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".log"
 
     export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stdout_file"
-    export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/$INSTANCE_FULL_NAME.pid"
 
     if grep -q "INSTANCE_PID_FILE=" <"$INSTANCE_CONFIG_FILE"; then
       sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
@@ -356,7 +356,8 @@ EOF
 
 function __ufw_uninstall() {
   [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
-  [[ -z "$INSTANCE_UFW_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a UFW rule file set" >&2 && return 1
+  [[ -z "$INSTANCE_UFW_FILE" ]] && return 0
+  [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
 
   # Remove ufw rule
   if ! ufw delete allow "$INSTANCE_FULL_NAME" &>/dev/null; then
@@ -422,7 +423,7 @@ function _install() {
   __create_manage_file || return 1
   __create_overrides_file || return 1
 
-  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     __systemd_install || return 1
   fi
 
@@ -434,7 +435,7 @@ function _install() {
 }
 
 function _uninstall() {
-  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     __systemd_uninstall || return 1
   fi
 

@@ -401,19 +401,25 @@ function _print_instances() {
 
   for instance in "${instances_array[@]}"; do
     "$INSTANCE_SCRIPT" --print-info "$instance"
+    echo ""
   done
 }
 
 function _get_instance_logs() {
   local instance=$1
 
-  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
-    journalctl -n 10 -u "$instance" --no-pager && return $?
-  fi
-
   [[ "$instance" != *.ini ]] && instance="${instance}.ini"
   instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
   [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC1090
+  source "$instance_config_file" || return 1
+
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    [[ "$instance" == *.ini ]] && instance=${instance//.ini}
+    journalctl -n 10 -u "$instance" --no-pager
+    return $?
+  fi
 
   # shellcheck disable=SC2155
   local instance_logs_dir=$(grep "INSTANCE_LOGS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
@@ -431,8 +437,32 @@ function __manage_instance() {
   local instance=$1
   local action=$2
 
-  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
-    "$SUDO" systemctl $action "$instance" && return $?
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC2155
+  local instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+    # systemctl doesn't need the .ini extension
+    if [[ "$instance" == *.ini ]]; then
+      instance=${instance//.ini}
+    fi
+    case "$action" in
+      # status doesn't require sudo
+      status)
+        systemctl $action "$instance" --no-pager
+        # systemctl status returns exit code 3, but it prints everything we need
+        # so just return 0 afterwords to exit the function
+        return 0
+        ;;
+      # everything else does
+      *)
+        $SUDO systemctl $action "$instance" --no-pager
+        return $?
+        ;;
+    esac
   fi
 
   [[ "$instance" != *.ini ]] && instance="${instance}.ini"

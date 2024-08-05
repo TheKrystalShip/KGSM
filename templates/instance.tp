@@ -29,3 +29,9 @@ INSTANCE_LAUNCH_BIN=$instance_launch_bin
 
 # The arguments passed to the INSTANCE_LAUNCH_BIN
 INSTANCE_LAUNCH_ARGS=$instance_launch_args
+
+# Who's in charge of managing the lifecycle of the instance
+# Values:
+#   - standalone
+#   - systemd
+INSTANCE_LIFECYCLE_MANAGER=$instance_lifecycle_manager

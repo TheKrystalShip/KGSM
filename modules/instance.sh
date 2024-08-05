@@ -13,6 +13,8 @@ Options:
                                   will be created.
 
   --uninstall <instance>          Remove an instance's configuration
+
+  --print-info <instance>         Print a detailed description of an instance
 "
 }
 
@@ -117,6 +119,12 @@ function _create_instance() {
   export instance_level_name=$(grep "SERVICE_LEVEL_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   export instance_working_dir=$install_dir/$instance_full_name
+
+  instance_lifecycle_manager="standalone"
+  if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    instance_lifecycle_manager="systemd"
+  fi
+  export instance_lifecycle_manager
 
   # shellcheck disable=SC2155
   export instance_install_datetime=\"$(exec date +"%Y-%m-%d %T")\"
@@ -246,12 +254,16 @@ function _print_info() {
 
   {
     echo "Instance:            $INSTANCE_FULL_NAME"
+    echo "Lifecycle manager:   $INSTANCE_LIFECYCLE_MANAGER"
 
     local status=""
-    if [[ "$USE_SYSTEMD" -eq 1 ]]; then
-      status=$(systemctl is-active "$INSTANCE_FULL_NAME")
+    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+      # systemctl return exit code 3 but it gives correct response
+      set +eo pipefail
+      status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
+      set -eo pipefail
     else
-      status=$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")
+      status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
     fi
 
     echo "Status:              $status"
@@ -259,7 +271,7 @@ function _print_info() {
     if [[ -f "$INSTANCE_PID_FILE" ]]; then
     echo "PID:                 $(cat "$INSTANCE_PID_FILE")"
     fi
-    if [[ "$USE_SYSTEMD" -eq 0 ]]; then
+    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "standalone" ]]; then
     echo "Logs directory:      $INSTANCE_LOGS_DIR"
     fi
     echo "Directory:           $INSTANCE_WORKING_DIR"
@@ -267,12 +279,12 @@ function _print_info() {
     echo "Version:             $INSTANCE_INSTALLED_VERSION"
     echo "Blueprint:           $INSTANCE_BLUEPRINT_FILE"
 
-    if [[ "$USE_SYSTEMD" -eq 1 ]]; then
+    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
       if [[ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
         echo "Service file:        $INSTANCE_SYSTEMD_SERVICE_FILE"
       fi
       if [[ -n "$INSTANCE_SOCKET_FILE" ]]; then
-        echo "Socket file:        $INSTANCE_SOCKET_FILE"
+        echo "Socket file:         $INSTANCE_SOCKET_FILE"
       fi
     fi
 
