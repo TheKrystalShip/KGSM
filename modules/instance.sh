@@ -78,6 +78,21 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
+function _generate_unique_instance_name() {
+  local service_name="$1"
+  local instance_id
+  local instance_full_name
+
+  while :; do
+    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-6}")
+    instance_full_name="${service_name}-${instance_id}"
+
+    if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/$instance_full_name" ]]; then
+      echo "$instance_full_name" && return
+    fi
+  done
+}
+
 function _create_instance() {
   local blueprint=$1
   local install_dir=$2
@@ -92,11 +107,12 @@ function _create_instance() {
 
   # shellcheck disable=SC2155
   local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  export instance_name=$service_name
 
   # shellcheck disable=SC2155
-  export instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-6}")
-  export instance_name=$service_name
-  export instance_full_name=$service_name-$instance_id
+  export instance_full_name=$(_generate_unique_instance_name "$service_name")
+  export instance_id=${instance_full_name##*-}
+
   # shellcheck disable=SC2155
   export instance_port=$(grep "SERVICE_PORT=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   export instance_blueprint_file=$blueprint_abs_path
