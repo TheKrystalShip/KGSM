@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# DO NOT MODIFY THIS FILE
+# Instead, make a copy of it in the blueprints directory and change all the
+# desired parameters there.
+# The name of the new file can be the same as this one, acting as an override.
+
 # Service name, lowercase with no spaces
 SERVICE_NAME=starmade
 
