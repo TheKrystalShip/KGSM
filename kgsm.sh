@@ -263,9 +263,6 @@ while [[ "$#" -gt 0 ]]; do
   --update)
     update_script "$@" && exit $?
     ;;
-  updated)
-    echo "Script was updated and restarted." >&2
-    ;;
   *)
     break
     ;;
