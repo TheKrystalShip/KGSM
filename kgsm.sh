@@ -279,8 +279,8 @@ COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
 
-CREATE_BLUEPRINT_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name create_blueprint.sh)"
-[[ -z "$CREATE_BLUEPRINT_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module create_blueprint.sh" >&2 && exit 1
+BLUEPRINTS_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name blueprints.sh)"
+[[ -z "$BLUEPRINTS_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module blueprints.sh" >&2 && exit 1
 
 DIRECTORIES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name directories.sh)"
 [[ -z "$DIRECTORIES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module directories.sh" >&2 && exit 1
@@ -356,21 +356,6 @@ function _uninstall() {
   $SUDO "$FILES_SCRIPT" -i "$instance" --uninstall $debug || return $?
   # Remove instance
   "$INSTANCE_SCRIPT" --uninstall "$instance" $debug || return $?
-}
-
-function get_blueprints() {
-  local -n ref_blueprints_array=$1
-
-  shopt -s extglob nullglob
-
-  # Load custom and default blueprints, combine into one array and remove duplicates
-  local -a custom_bps=("$BLUEPRINTS_SOURCE_DIR"/*.bp)
-  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
-  local -a default_bps=("$BLUEPRINTS_DEFAULT_SOURCE_DIR"/*.bp)
-  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
-
-  # shellcheck disable=SC2034
-  ref_blueprints_array=$(for B in "${custom_bps[@]}" "${default_bps[@]}"; do echo "$B" ; done | sort -du)
 }
 
 function get_instances() {
@@ -570,7 +555,8 @@ KGSM - Interactive menu
 
   case "$action" in
   --install)
-    get_blueprints blueprints_or_instances
+    # shellcheck disable=SC2178
+    blueprints_or_instances=$("$BLUEPRINTS_SCRIPT" --list)
     PS3="Choose a blueprint: "
     ;;
   --check-update)
@@ -702,10 +688,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$CREATE_BLUEPRINT_SCRIPT" --help $debug && exit $? ;;
+    -h | --help) "$BLUEPRINTS_SCRIPT" --help $debug && exit $? ;;
     *)
       # shellcheck disable=SC2068
-      "$CREATE_BLUEPRINT_SCRIPT" $@ $debug && exit $?
+      "$BLUEPRINTS_SCRIPT" --create $@ $debug && exit $?
       ;;
     esac
     ;;
@@ -731,10 +717,7 @@ while [[ "$#" -gt 0 ]]; do
     _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
-    declare -a bps=()
-    get_blueprints bps
-    for bp in "${bps[@]}"; do echo "$bp"; done
-    exit 0
+    "$BLUEPRINTS_SCRIPT" --list && exit $?
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
