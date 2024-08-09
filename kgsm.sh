@@ -32,14 +32,14 @@ if [ -f "$CONFIG_FILE" ]; then
   export KGSM_ROOT
   export KGSM_CONFIG_LOADED=1
 else
-  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.example.ini)"
+  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
     echo "${0##*/} WARNING: config.ini not found, created new file" >&2
     echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
     exit 0
   else
-    echo "${0##*/} ERROR: Could not find config.example.ini, install might be broken" >&2
+    echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
     echo "${0##*/} INFO: Try to repair the install by running ${0##*/} --update --force" >&2
     exit 1
   fi
