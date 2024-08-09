@@ -122,45 +122,45 @@ Options:
 function usage_interactive() {
   printf "%s
 
-Menu options:
-     \e[4mInstall\e[0m            Run the installation process for an existing blueprint.
+Interactive mode menu options:
+  \e[4mInstall\e[0m            Run the installation process for a blueprint.
 
-     \e[4mList blueprints\e[0m    Display a list of all blueprints.
+  \e[4mList blueprints\e[0m    Display a list of all blueprints.
 
-     \e[4mList instances\e[0m     Display a list of all active instances with a detailed
-                        description of each.
+  \e[4mList instances\e[0m     Display a list of all created instances with a detailed
+                     description.
 
-     \e[4mStart\e[0m              Start up an instance
+  \e[4mStart\e[0m              Start up an instance.
 
-     \e[4mStop\e[0m               Stop a running instance
+  \e[4mStop\e[0m               Stop a running instance.
 
-     \e[4mRestart\e[0m            Restart an instance
+  \e[4mRestart\e[0m            Restart an instance.
 
-     \e[4mStatus\e[0m             Print a detailed information about the instance
+  \e[4mStatus\e[0m             Print a detailed information about an instance.
 
-     \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
-                        It will print out the new version if found, otherwise
-                        it will fail with exit code 1.
+  \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
+                     It will print out the new version if found, otherwise
+                     it will fail with exit code 1.
 
-     \e[4mUpdate\e[0m             Runs a check for a new instance version, creates a
-                        backup of the current installation if any, downloads the new
-                        version and deploys it.
+  \e[4mUpdate\e[0m             Runs a check for a new instance version, creates a
+                     backup of the current installation if any, downloads the new
+                     version and deploys it.
 
-     \e[4mLogs\e[0m               Print out the last 10 lines of the latest instance
-                        log file.
+  \e[4mLogs\e[0m               Print out the last 10 lines of the latest instance
+                     log file.
 
-     \e[4mCreate backup\e[0m      Creates a backup of an instance.
+  \e[4mCreate backup\e[0m      Creates a backup of an instance.
 
-     \e[4mRestore backup\e[0m     Restores a backup of an instance
-                        It will prompt to select a backup to restore and
-                        also if the current installation directory of the
-                        instance is not empty.
+  \e[4mRestore backup\e[0m     Restores a backup of an instance
+                     It will prompt to select a backup to restore and
+                     also if the current installation directory of the
+                     instance is not empty.
 
-     \e[4mUninstall\e[0m          Runs the uninstall process for an instance.
-                        Warning: This will remove everything other than the
-                        blueprint file the instance is based on.
+  \e[4mUninstall\e[0m          Runs the uninstall process for an instance.
+                     Warning: This will remove everything other than the
+                     blueprint file the instance is based on.
 
-     \e[4mHelp\e[0m               Prints this message
+  \e[4mHelp\e[0m               Prints this message
 " "$DESCRIPTION"
 }
 
