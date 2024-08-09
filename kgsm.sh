@@ -303,8 +303,8 @@ UPDATE_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name update.sh)"
 BACKUP_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name backup.sh)"
 [[ -z "$BACKUP_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module backup.sh" >&2 && exit 1
 
-INSTANCE_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name instance.sh)"
-[[ -z "$INSTANCE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module instance.sh" >&2 && exit 1
+INSTANCES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name instances.sh)"
+[[ -z "$INSTANCES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module instances.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -318,7 +318,7 @@ function _install() {
   # TODO: Add option for user to specify instance name, for easy identificiation
 
   # shellcheck disable=SC2155
-  local instance_full_name="$("$INSTANCE_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
+  local instance_full_name="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
 
   # Create directory structure
   "$DIRECTORIES_SCRIPT" -i "$instance_full_name" --install $debug || return $?
@@ -355,143 +355,14 @@ function _uninstall() {
   # Remove files
   $SUDO "$FILES_SCRIPT" -i "$instance" --uninstall $debug || return $?
   # Remove instance
-  "$INSTANCE_SCRIPT" --uninstall "$instance" $debug || return $?
-}
-
-function get_instances() {
-  local -n ref_instances_array=$1
-  local blueprint=${2:-}
-
-  shopt -s extglob nullglob
-
-  if [[ -z "$blueprint" ]]; then
-    ref_instances_array=( "$INSTANCES_SOURCE_DIR"/**/*.ini )
-  else
-    # shellcheck disable=SC2034
-    ref_instances_array=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
-  fi
-
-  # Remove trailing directories from path, leave only filename
-  for i in "${!ref_instances_array[@]}"; do
-    ref_instances_array["$i"]=$(basename "${ref_instances_array[$i]}")
-  done
-}
-
-function _print_instances() {
-  local instances_array=()
-  get_instances instances_array
-
-  [[ "${#instances_array[@]}" -eq 0 ]] && echo "${0##*/} INFO: No instances found" >&2 && return 0
-
-  printf "\e[4mAvailable instances\e[0m\n\n"
-
-  for instance in "${instances_array[@]}"; do
-    "$INSTANCE_SCRIPT" --print-info "$instance"
-    echo ""
-  done
-}
-
-function _get_instance_logs() {
-  local instance=$1
-
-  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
-  # shellcheck disable=SC1090
-  source "$instance_config_file" || return 1
-
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    [[ "$instance" == *.ini ]] && instance=${instance//.ini}
-    journalctl -n 10 -u "$instance" --no-pager
-    return $?
-  fi
-
-  # shellcheck disable=SC2155
-  local instance_logs_dir=$(grep "INSTANCE_LOGS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_logs_dir" ]] && echo "${0##*/} ERROR: Malformed instance config, no INSTANCE_LOGS_DIR found" >&2 && return 1
-
-  # shellcheck disable=SC2012
-  # shellcheck disable=SC2155
-  local latest_log_file=$(ls "$instance_logs_dir" -t | head -1)
-  [[ -z "$latest_log_file" ]] && echo "${0##*/} INFO: No logs found for $instance" >&2 && return 0
-
-  tail "$instance_logs_dir/$latest_log_file"
-}
-
-function __manage_instance() {
-  local instance=$1
-  local action=$2
-
-  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
-  # shellcheck disable=SC2155
-  local instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    # systemctl doesn't need the .ini extension
-    if [[ "$instance" == *.ini ]]; then
-      instance=${instance//.ini}
-    fi
-    case "$action" in
-      # status doesn't require sudo
-      status)
-        systemctl $action "$instance" --no-pager
-        # systemctl status returns exit code 3, but it prints everything we need
-        # so just return 0 afterwords to exit the function
-        return 0
-        ;;
-      # everything else does
-      *)
-        $SUDO systemctl $action "$instance" --no-pager
-        return $?
-        ;;
-    esac
-  fi
-
-  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
-  # shellcheck disable=SC2155
-  local instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
-
-  case "$action" in
-    start)
-      "$instance_manage_file" --start --background
-    ;;
-    stop)
-      "$instance_manage_file" --stop
-    ;;
-    restart)
-      "$instance_manage_file" --stop
-      "$instance_manage_file" --start --background
-    ;;
-    status)
-      "$INSTANCE_SCRIPT" --print-info "$instance"
-    ;;
-    is-active)
-      # shellcheck disable=SC2155
-      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" | tr -d '"')
-      [[ -z "$instance_pid_file" ]] && echo "inactive" && return 1
-      [[ ! -f "$instance_pid_file" ]] && echo "inactive" && return 1
-
-      if [[ -n $(cat "$instance_pid_file") ]]; then echo "active" && return 0; fi
-
-      echo "inactive" && return 1
-    ;;
-    *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
-  esac
+  "$INSTANCES_SCRIPT" --uninstall "$instance" $debug || return $?
 }
 
 function _interactive() {
   echo "$DESCRIPTION
 
 KGSM also accepts named arguments for automation, to see all options run:
-$0 --help
+${0##*/} --help
 
 Press CTRL+C to exit at any time.
 
@@ -556,28 +427,9 @@ KGSM - Interactive menu
   case "$action" in
   --install)
     # shellcheck disable=SC2178
-    blueprints_or_instances=$("$BLUEPRINTS_SCRIPT" --list)
+    # shellcheck disable=SC2207
+    blueprints_or_instances=($("$BLUEPRINTS_SCRIPT" --list | tr '\n' ' '))
     PS3="Choose a blueprint: "
-    ;;
-  --check-update)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --update)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --create-backup)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --restore-backup)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --uninstall)
-    get_instances blueprints_or_instances
-    _print_instances
     ;;
   --blueprints)
     exec $0 --blueprints
@@ -588,26 +440,17 @@ KGSM - Interactive menu
   --help)
     exec $0 --help --interactive
     ;;
-  --start)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --stop)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --restart)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
-  --logs)
-    get_instances blueprints_or_instances
-    _print_instances
-    ;;
   --status)
-    get_instances blueprints_or_instances
+    # shellcheck disable=SC2207
+    # shellcheck disable=SC2178
+    blueprints_or_instances=($("$INSTANCES_SCRIPT" --list))
     ;;
-  *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1 ;;
+  *)
+    # shellcheck disable=SC2207
+    # shellcheck disable=SC2178
+    blueprints_or_instances=($("$INSTANCES_SCRIPT" --list))
+    "$INSTANCES_SCRIPT" --list --detailed
+    ;;
   esac
 
   [[ "${#blueprints_or_instances[@]}" -eq 0 ]] && echo "${0##*/} INFO: No instances found" >&2 && return 0
@@ -731,7 +574,7 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@" && exit $?
     ;;
   --instances)
-    _print_instances && exit $?
+    "$INSTANCES_SCRIPT" --list --detailed && exit $?
     ;;
   --instance)
     shift
@@ -741,22 +584,22 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      _get_instance_logs "$instance" && exit $?
+      "$INSTANCES_SCRIPT" --logs "$instance" && exit $?
       ;;
     --status)
-      __manage_instance "$instance" "status" && exit $?
+      "$INSTANCES_SCRIPT" --status "$instance" && exit $?
       ;;
     --is-active)
-      __manage_instance "$instance" "is-active" && exit $?
+      "$INSTANCES_SCRIPT" --is-active "$instance" && exit $?
       ;;
     --start)
-      __manage_instance "$instance" "start" && exit $?
+      "$INSTANCES_SCRIPT" --start "$instance" && exit $?
       ;;
     --stop)
-      __manage_instance "$instance" "stop" && exit $?
+      "$INSTANCES_SCRIPT" --stop "$instance" && exit $?
       ;;
     --restart)
-      __manage_instance "$instance" "restart" && exit $?
+      "$INSTANCES_SCRIPT" --restart "$instance" && exit $?
       ;;
     -v | --version)
       shift

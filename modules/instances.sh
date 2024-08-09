@@ -3,6 +3,19 @@
 function usage() {
   echo "
 Options:
+  -h, --help                      Prints this message
+
+  --list [blueprint]              Prints a list of all instances.
+                                  Optionally a blueprint name can be provided
+                                  to show only instances of that blueprint.
+
+  --logs <instance>               Return the last 10 lines of the instance log.
+  --status <instance>             Return a detailed running status.
+  --is-active <instance>          Check if the instance is active.
+  --start <instance>              Start the instance.
+  --stop <instance>               Stop the instance.
+  --restart <instance>            Restart the instance.
+
   --create <blueprint>
     --install-dir <install_dir>   Creates a new instance for the given blueprint
                                   and returns the name of the instance config
@@ -73,7 +86,7 @@ fi
 trap "echo "" && exit" INT
 
 COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load common.sh" >&2 && exit 1
+[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$COMMON_SCRIPT" || exit 1
@@ -84,7 +97,7 @@ function _generate_unique_instance_name() {
   local instance_full_name
 
   while :; do
-    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-6}")
+    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-4}")
     instance_full_name="${service_name}-${instance_id}"
 
     if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/$instance_full_name" ]]; then
@@ -310,11 +323,176 @@ function _print_info() {
       fi
     fi
 
+    echo ""
   } >&1
+}
+
+function _list_instances() {
+  local blueprint=${1:-}
+  local detailed=${2:-}
+
+  shopt -s extglob nullglob
+
+  local -a instances=()
+  if [[ -z "$blueprint" ]]; then
+    instances=("$INSTANCES_SOURCE_DIR"/**/*.ini)
+  else
+    # shellcheck disable=SC2034
+    instances=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
+  fi
+
+  # Remove trailing directories from path, leave only filename
+  for i in "${!instances[@]}"; do
+    # instances["$i"]=$(basename "${instances[$i]}")
+    if [[ -z "$detailed" ]]; then
+      basename "${instances[$i]}"
+    else
+      _print_info "$(basename "${instances[$i]}")"
+    fi
+  done
+}
+
+function __manage_instance() {
+  local instance=$1
+  local action=$2
+
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC2155
+  local instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+    # systemctl doesn't need the .ini extension
+    instance_copy=$instance
+    if [[ "$instance" == *.ini ]]; then
+      instance_copy=${instance//.ini}
+    fi
+    case "$action" in
+      # status doesn't require sudo
+      status)
+        systemctl $action "$instance_copy" --no-pager
+        # systemctl status returns exit code 3, but it prints everything we need
+        # so just return 0 afterwords to exit the function
+        return 0
+        ;;
+      # everything else does
+      *)
+        $SUDO systemctl $action "$instance_copy" --no-pager
+        return $?
+        ;;
+    esac
+  fi
+
+  # shellcheck disable=SC2155
+  local instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
+
+  case "$action" in
+    start)
+      "$instance_manage_file" --start --background
+    ;;
+    stop)
+      "$instance_manage_file" --stop
+    ;;
+    restart)
+      "$instance_manage_file" --stop
+      "$instance_manage_file" --start --background
+    ;;
+    status)
+      _print_info "$instance"
+    ;;
+    is-active)
+      # shellcheck disable=SC2155
+      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" | tr -d '"')
+      [[ -z "$instance_pid_file" ]] && echo "inactive" && return 1
+      [[ ! -f "$instance_pid_file" ]] && echo "inactive" && return 1
+
+      if [[ -n $(cat "$instance_pid_file") ]]; then echo "active" && return 0; fi
+
+      echo "inactive" && return 1
+    ;;
+    *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
+  esac
+}
+
+function _get_logs() {
+  local instance=$1
+
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC1090
+  source "$instance_config_file" || return 1
+
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    [[ "$instance" == *.ini ]] && instance=${instance//.ini}
+    journalctl -n 10 -u "$instance" --no-pager
+    return $?
+  fi
+
+  # shellcheck disable=SC2155
+  local instance_logs_dir=$(grep "INSTANCE_LOGS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  [[ -z "$instance_logs_dir" ]] && echo "${0##*/} ERROR: Malformed instance config, no INSTANCE_LOGS_DIR found" >&2 && return 1
+
+  # shellcheck disable=SC2012
+  # shellcheck disable=SC2155
+  local latest_log_file=$(ls "$instance_logs_dir" -t | head -1)
+  [[ -z "$latest_log_file" ]] && echo "${0##*/} INFO: No logs found for $instance" >&2 && return 0
+
+  tail "$instance_logs_dir/$latest_log_file"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+  --list)
+    shift
+    [[ -z "$1" ]] && _list_instances && exit $?
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --detailed)
+          detailed=1
+        ;;
+        *)
+          blueprint=$1
+          ;;
+      esac
+    shift
+    done
+    _list_instances "$blueprint" "$detailed" && exit $?
+    ;;
+  --logs)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    _get_logs "$1"
+    ;;
+  --status)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "status" && exit $?
+    ;;
+  --is-active)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "is-active" && exit $?
+    ;;
+  --start)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "start" && exit $?
+    ;;
+  --stop)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "stop" && exit $?
+    ;;
+  --restart)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "restart" && exit $?
+    ;;
   --create)
     blueprint=
     install_dir=
