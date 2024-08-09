@@ -363,10 +363,14 @@ function get_blueprints() {
 
   shopt -s extglob nullglob
 
-  # Create array
-  ref_blueprints_array=("$BLUEPRINTS_DEFAULT_SOURCE_DIR"/*.bp)
-  # remove leading $BLUEPRINTS_DEFAULT_SOURCE_DIR:
-  ref_blueprints_array=("${ref_blueprints_array[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
+  # Load custom and default blueprints, combine into one array and remove duplicates
+  local -a custom_bps=("$BLUEPRINTS_SOURCE_DIR"/*.bp)
+  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
+  local -a default_bps=("$BLUEPRINTS_DEFAULT_SOURCE_DIR"/*.bp)
+  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
+
+  # shellcheck disable=SC2034
+  ref_blueprints_array=$(for B in "${custom_bps[@]}" "${default_bps[@]}"; do echo "$B" ; done | sort -du)
 }
 
 function get_instances() {
