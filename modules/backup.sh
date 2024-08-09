@@ -11,12 +11,14 @@ Options:
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
 
-  -h, --help                  Prints this message
+    --list                    Print a list of all backups of the instance
 
-  --create                    Creates a new backup for the specified blueprint
+    --create                  Creates a new backup for the specified instance
 
-  --restore <source>          Restore a specific backup.
+    --restore <source>        Restore a specific backup.
                               <source> must be the name of the backup to restore
+
+  -h, --help                  Prints this message
 
 Examples:
   ./${0##*/} -i valheim-9d52mZ.ini --create
@@ -178,6 +180,27 @@ function _restore() {
   return 0
 }
 
+function _list_backups() {
+  instance=$INSTANCE
+
+  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
+  instance_config_file="$(find "$KGSM_ROOT" -type f -name "$instance")"
+  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+
+  # shellcheck disable=SC2155
+  local instance_backups_dir=$(grep "INSTANCE_BACKUPS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  [[ -z "$instance_backups_dir" ]] && echo "${0##*/} ERROR: Malformed instance config file $INSTANCE, missing INSTANCE_BACKUPS_DIR" >&2 && return 1
+
+  shopt -s extglob nullglob
+
+  # Create array
+  backups_array=("$instance_backups_dir"/*)
+  # remove leading $instance_backups_dir:
+  backups_array=("${backups_array[@]#"$instance_backups_dir/"}")
+
+  echo "${backups_array[@]}"
+}
+
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -191,6 +214,9 @@ while [ $# -gt 0 ]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <source>" >&2
     _restore "$1" && exit $?
+    ;;
+  --list)
+    _list_backups && exit $?
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1

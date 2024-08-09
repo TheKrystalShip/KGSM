@@ -318,29 +318,29 @@ function _install() {
   # TODO: Add option for user to specify instance name, for easy identificiation
 
   # shellcheck disable=SC2155
-  local instance_full_name="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
+  local instance="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
 
   # Create directory structure
-  "$DIRECTORIES_SCRIPT" -i "$instance_full_name" --install $debug || return $?
+  "$DIRECTORIES_SCRIPT" -i "$instance" --install $debug || return $?
 
   # Create necessary files
-  $SUDO "$FILES_SCRIPT" -i "$instance_full_name" --install $debug || return $?
+  $SUDO "$FILES_SCRIPT" -i "$instance" --install $debug || return $?
 
   if [[ -z "$version" ]]; then
     # Get the latest version that's gonna be downloaded
-    version=$("$VERSION_SCRIPT" -i "$instance_full_name" --latest)
+    version=$("$VERSION_SCRIPT" -i "$instance" --latest)
   fi
 
   # Run the download process
-  "$DOWNLOAD_SCRIPT" -i "$instance_full_name" -v "$version" $debug || return $?
+  "$DOWNLOAD_SCRIPT" -i "$instance" -v "$version" $debug || return $?
 
   # Deploy newly downloaded
-  "$DEPLOY_SCRIPT" -i "$instance_full_name" $debug || return $?
+  "$DEPLOY_SCRIPT" -i "$instance" $debug || return $?
 
   # Save new version
-  "$VERSION_SCRIPT" -i "$instance_full_name" --save "$version" $debug || return $?
+  "$VERSION_SCRIPT" -i "$instance" --save "$version" $debug || return $?
 
-  echo "Instance $instance_full_name has been created in $install_dir" >&2 && return 0
+  echo "Instance $instance has been created in $install_dir" >&2 && return 0
 }
 
 function _uninstall() {
@@ -479,30 +479,11 @@ KGSM - Interactive menu
     "$0" $action $blueprint_or_instance --install-dir $install_directory $debug
     ;;
   --restore-backup)
-    instance=$blueprint_or_instance
-    [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-    instance_config_file="$(find "$KGSM_ROOT" -type f -name "$instance")"
-    [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
-    # shellcheck disable=SC1090
-    source "$instance_config_file" || exit 1
-
-    shopt -s extglob nullglob
-
-    # Restore backup requires specifying which one to restore
-    backup_to_restore=
-    # Create array
-    backups_array=("$INSTANCE_BACKUPS_DIR"/*)
-    # remove leading $INSTANCE_BACKUPS_DIR:
-    backups_array=("${backups_array[@]#"$INSTANCE_BACKUPS_DIR/"}")
-
-    if ((${#backups_array[@]} < 1)); then
-      echo "No backups found. Exiting." >&2
-      return 0
-    fi
+    # shellcheck disable=SC2207
+    backups_array=($("$BACKUP_SCRIPT" -i "$blueprint_or_instance" --list))
+    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return 0
 
     PS3="Choose a backup to restore: "
-
     select backup in "${backups_array[@]}"; do
       if [[ -z $backup ]]; then
         echo "Didn't understand \"$REPLY\" " >&2
