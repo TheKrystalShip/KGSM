@@ -65,7 +65,7 @@ You'll have to provide the name of the blueprint file in the following step.
 ### 2. Generate new instance config file
 
 ```sh
-instance_config=$(./modules/instance.sh --create factorio --install-dir /opt/test)
+instance_config=$(./modules/instances.sh --create factorio --install-dir /opt/test)
 ```
 
 This will provide the name of the instance config file required by the next
