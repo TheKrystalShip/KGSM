@@ -122,21 +122,24 @@ function __create_manage_file() {
   local manage_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name manage.tp)"
   [[ -z "$manage_template_file" ]] && echo "${0##*/} ERROR: Failed to load manage.tp" >&2 && return 1
 
-  local instance_manage_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.stdin
+  local instance_manage_file="${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh"
+  export INSTANCE_SOCKET_FILE="${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin"
 
   # shellcheck disable=SC2155
   local instance_install_subdir=$(grep "SERVICE_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
 
   # Used by the template
-  INSTANCE_LAUNCH_DIR=$INSTANCE_INSTALL_DIR
+  INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR"
   if [[ -n "$instance_install_subdir" ]]; then
-    INSTANCE_LAUNCH_DIR=$INSTANCE_INSTALL_DIR/$instance_install_subdir
+    INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR/$instance_install_subdir"
   fi
 
   # Required by the template
   export INSTANCE_LAUNCH_DIR
-  export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/$INSTANCE_FULL_NAME.pid"
+  # Stores PID of the game server
+  export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.pid"
+  # Stores PID of the dummy writer that keeps input socket alive
+  export TAIL_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.tail.pid"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     INSTANCE_LOGS_REDIRECT=""
@@ -144,7 +147,7 @@ function __create_manage_file() {
     # shellcheck disable=SC2140
     stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(exec date +"%Y-%m-%d")\".log"
 
-    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>$stdout_file"
+    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>&1"
 
     if grep -q "INSTANCE_PID_FILE=" <"$INSTANCE_CONFIG_FILE"; then
       sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
