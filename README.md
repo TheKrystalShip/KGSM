@@ -1,7 +1,7 @@
 # KGSM - Krystal Game Server Manager
 
-A simple, efficient and portable tool for installing, updating, and managing
-game servers on Linux systems.
+A simple, efficient and portable command-line tool for installing, updating,
+and managing game servers on Linux systems.
 
 KGSM streamlines the setup of game servers by providing all the necessary
 scripts for managing their lifecycle without the need for ongoing involvment
