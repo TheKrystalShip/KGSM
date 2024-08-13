@@ -3,7 +3,7 @@
 # Unique identifier
 INSTANCE_ID=$instance_id
 
-# Instance name, same as blueprint SERVICE_NAME
+# Instance name, same as blueprint BP_NAME
 INSTANCE_NAME=$instance_name
 
 # Full name, INSTANCE_NAME + INSTANCE_ID

@@ -119,7 +119,7 @@ function _create_instance() {
   [[ -z "$blueprint_abs_path" ]] && echo "${0##*/} ERROR: Failed to load blueprint: $blueprint" >&2 && return 1
 
   # shellcheck disable=SC2155
-  local service_name=$(grep "SERVICE_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local service_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   export instance_name=$service_name
 
   # shellcheck disable=SC2155
@@ -127,10 +127,10 @@ function _create_instance() {
   export instance_id=${instance_full_name##*-}
 
   # shellcheck disable=SC2155
-  export instance_port=$(grep "SERVICE_PORT=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  export instance_port=$(grep "BP_PORT=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   export instance_blueprint_file=$blueprint_abs_path
   # shellcheck disable=SC2155
-  local instance_launch_bin=$(grep "SERVICE_LAUNCH_BIN=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local instance_launch_bin=$(grep "BP_LAUNCH_BIN=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   # Servers launching using java
   if [[ "$instance_launch_bin" != "java" ]]; then
@@ -143,9 +143,9 @@ function _create_instance() {
   # The extra - after -f2 is necessary to get everything, otherwise it will cut
   # again if it finds the delimiter, extra - means cut after first until the end
   # shellcheck disable=SC2155
-  export instance_launch_args="$(grep "SERVICE_LAUNCH_ARGS=" <"$blueprint_abs_path" | cut -d "=" -f2-)"
+  export instance_launch_args="$(grep "BP_LAUNCH_ARGS=" <"$blueprint_abs_path" | cut -d "=" -f2-)"
   # shellcheck disable=SC2155
-  export instance_level_name=$(grep "SERVICE_LEVEL_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  export instance_level_name=$(grep "BP_LEVEL_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   export instance_working_dir=$install_dir/$instance_full_name
 
@@ -190,9 +190,9 @@ EOF
   fi
 
   # shellcheck disable=SC2155
-  local service_app_id=$(grep "SERVICE_APP_ID=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local service_app_id=$(grep "BP_APP_ID=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   # shellcheck disable=SC2155
-  local is_steam_account_needed=$(grep "SERVICE_STEAM_AUTH_LEVEL=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local is_steam_account_needed=$(grep "BP_STEAM_AUTH_LEVEL=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   if [[ $service_app_id -ne 0 ]]; then
     if grep -q "INSTANCE_APP_ID=" <"$instance_config_file"; then
@@ -222,7 +222,7 @@ EOF
   fi
 
   # shellcheck disable=SC2155
-  export instance_stop_command=$(grep "SERVICE_SOCKET_STOP_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  export instance_stop_command=$(grep "BP_STOP_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   if [[ -n "$instance_stop_command" ]]; then
     if grep -q "INSTANCE_STOP_COMMAND=" <"$instance_config_file"; then
       sed -i "/INSTANCE_STOP_COMMAND=*/c\INSTANCE_STOP_COMMAND=$instance_stop_command" "$instance_config_file" >/dev/null
@@ -236,7 +236,7 @@ EOF
   fi
 
   # shellcheck disable=SC2155
-  export instance_save_command=$(grep "SERVICE_SOCKET_SAVE_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  export instance_save_command=$(grep "BP_SAVE_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   if [[ -n "$instance_save_command" ]]; then
     if grep -q "INSTANCE_SAVE_COMMAND=" <"$instance_config_file"; then
       sed -i "/INSTANCE_SAVE_COMMAND=*/c\INSTANCE_SAVE_COMMAND=$instance_save_command" "$instance_config_file" >/dev/null

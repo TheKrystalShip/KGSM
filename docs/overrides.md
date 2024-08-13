@@ -64,16 +64,16 @@ Snippet from the override template file:
 Each of those functions can be implemented in a override script file for a
 blueprint.
 
-Blueprints are linked to overrides by the `SERVICE_NAME` field inside the
+Blueprints are linked to overrides by the `BP_NAME` field inside the
 blueprint file.
 
 **Example 1 (default bp, default override):**
 
 Blueprint file: `blueprints/default/factorio.bp`
 
-> \# Service name, lowercase with no spaces
+> \# Unique name, lowercase with no spaces
 >
-> SERVICE_NAME=factorio
+> BP_NAME=factorio
 >
 > [...]
 
@@ -83,9 +83,9 @@ Overrides file: `overrides/factorio.overrides.sh`
 
 Blueprint file: `blueprints/my-factorio-server.bp`
 
-> \# Service name, lowercase with no spaces
+> \# Unique name, lowercase with no spaces
 >
-> SERVICE_NAME=factorio
+> BP_NAME=factorio
 >
 > [...]
 
@@ -95,9 +95,9 @@ Overrides file: `overrides/factorio.overrides.sh`
 
 Blueprint file: `blueprints/7dtd-custom03.bp`
 
-> \# Service name, lowercase with no spaces
+> \# Unique name, lowercase with no spaces
 >
-> SERVICE_NAME=7dtd-custom03
+> BP_NAME=7dtd-custom03
 >
 > [...]
 

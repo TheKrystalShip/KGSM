@@ -126,7 +126,7 @@ function __create_manage_file() {
   export INSTANCE_SOCKET_FILE="${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin"
 
   # shellcheck disable=SC2155
-  local instance_install_subdir=$(grep "SERVICE_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
+  local instance_install_subdir=$(grep "BP_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
 
   # Used by the template
   INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR"
@@ -168,14 +168,14 @@ EOF
     echo "${0##*/} ERROR: Could not generate template for $instance_manage_file" >&2 && return 1
   fi
 
-  SERVICE_USER=$USER
+  INSTANCE_USER=$USER
   if [ "$EUID" -eq 0 ]; then
-    SERVICE_USER=$SUDO_USER
+    INSTANCE_USER=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$SERVICE_USER":"$SERVICE_USER" "$instance_manage_file"; then
-    echo "${0##*/} ERROR: Failed to assing $instance_manage_file to $SERVICE_USER" >&2 && return 1
+  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_manage_file"; then
+    echo "${0##*/} ERROR: Failed to assing $instance_manage_file to $INSTANCE_USER" >&2 && return 1
   fi
 
   if ! chmod +x "$instance_manage_file"; then
@@ -207,14 +207,14 @@ function __create_overrides_file() {
     echo "${0##*/} ERROR: Could not copy $overrides_file to $instance_overrides_file" >&2 && return 1
   fi
 
-  SERVICE_USER=$USER
+  INSTANCE_USER=$USER
   if [ "$EUID" -eq 0 ]; then
-    SERVICE_USER=$SUDO_USER
+    INSTANCE_USER=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$SERVICE_USER":"$SERVICE_USER" "$instance_overrides_file"; then
-    echo "${0##*/} ERROR: Failed to assing $instance_overrides_file to $SERVICE_USER" >&2 && return 1
+  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_overrides_file"; then
+    echo "${0##*/} ERROR: Failed to assing $instance_overrides_file to $INSTANCE_USER" >&2 && return 1
   fi
 
   # if ! chmod +x "$instance_overrides_file"; then
@@ -298,9 +298,9 @@ function __systemd_install() {
     if ! _uninstall; then return 1; fi
   fi
 
-  SERVICE_USER=$USER
+  INSTANCE_USER=$USER
   if [ "$EUID" -eq 0 ]; then
-    SERVICE_USER=$SUDO_USER
+    INSTANCE_USER=$SUDO_USER
   fi
 
   # Create the service file

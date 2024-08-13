@@ -475,6 +475,8 @@ KGSM - Interactive menu
       echo "INSTANCE_DEFAULT_INSTALL_DIR is not set in the configuration file, please specify an installation directory" >&2
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
+
+    echo "Creating an instance of $blueprint_or_instance..." >&2
     # shellcheck disable=SC2086
     "$0" $action $blueprint_or_instance --install-dir $install_directory $debug
     ;;

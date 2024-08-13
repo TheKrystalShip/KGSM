@@ -125,13 +125,13 @@ source "$INSTANCE_CONFIG_FILE" || exit 1
 # https://github.com/ValveSoftware/steam-for-linux/issues/10975
 function func_get_latest_version() {
 
-  app_id="$(grep "SERVICE_APP_ID=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
+  app_id="$(grep "BP_APP_ID=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   {
     [[ -z "$app_id" ]] || [[ "$app_id" -eq 0 ]];
   } && echo "${0##*/} ERROR: APP_ID is expected but it's not set" >&2 && return 1
 
   username=anonymous
-  auth_level="$(grep "SERVICE_STEAM_AUTH_LEVEL=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
+  auth_level="$(grep "BP_STEAM_AUTH_LEVEL=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   if [[ $auth_level -ne 0 ]]; then
     [[ -z "$STEAM_USERNAME" ]] && echo "${0##*/} ERROR: STEAM_USERNAME is expected but it's not set" >&2 && return 1
     [[ -z "$STEAM_PASSWORD" ]] && echo "${0##*/} ERROR: STEAM_PASSWORD is expected but it's not set" >&2 && return 1

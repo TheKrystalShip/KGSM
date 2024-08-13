@@ -3,7 +3,7 @@ Description=$INSTANCE_FULL_NAME Dedicated Server
 Requires=$INSTANCE_FULL_NAME.socket
 
 [Service]
-User=$SERVICE_USER
+User=$INSTANCE_USER
 WorkingDirectory=$INSTANCE_WORKING_DIR
 ExecStart=$INSTANCE_MANAGE_FILE --start
 ExecStop=$INSTANCE_MANAGE_FILE --stop
