@@ -27,12 +27,14 @@ To see a list of created instances, you can run:
 Running the installation process for a blueprint will create a new instance of
 that blueprint.
 
-KGSM creates and stores an **instances configuration file** in the `instances`
+KGSM creates and stores an **instance configuration file** in the `instances`
 directory when a new instance is created in order to keep track of
 installations and allow for management commands to be ran through KGSM itself.
 
-> IMPORTANT: The instance configuration file itself is not needed by the
+> [!NOTE]
+> The instance configuration file itself is not needed by the
 > instance, it's only used internally by KGSM.
 
-> WARNING: It is not recommended to manually modify an instance configuration
+> [!WARNING]
+> It is not recommended to manually modify an instance configuration
 > file unless you absolutely know what you're doing.

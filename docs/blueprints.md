@@ -29,7 +29,8 @@ in the new file.
 The name of the new blueprints can be the same as the default, essentialy
 working as an override for it.
 
-> IMPORTANT: The **.bp** extension is required in order for KGSM to load the
+> [!IMPORTANT]
+> The **.bp** extension is required in order for KGSM to load the
 > blueprint correctly
 
 ## I want to make a blueprint for a game KGSM doesn't have

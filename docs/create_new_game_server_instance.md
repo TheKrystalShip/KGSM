@@ -7,7 +7,8 @@ This document assumes you've read [Blueprints 101](blueprints.md) and
 
 The full command to create an instance of a blueprint is:
 
-> NOTE: If you have `INSTANCE_DEFAULT_INSTALL_DIR` set in the `config.ini` file
+> [!NOTE]
+> If you have `INSTANCE_DEFAULT_INSTALL_DIR` set in the `config.ini` file
 > then `--install-dir <directory>` is not needed.
 
 ```sh
@@ -60,7 +61,8 @@ Choose a blueprint from either the `blueprints/default` or `blueprints`
 directory to install.
 You'll have to provide the name of the blueprint file in the following step.
 
-> NOTE: The **.bp** extension is not required
+> [!NOTE]
+> The **.bp** extension is not required
 
 ### 2. Generate new instance config file
 
@@ -85,7 +87,7 @@ sudo ./modules/files.sh -i $instance_config --install
 
 Root permissions are needed for `systemd` and `ufw`
 
-KGSM will generate a `[instance].manage.sh` file inside the install directory
+KGSM will generate a `<instance>.manage.sh` file inside the install directory
 that's used to start/stop/restart and interact with the service socket for input
 (if the service has an interactive console)
 
@@ -93,7 +95,7 @@ If any `[blueprint].overrides.sh` file exists in the `overrides` directory, it
 will also be copied to the instance install directory.
 
 If `USE_SYSTEMD` is enabled in `config.ini` then it will also generate the
-required `[instance].service` and `[instance].socket` files inside
+required `<instance>.service` and `<instance>.socket` files inside
 `SYSTEMD_DIR` and let `systemd` manage startup/shutdown.
 
 If `USE_UFW` is enabled in `config.ini` it will create and enable the ufw
@@ -137,17 +139,4 @@ and it will prompt for confirmation if `INSTANCE_INSTALL_DIR` is not empty.
 
 ### 9. Done
 
-And with that, the installation is complete
-
-If it's set to run with systemd, it can be started using:
-
-```sh
-sudo systemctl start [instance].service
-```
-
-Alternatively if `USE_SYSTEMD` is not enabled in `config.ini`
-
-```sh
-cd install_dir/[instance]
-./[instance].manage.sh --start
-```
+And with that, the installation is complete.
