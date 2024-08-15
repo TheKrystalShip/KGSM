@@ -1,28 +1,22 @@
 #!/bin/bash
 
 function usage() {
-  echo "Scaffolds the necessary directory structure for a blueprint on
-installation.
-Removes the directory structure on uninstall.
+  echo "Scaffolds the necessary directory structure.
 
 Usage:
-  ./${0##*/} [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance] <instance> OPTION
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-
-  -h, --help                 Prints this message
-
-  --install                  Generates the directory structure
-
-  --uninstall                Removes the directory structure
+  --create                    Generates the directory structure
+  --remove                    Removes the directory structure
 
 Examples:
-  ./${0##*/} -i valheim-h1up6V --install
-
-  ./${0##*/} --instance valheim-h1up6V.ini --uninstall
+  $(basename "$0") -i valheim-h1up6V --create
+  $(basename "$0") --instance valheim-h1up6V.ini --remove
 "
 }
 
@@ -108,7 +102,7 @@ declare -A DIR_ARRAY=(
   ["INSTANCE_LOGS_DIR"]=$INSTANCE_WORKING_DIR/logs
 )
 
-function _install() {
+function _create() {
   for dir in "${!DIR_ARRAY[@]}"; do
     if ! mkdir -p "${DIR_ARRAY[$dir]}"; then echo "${0##*/} ERROR: Failed to create $dir" >&2 && return 1; fi
     if grep -q "^$dir" <"$INSTANCE_CONFIG_FILE"; then
@@ -126,7 +120,7 @@ function _install() {
   return 0
 }
 
-function _uninstall() {
+function _remove() {
   # Remove main working directory
   if ! rm -rf "${INSTANCE_WORKING_DIR?}"; then
     echo "${0##*/} ERROR: Failed to remove $INSTANCE_WORKING_DIR" >&2 && return 1
@@ -138,11 +132,11 @@ function _uninstall() {
 # Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
-    _install && exit $?
+  --create)
+    _create && exit $?
     ;;
-  --uninstall)
-    _uninstall && exit $?
+  --remove)
+    _remove && exit $?
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1

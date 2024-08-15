@@ -3,40 +3,33 @@
 function usage() {
   echo "Manages the various necessary files to run a game server.
 Generates the necessary systemd *.service and *.socket files,
-also creates the UFW firewall rule on install.
-Removes everything on uninstall
+also creates the UFW firewall rule.
 
 Usage:
   Must be called with root privilages
-  sudo ./${0##*/} [-i | --instance] <instance> OPTION
+  sudo $(basename "$0") [-i | --instance] <instance> OPTION
 
 Options:
-  -i, --instance <instance>   Full name of the instance, equivalent of
-                              INSTANCE_FULL_NAME from the instance config file
-                              The .ini extension is not required
-
   -h, --help                 Prints this message
-
-  --install                  Generates all files:
-                             [instance].manage.sh file, [instance].override.sh file
-                             if applicable, systemd service/ socket files and ufw
-                             firewall rules if applicable.
-
+  -i, --instance <instance>  Full name of the instance, equivalent of
+                             INSTANCE_FULL_NAME from the instance config file
+                             The .ini extension is not required
+  --create                   Generates all files:
+                             [instance].manage.sh file, [instance].override.sh
+                             file if applicable, systemd service/ socket files
+                             and ufw firewall rules if applicable.
     --manage                 Creates the [instance].manage.sh file
     --override               Creates the [instance].overrides.sh file if applicable
     --systemd                Installs the systemd service/socket files
     --ufw                    Installs the ufw firewall rule file
-
-  --uninstall                Removes and disables systemd service/socket files and
-                             UFW firewall rule
-
+  --remove                   Removes and disables systemd service/socket files
+                             and UFW firewall rule
     --systemd                Removes the systemd service and socket files
     --ufw                    Removes the ufw firewall rule files
 
 Examples:
-  ./${0##*/} -i factorio-L2ZeLQ.ini --install
-
-  ./${0##*/} -i 7dtd-fqcLvt --uninstall --ufw
+  $(basename "$0") -i factorio-L2ZeLQ.ini --create
+  $(basename "$0") -i 7dtd-fqcLvt --remove --ufw
 "
 }
 
@@ -422,7 +415,7 @@ EOF
   return 0
 }
 
-function _install() {
+function _create() {
   __create_manage_file || return 1
   __create_overrides_file || return 1
 
@@ -437,7 +430,7 @@ function _install() {
   return 0
 }
 
-function _uninstall() {
+function _remove() {
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     __systemd_uninstall || return 1
   fi
@@ -452,9 +445,9 @@ function _uninstall() {
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
+  --create)
     shift
-    [[ -z "$1" ]] && _install && exit $?
+    [[ -z "$1" ]] && _create && exit $?
     case "$1" in
     --manage)
       __create_manage_file && exit $?
@@ -471,9 +464,9 @@ while [ $# -gt 0 ]; do
     *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
-  --uninstall)
+  --remove)
     shift
-    [[ -z "$1" ]] && _uninstall && exit $?
+    [[ -z "$1" ]] && _remove && exit $?
     case "$1" in
     --systemd)
       __systemd_uninstall && exit $?

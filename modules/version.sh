@@ -2,46 +2,33 @@
 
 function usage() {
   echo "Used to fetch different version information for a service.
-It can be used to read the locally installed version, fetch the latest
-available, compare the two to determine if an update is available and/or
-save a new version.
 
 Usage:
-    ./${0##*/} [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance] <instance> [option]
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-
-  -h, --help                 Prints this message
-
-  --installed                Prints the currently installed version
-
-  --latest                   Prints the latest version available
-
-  --compare                  Compares the latest version available with
+  --installed                 Prints the currently installed version
+  --latest                    Prints the latest version available
+  --compare                   Compares the latest version available with
                               the currently installed version. If the latest
                               available version is different than the installed
                               version then it prints the latest version
-
-  --save <version>           Save the given version
+  --save <version>            Save the given version
 
 Exit codes:
   0: Success / New version was found, written to stdout
-
   1: Error / No new version found
-
   2: Other error
 
 Examples:
-  ./${0##*/} -i valheim-358496 --installed
-
-  ./${0##*/} --instance terraria-473159.ini --latest
-
-  ./${0##*/} -i 7dtd-379158.ini --compare
-
-  ./${0##*/} --instance minecraft-197645 --save 1.20.1
+  $(basename "$0") -i valheim-3596 --installed
+  $(basename "$0") --instance terraria-4759.ini --latest
+  $(basename "$0") -i 7dtd-379158.ini --compare
+  $(basename "$0") --instance minecraft-1945 --save 1.20.1
 "
 }
 
@@ -139,8 +126,8 @@ function func_get_latest_version() {
     username="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
 
-  # shellcheck disable=SC2155
-  local latest_version=$(steamcmd \
+  local latest_version
+  latest_version=$(steamcmd \
     +login $username \
     +app_info_update 1 \
     +app_info_print $app_id \
@@ -155,8 +142,8 @@ function func_get_latest_version() {
 function _compare() {
   [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && echo "${0##*/} ERROR: $INSTANCE is missing INSTANCE_INSTALLED_VERSION varible" >&2 && return 1
 
-  # shellcheck disable=SC2155
-  local latest_version=$(func_get_latest_version)
+  local latest_version
+  latest_version=$(func_get_latest_version)
 
   [[ -z "$latest_version" ]] && return 1
   [[ "$latest_version" == "$INSTANCE_INSTALLED_VERSION" ]] && return 1

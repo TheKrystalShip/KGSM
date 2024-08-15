@@ -2,42 +2,20 @@
 
 function usage() {
   echo "Runs a full update process for a game server.
-It goes through multiple steps:
-  Step 1: Check if there's a new version available
-
-  Step 2: Run the download process, either through SteamCMD or through an
-          override if one exists.
-
-  Step 3: It checks if the service might already be running and will shut it
-          down before proceeding
-
-  Step 4: Will create a full backup of the existing installation
-
-  Step 5: Deploys the newly downloaded version
-
-  Step 6: Restores the service if it was running during Step 3
-
-  Step 7: Saves the new version
-
-After Step 7 a message will be displayed indicating the update was a success
-and it will exit with code 0
 
 Usage:
-  ./${0##*/} [-i | --instance] <instance>
+  $(basename "$0") [-i | --instance] <instance>
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-
-  --verbose                  Enable verbose output
-
-  -h, --help                 Prints this message
+  --verbose                   Enable verbose output
 
 Examples:
-  ./${0##*/} -i valheim-783146.ini
-
-  ./${0##*/} --instance terraria-057654
+  $(basename "$0") -i valheim-7831.ini
+  $(basename "$0") --instance terraria-0576 --verbose
 "
 }
 

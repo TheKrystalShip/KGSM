@@ -1,27 +1,22 @@
 #!/bin/bash
 
 function usage() {
-  echo "Will download a server into \$SERVICE_TEMP_DIR
-It will look for an override if it's available, otherwise it will use the
-default SteamCMD download.
+  echo "Download the necessary files for a game server.
 
 Usage:
-  ./${0##*/} [-i | --instance] <instance> OPTIONS
+  $(basename "$0") [-i | --instance] <instance> OPTIONS
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-
-  -v, --version <v>          Optional: Version number to download.
-                             This feature is not currently used
-
-  -h, --help                 Prints this message
+  -v, --version <v>           Optional: Version number to download.
+                              This feature is not currently used
 
 Examples:
-  ./${0##*/} -i factorio-9d52mZ.ini
-
-  ./${0##*/} --instance minecraft-gC6dmh -v 1.20
+  $(basename "$0")-i factorio-9d52mZ.ini
+  $(basename "$0") --instance minecraft-gC6dmh -v 1.20
 "
 }
 

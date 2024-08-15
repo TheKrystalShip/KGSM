@@ -1,33 +1,26 @@
 #!/bin/bash
 
 function usage() {
-  echo "Creates a new blueprint
+  echo "Provides information about blueprints and creates new ones.
 
 Usage:
-    ./${0##*/} --name <name> --port <port> [options]
+  $(basename "$0") [option]
 
 Options:
   -h, --help                    Prints this message.
-
   --list                        Returns a list of all blueprints.
     --default                   Returns a list of only the default blueprints.
     --custom                    Returns a list of only the custom blueprints.
-
   --create
     --name <name>               Name of the blueprint.
-
     --port <port>               Port number(s) in UFW format.
                                 Example:
                                   \"16261:16262/tcp|16261:16262/udp\"
-
     --launch-bin <launch-bin>   Name of the file used to start the service.
-
     --level-name <name>         Name of the savefile, world, level, whichever is
                                 applicable for the game server.
-
     --app-id <app-id>           (Optional) Steam APP ID if applicable.
                                 Default: 0
-
     --steam-auth-level <x>      (Optional) Used to determine if a game server
                                 requires a Steam account in order to download
                                 or if an annonymous user can be used.
@@ -35,22 +28,18 @@ Options:
                                   0 - Annonymous user can be used
                                   1 - Requires Steam account
                                 Default: 0
-
     --install-subdirectory <x>  (Optional) If the <launch-bin> is not located in
                                 the root folder of the game server, specify the
                                 subdirectories required to reach it.
                                 Relative path to the game server install
                                 directory.
                                 Default: Empty
-
     --launch-args <launch-args> (Optional) Arguments used when starting the
                                 server
                                 Default: Empty
-
     --stop-command <command>    (Optional) If the server accepts commands, this
                                 one will be used to stop the server gracefully.
                                 Default: Empty
-
     --save-command <command>    (Optional) If the server accepts command, this
                                 will be used to issue a save command to the
                                 server. It will also be used before
@@ -58,7 +47,9 @@ Options:
                                 Default: Empty
 
 Examples:
-  ./${0##*/} --create --name terraria --port 7777 --launch-bin TerrariaServer.bin.x86_64 --stop-command \"exit\"
+  $(basename "$0") --list
+  $(basename "$0") --list --custom
+  $(basename "$0") --create --name terraria --port 7777 --launch-bin TerrariaServer.bin.x86_64 --stop-command \"exit\"
 "
 }
 

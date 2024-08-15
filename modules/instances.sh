@@ -1,21 +1,23 @@
 #!/bin/bash
 
 function usage() {
-  echo "
+  echo "Manages instance creation and gathers information post-creation
+
+Usage:
+  $(basename "$0") [option]
+
 Options:
   -h, --help                      Prints this message
 
   --list [blueprint]              Prints a list of all instances.
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
-
   --logs <instance>               Return the last 10 lines of the instance log.
   --status <instance>             Return a detailed running status.
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
   --stop <instance>               Stop the instance.
   --restart <instance>            Restart the instance.
-
   --create <blueprint>
     --install-dir <install_dir>   Creates a new instance for the given blueprint
                                   and returns the name of the instance config
@@ -24,10 +26,13 @@ Options:
                                   instance from.
                                   <install_dir> Directory where the instance
                                   will be created.
-
-  --uninstall <instance>          Remove an instance's configuration
-
+  --remove <instance>             Remove an instance's configuration
   --print-info <instance>         Print a detailed description of an instance
+
+Examples:
+  $(basename "$0") --create test.bp --install-dir /opt
+  $(basename "$0") --logs test-0001
+  $(basename "$0") --list test.bp
 "
 }
 
@@ -252,7 +257,7 @@ EOF
   echo "$instance_full_name" >&1
 }
 
-function _uninstall() {
+function _remove() {
   local instance=$1
   if [[ "$instance" != *.ini ]]; then
     instance="${instance}.ini"
@@ -510,10 +515,10 @@ while [[ $# -gt 0 ]]; do
     esac
     _create_instance $blueprint $install_dir && exit $?
     ;;
-  --uninstall)
+  --remove)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _uninstall "$1" && exit $?
+    _remove "$1" && exit $?
     ;;
   --print-info)
     shift

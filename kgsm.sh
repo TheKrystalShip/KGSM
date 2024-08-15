@@ -62,7 +62,7 @@ function usage() {
   printf "%s
 
 Usage:
-  ./kgsm.sh [option]
+  $(basename "$0") [option]
 
 Options:
   \e[4mGeneral\e[0m
@@ -108,13 +108,10 @@ Options:
         --latest                Print the latest available version.
       --check-update            Check if a new version is available.
       --update                  Run the update process.
-        -h, --help              Print help information for the update process.
       --create-backup           Create a backup of the currently installed
                                 version, if any.
-        -h, --help              Print help information for the backup process.
       --restore-backup NAME     Restore a backup.
                                 NAME is the backup name.
-        -h, --help              Print help information for the backup process.
       --uninstall               Run the uninstall process.
 " "$DESCRIPTION"
 }
@@ -317,27 +314,17 @@ function _install() {
 
   # TODO: Add option for user to specify instance name, for easy identificiation
 
-  # shellcheck disable=SC2155
-  local instance="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
-
-  # Create directory structure
-  "$DIRECTORIES_SCRIPT" -i "$instance" --install $debug || return $?
-
-  # Create necessary files
-  $SUDO "$FILES_SCRIPT" -i "$instance" --install $debug || return $?
+  local instance
+  instance="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
+  "$DIRECTORIES_SCRIPT" -i "$instance" --create $debug || return $?
+  $SUDO "$FILES_SCRIPT" -i "$instance" --create $debug || return $?
 
   if [[ -z "$version" ]]; then
-    # Get the latest version that's gonna be downloaded
     version=$("$VERSION_SCRIPT" -i "$instance" --latest)
   fi
 
-  # Run the download process
   "$DOWNLOAD_SCRIPT" -i "$instance" -v "$version" $debug || return $?
-
-  # Deploy newly downloaded
   "$DEPLOY_SCRIPT" -i "$instance" $debug || return $?
-
-  # Save new version
   "$VERSION_SCRIPT" -i "$instance" --save "$version" $debug || return $?
 
   echo "Instance $instance has been created in $install_dir" >&2 && return 0
@@ -350,12 +337,9 @@ function _uninstall() {
     instance="${instance}.ini"
   fi
 
-  # Remove directory structure
-  "$DIRECTORIES_SCRIPT" -i "$instance" --uninstall $debug || return $?
-  # Remove files
-  $SUDO "$FILES_SCRIPT" -i "$instance" --uninstall $debug || return $?
-  # Remove instance
-  "$INSTANCES_SCRIPT" --uninstall "$instance" $debug || return $?
+  "$DIRECTORIES_SCRIPT" -i "$instance" --remove $debug || return $?
+  $SUDO "$FILES_SCRIPT" -i "$instance" --remove $debug || return $?
+  "$INSTANCES_SCRIPT" --remove "$instance" $debug || return $?
 }
 
 function _interactive() {
@@ -483,7 +467,7 @@ KGSM - Interactive menu
   --restore-backup)
     # shellcheck disable=SC2207
     backups_array=($("$BACKUP_SCRIPT" -i "$blueprint_or_instance" --list))
-    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return 0
+    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return 1
 
     PS3="Choose a backup to restore: "
     select backup in "${backups_array[@]}"; do
