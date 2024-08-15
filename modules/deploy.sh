@@ -1,22 +1,20 @@
 #!/bin/bash
 
 function usage() {
-  echo "Moves the content of \$SERVICE_TEMP_DIR into \$SERVICE_INSTALL_DIR
+  echo "Runs the deployment process
 
 Usage:
-  ./${0##*/} [-i | --instance] <instance>
+  $(basename "$0") [-i | --instance] <instance>
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
 
-  -h, --help                 Prints this message
-
 Examples:
-  ./${0##*/} -i valheim-9d52mZ.ini
-
-  ./${0##*/} --instance valheim-9d52mZ
+  $(basename "$0") -i valheim-9d52mZ.ini
+  $(basename "$0") --instance valheim-9d52mZ
 "
 }
 

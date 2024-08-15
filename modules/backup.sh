@@ -1,29 +1,24 @@
 #!/bin/bash
 
 function usage() {
-  echo "Creates or restores backups
+  echo "Creates or restores backups.
 
 Usage:
-  ./${0##*/} [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance] <instance> OPTION
 
 Options:
+  -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-
     --list                    Print a list of all backups of the instance
-
     --create                  Creates a new backup for the specified instance
-
     --restore <source>        Restore a specific backup.
                               <source> must be the name of the backup to restore
 
-  -h, --help                  Prints this message
-
 Examples:
-  ./${0##*/} -i valheim-9d52mZ.ini --create
-
-  ./${0##*/} --instance valheim-9d52mZ --restore valheim-14349389-2024-05-1712:40:24.backup
+  $(basename "$0") -i valheim-9d52mZ.ini --create
+  $(basename "$0") --instance valheim-9d52mZ --restore valheim-14349389-2024-05-17T12:40:24.backup
 "
 }
 

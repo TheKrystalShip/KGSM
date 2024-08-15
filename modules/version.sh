@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-  echo "Used to fetch different version information for a service.
+  echo "Used to fetch various version informations.
 
 Usage:
   $(basename "$0") [-i | --instance] <instance> [option]
