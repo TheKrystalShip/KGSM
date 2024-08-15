@@ -83,11 +83,11 @@ DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
 BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name backup.sh)"
 DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
 
-COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
+source "$MODULE_COMMON" || exit 1
 
 [[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
 

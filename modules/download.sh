@@ -84,21 +84,21 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-[[ -z "$OVERRIDES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
+MODULE_OVERRIDES="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+[[ -z "$MODULE_OVERRIDES" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
 
 # If no version is passed, just fetch the latest
 if [[ -z "$VERSION" ]]; then
-  VERSION_SCRIPT="$(find "$KGSM_ROOT" -type f -name version.sh)"
-  [[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
-  VERSION=$("$VERSION_SCRIPT" -i "$INSTANCE" --latest)
+  MODULE_VERSION="$(find "$KGSM_ROOT" -type f -name version.sh)"
+  [[ -z "$MODULE_VERSION" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
+  VERSION=$("$MODULE_VERSION" -i "$INSTANCE" --latest)
 fi
 
-COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
+source "$MODULE_COMMON" || exit 1
 
 [[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
 
@@ -135,7 +135,7 @@ function func_download() {
 }
 
 # shellcheck disable=SC1090
-source "$OVERRIDES_SCRIPT" "$INSTANCE" || exit 1
+source "$MODULE_OVERRIDES" "$INSTANCE" || exit 1
 
 func_download "$VERSION" "$INSTANCE_TEMP_DIR" || exit $?
 

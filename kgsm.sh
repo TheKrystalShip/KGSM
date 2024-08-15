@@ -270,38 +270,38 @@ done
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
+MODULE_COMMON="$(find "$KGSM_ROOT" -type f -name common.sh)"
+[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
+source "$MODULE_COMMON" || exit 1
 
-BLUEPRINTS_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name blueprints.sh)"
-[[ -z "$BLUEPRINTS_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module blueprints.sh" >&2 && exit 1
+MODULE_BLUEPRINTS="$(find "$MODULES_SOURCE_DIR" -type f -name blueprints.sh)"
+[[ -z "$MODULE_BLUEPRINTS" ]] && echo "${0##*/} ERROR: Failed to load module blueprints.sh" >&2 && exit 1
 
-DIRECTORIES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name directories.sh)"
-[[ -z "$DIRECTORIES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module directories.sh" >&2 && exit 1
+MODULE_DIRECTORIES="$(find "$MODULES_SOURCE_DIR" -type f -name directories.sh)"
+[[ -z "$MODULE_DIRECTORIES" ]] && echo "${0##*/} ERROR: Failed to load module directories.sh" >&2 && exit 1
 
-FILES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name files.sh)"
-[[ -z "$FILES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module files.sh" >&2 && exit 1
+MODULE_FILES="$(find "$MODULES_SOURCE_DIR" -type f -name files.sh)"
+[[ -z "$MODULE_FILES" ]] && echo "${0##*/} ERROR: Failed to load module files.sh" >&2 && exit 1
 
-VERSION_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name version.sh)"
-[[ -z "$VERSION_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
+MODULE_VERSION="$(find "$MODULES_SOURCE_DIR" -type f -name version.sh)"
+[[ -z "$MODULE_VERSION" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
 
-DOWNLOAD_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name download.sh)"
-[[ -z "$DOWNLOAD_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module download.sh" >&2 && exit 1
+MODULE_DOWNLOAD="$(find "$MODULES_SOURCE_DIR" -type f -name download.sh)"
+[[ -z "$MODULE_DOWNLOAD" ]] && echo "${0##*/} ERROR: Failed to load module download.sh" >&2 && exit 1
 
-DEPLOY_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name deploy.sh)"
-[[ -z "$DEPLOY_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module deploy.sh" >&2 && exit 1
+MODULE_DEPLOY="$(find "$MODULES_SOURCE_DIR" -type f -name deploy.sh)"
+[[ -z "$MODULE_DEPLOY" ]] && echo "${0##*/} ERROR: Failed to load module deploy.sh" >&2 && exit 1
 
-UPDATE_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name update.sh)"
-[[ -z "$UPDATE_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module update.sh" >&2 && exit 1
+MODULE_UPDATE="$(find "$MODULES_SOURCE_DIR" -type f -name update.sh)"
+[[ -z "$MODULE_UPDATE" ]] && echo "${0##*/} ERROR: Failed to load module update.sh" >&2 && exit 1
 
-BACKUP_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name backup.sh)"
-[[ -z "$BACKUP_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module backup.sh" >&2 && exit 1
+MODULE_BACKUP="$(find "$MODULES_SOURCE_DIR" -type f -name backup.sh)"
+[[ -z "$MODULE_BACKUP" ]] && echo "${0##*/} ERROR: Failed to load module backup.sh" >&2 && exit 1
 
-INSTANCES_SCRIPT="$(find "$MODULES_SOURCE_DIR" -type f -name instances.sh)"
-[[ -z "$INSTANCES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module instances.sh" >&2 && exit 1
+MODULE_INSTANCE="$(find "$MODULES_SOURCE_DIR" -type f -name instances.sh)"
+[[ -z "$MODULE_INSTANCE" ]] && echo "${0##*/} ERROR: Failed to load module instances.sh" >&2 && exit 1
 
 function _install() {
   local blueprint=$1
@@ -315,17 +315,17 @@ function _install() {
   # TODO: Add option for user to specify instance name, for easy identificiation
 
   local instance
-  instance="$("$INSTANCES_SCRIPT" --create "$blueprint" --install-dir "$install_dir")"
-  "$DIRECTORIES_SCRIPT" -i "$instance" --create $debug || return $?
-  $SUDO "$FILES_SCRIPT" -i "$instance" --create $debug || return $?
+  instance="$("$MODULE_INSTANCE" --create "$blueprint" --install-dir "$install_dir")"
+  "$MODULE_DIRECTORIES" -i "$instance" --create $debug || return $?
+  $SUDO "$MODULE_FILES" -i "$instance" --create $debug || return $?
 
   if [[ -z "$version" ]]; then
-    version=$("$VERSION_SCRIPT" -i "$instance" --latest)
+    version=$("$MODULE_VERSION" -i "$instance" --latest)
   fi
 
-  "$DOWNLOAD_SCRIPT" -i "$instance" -v "$version" $debug || return $?
-  "$DEPLOY_SCRIPT" -i "$instance" $debug || return $?
-  "$VERSION_SCRIPT" -i "$instance" --save "$version" $debug || return $?
+  "$MODULE_DOWNLOAD" -i "$instance" -v "$version" $debug || return $?
+  "$MODULE_DEPLOY" -i "$instance" $debug || return $?
+  "$MODULE_VERSION" -i "$instance" --save "$version" $debug || return $?
 
   echo "Instance $instance has been created in $install_dir" >&2 && return 0
 }
@@ -337,9 +337,9 @@ function _uninstall() {
     instance="${instance}.ini"
   fi
 
-  "$DIRECTORIES_SCRIPT" -i "$instance" --remove $debug || return $?
-  $SUDO "$FILES_SCRIPT" -i "$instance" --remove $debug || return $?
-  "$INSTANCES_SCRIPT" --remove "$instance" $debug || return $?
+  "$MODULE_DIRECTORIES" -i "$instance" --remove $debug || return $?
+  $SUDO "$MODULE_FILES" -i "$instance" --remove $debug || return $?
+  "$MODULE_INSTANCE" --remove "$instance" $debug || return $?
 }
 
 function _interactive() {
@@ -412,7 +412,7 @@ KGSM - Interactive menu
   --install)
     # shellcheck disable=SC2178
     # shellcheck disable=SC2207
-    blueprints_or_instances=($("$BLUEPRINTS_SCRIPT" --list | tr '\n' ' '))
+    blueprints_or_instances=($("$MODULE_BLUEPRINTS" --list | tr '\n' ' '))
     PS3="Choose a blueprint: "
     ;;
   --blueprints)
@@ -427,13 +427,13 @@ KGSM - Interactive menu
   --status)
     # shellcheck disable=SC2207
     # shellcheck disable=SC2178
-    blueprints_or_instances=($("$INSTANCES_SCRIPT" --list))
+    blueprints_or_instances=($("$MODULE_INSTANCE" --list))
     ;;
   *)
     # shellcheck disable=SC2207
     # shellcheck disable=SC2178
-    blueprints_or_instances=($("$INSTANCES_SCRIPT" --list))
-    "$INSTANCES_SCRIPT" --list --detailed
+    blueprints_or_instances=($("$MODULE_INSTANCE" --list))
+    "$MODULE_INSTANCE" --list --detailed
     ;;
   esac
 
@@ -466,7 +466,7 @@ KGSM - Interactive menu
     ;;
   --restore-backup)
     # shellcheck disable=SC2207
-    backups_array=($("$BACKUP_SCRIPT" -i "$blueprint_or_instance" --list))
+    backups_array=($("$MODULE_BACKUP" -i "$blueprint_or_instance" --list))
     [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return 1
 
     PS3="Choose a backup to restore: "
@@ -498,10 +498,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$BLUEPRINTS_SCRIPT" --help $debug && exit $? ;;
+    -h | --help) "$MODULE_BLUEPRINTS" --help $debug && exit $? ;;
     *)
       # shellcheck disable=SC2068
-      "$BLUEPRINTS_SCRIPT" --create $@ $debug && exit $?
+      "$MODULE_BLUEPRINTS" --create $@ $debug && exit $?
       ;;
     esac
     ;;
@@ -527,7 +527,7 @@ while [[ "$#" -gt 0 ]]; do
     _install "$bp_to_install" "$install_dir" && exit $?
     ;;
   --blueprints)
-    "$BLUEPRINTS_SCRIPT" --list && exit $?
+    "$MODULE_BLUEPRINTS" --list && exit $?
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
@@ -541,7 +541,7 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@" && exit $?
     ;;
   --instances)
-    "$INSTANCES_SCRIPT" --list --detailed && exit $?
+    "$MODULE_INSTANCE" --list --detailed && exit $?
     ;;
   --instance)
     shift
@@ -551,56 +551,56 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      "$INSTANCES_SCRIPT" --logs "$instance" && exit $?
+      "$MODULE_INSTANCE" --logs "$instance" && exit $?
       ;;
     --status)
-      "$INSTANCES_SCRIPT" --status "$instance" && exit $?
+      "$MODULE_INSTANCE" --status "$instance" && exit $?
       ;;
     --is-active)
-      "$INSTANCES_SCRIPT" --is-active "$instance" && exit $?
+      "$MODULE_INSTANCE" --is-active "$instance" && exit $?
       ;;
     --start)
-      "$INSTANCES_SCRIPT" --start "$instance" && exit $?
+      "$MODULE_INSTANCE" --start "$instance" && exit $?
       ;;
     --stop)
-      "$INSTANCES_SCRIPT" --stop "$instance" && exit $?
+      "$MODULE_INSTANCE" --stop "$instance" && exit $?
       ;;
     --restart)
-      "$INSTANCES_SCRIPT" --restart "$instance" && exit $?
+      "$MODULE_INSTANCE" --restart "$instance" && exit $?
       ;;
     -v | --version)
       shift
-      [[ -z "$1" ]] && "$VERSION_SCRIPT" -i "$instance" --installed $debug && exit $?
+      [[ -z "$1" ]] && "$MODULE_VERSION" -i "$instance" --installed $debug && exit $?
       case "$1" in
-      --installed) "$VERSION_SCRIPT" -i "$instance" --installed $debug && exit $? ;;
-      --latest) "$VERSION_SCRIPT" -i "$instance" --latest $debug && exit $? ;;
+      --installed) "$MODULE_VERSION" -i "$instance" --installed $debug && exit $? ;;
+      --latest) "$MODULE_VERSION" -i "$instance" --latest $debug && exit $? ;;
       *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
       case "$1" in
-      -h | --help) "$VERSION_SCRIPT" --help && exit $? ;;
-      *) "$VERSION_SCRIPT" -i "$instance" --compare $debug && exit $? ;;
+      -h | --help) "$MODULE_VERSION" --help && exit $? ;;
+      *) "$MODULE_VERSION" -i "$instance" --compare $debug && exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
-      -h | --help) "$UPDATE_SCRIPT" --help && exit $? ;;
-      *) "$UPDATE_SCRIPT" -i "$instance" $debug && exit $? ;;
+      -h | --help) "$MODULE_UPDATE" --help && exit $? ;;
+      *) "$MODULE_UPDATE" -i "$instance" $debug && exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
-      -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -i "$instance" --create $debug && exit $? ;;
+      -h | --help) "$MODULE_BACKUP" --help && exit $? ;;
+      *) "$MODULE_BACKUP" -i "$instance" --create $debug && exit $? ;;
       esac
       ;;
     --restore-backup)
       [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
       shift
       case "$1" in
-      -h | --help) "$BACKUP_SCRIPT" --help && exit $? ;;
-      *) "$BACKUP_SCRIPT" -i "$instance" --restore "$1" $debug && exit $? ;;
+      -h | --help) "$MODULE_BACKUP" --help && exit $? ;;
+      *) "$MODULE_BACKUP" -i "$instance" --restore "$1" $debug && exit $? ;;
       esac
       ;;
     --uninstall)

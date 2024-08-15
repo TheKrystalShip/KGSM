@@ -79,11 +79,11 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-COMMON_SCRIPT=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
+source "$MODULE_COMMON" || exit 1
 
 [[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
 
@@ -93,8 +93,8 @@ INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
 # shellcheck disable=SC1090
 source "$INSTANCE_CONFIG_FILE" || exit 1
 
-OVERRIDES_SCRIPT="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-[[ -z "$OVERRIDES_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
+MODULE_OVERRIDES="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
+[[ -z "$MODULE_OVERRIDES" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
 
 function func_deploy() {
   local source=$1
@@ -122,7 +122,7 @@ function func_deploy() {
 }
 
 # shellcheck disable=SC1090
-source "$OVERRIDES_SCRIPT" "$INSTANCE" || exit 1
+source "$MODULE_OVERRIDES" "$INSTANCE" || exit 1
 
 func_deploy "$INSTANCE_TEMP_DIR" "$INSTANCE_INSTALL_DIR" || exit $?
 

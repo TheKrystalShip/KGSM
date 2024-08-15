@@ -68,6 +68,8 @@ if [[ $@ =~ "--debug" ]]; then
   done
 fi
 
+if [ "$#" -eq 0 ]; then usage && exit 1; fi
+
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
   echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
@@ -93,14 +95,14 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-COMMON_SCRIPT="$(find "$KGSM_ROOT" -type f -name common.sh)"
-[[ -z "$COMMON_SCRIPT" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
+MODULE_COMMON="$(find "$KGSM_ROOT" -type f -name common.sh)"
+[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 TEMPLATE_INPUT_FILE="$(find "$KGSM_ROOT" -type f -name blueprint.tp)"
 [[ -z "$TEMPLATE_INPUT_FILE" ]] && echo "${0##*/} ERROR: Failed to load template blueprint.tp" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$COMMON_SCRIPT" || exit 1
+source "$MODULE_COMMON" || exit 1
 
 _name=""
 _port=""
