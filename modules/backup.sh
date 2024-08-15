@@ -113,7 +113,7 @@ function _create() {
   fi
 
   # shellcheck disable=SC2155
-  local datetime=$(exec date +"%Y-%m-%d%T")
+  local datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
   local output_dir="${dest}/${INSTANCE_FULL_NAME}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
 
   # Create backup folder if it doesn't exit

@@ -161,7 +161,7 @@ function _create_instance() {
   export instance_lifecycle_manager
 
   # shellcheck disable=SC2155
-  export instance_install_datetime=\"$(exec date +"%Y-%m-%d %T")\"
+  export instance_install_datetime=\"$(date +"%Y-%m-%dT%H:%M:%S")\"
   export instance_manage_file=$install_dir/$instance_full_name/$instance_full_name.manage.sh
   if [ -n "$USE_SYSTEMD" ] && [ "$USE_SYSTEMD" -eq 1 ]; then
     [[ -z "$SYSTEMD_DIR" ]] && echo "${0##*/} ERROR: USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" >&2 && return 1
