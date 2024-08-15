@@ -266,8 +266,17 @@ function _remove() {
   instance_abs_path="$(find "$KGSM_ROOT" -type f -name "$instance")"
   [[ -z "$instance_abs_path" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
 
+  local instance_name
+  instance_name=$(grep "INSTANCE_NAME=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')
+
+  # Remove instance config file
   if ! rm "$instance_abs_path"; then
     echo "${0##*/} ERROR: Failed to remove $instance_abs_path" >&2 && return 1
+  fi
+
+  # Remove directory if no other instances are found
+  if [ -z "$(ls -A "$INSTANCES_SOURCE_DIR/$instance_name")" ]; then
+    rmdir "$INSTANCES_SOURCE_DIR/$instance_name"
   fi
 
   return 0
