@@ -8,9 +8,6 @@ BP_NAME="$_name"
 # Example: '1111:2222/tcp|1111:2222/udp'
 BP_PORT="$_port"
 
-# Working directory
-SERVICE_WORKING_DIR="$_working_dir"
-
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
