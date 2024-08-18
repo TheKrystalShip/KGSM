@@ -245,9 +245,6 @@ function update_script() {
   return 0
 }
 
-# Only call subscripts with sudo if the current user isn't root
-SUDO=$([[ "$EUID" -eq 0 ]] && echo "" || echo "sudo -E")
-
 [[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]] && check_for_update
 
 while [[ "$#" -gt 0 ]]; do
@@ -331,7 +328,7 @@ function _install() {
   fi
 
   "$MODULE_DIRECTORIES" -i "$instance" --create $debug || return $?
-  $SUDO "$MODULE_FILES" -i "$instance" --create $debug || return $?
+  "$MODULE_FILES" -i "$instance" --create $debug || return $?
 
   if [[ -z "$version" ]] || [[ "$version" -eq 0 ]]; then
     version=$("$MODULE_VERSION" -i "$instance" --latest)
@@ -352,7 +349,7 @@ function _uninstall() {
   fi
 
   "$MODULE_DIRECTORIES" -i "$instance" --remove $debug || return $?
-  $SUDO "$MODULE_FILES" -i "$instance" --remove $debug || return $?
+  "$MODULE_FILES" -i "$instance" --remove $debug || return $?
   "$MODULE_INSTANCE" --remove "$instance" $debug || return $?
 }
 

@@ -2,12 +2,9 @@
 
 function usage() {
   echo "Manages the various necessary files to run a game server.
-Generates the necessary systemd *.service and *.socket files,
-also creates the UFW firewall rule.
 
 Usage:
-  Must be called with root privilages
-  sudo $(basename "$0") [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance] <instance> OPTION
 
 Options:
   -h, --help                 Prints this message
@@ -18,14 +15,14 @@ Options:
                              [instance].manage.sh file, [instance].override.sh
                              file if applicable, systemd service/ socket files
                              and ufw firewall rules if applicable.
-    --manage                 Creates the [instance].manage.sh file
-    --override               Creates the [instance].overrides.sh file if applicable
-    --systemd                Installs the systemd service/socket files
-    --ufw                    Installs the ufw firewall rule file
+    [--manage]               Creates the [instance].manage.sh file
+    [--override]             Creates the [instance].overrides.sh file if applicable
+    [--systemd]              Generates the systemd service/socket files
+    [--ufw]                  Generates the ufw firewall rule file and enables it
   --remove                   Removes and disables systemd service/socket files
                              and UFW firewall rule
-    --systemd                Removes the systemd service and socket files
-    --ufw                    Removes the ufw firewall rule files
+    [--systemd]              Removes the systemd service and socket files
+    [--ufw]                  Removes the ufw firewall rule files
 
 Examples:
   $(basename "$0") -i factorio-L2ZeLQ.ini --create
@@ -49,10 +46,6 @@ if [[ $@ =~ "--debug" ]]; then
 fi
 
 if [ "$#" -eq 0 ]; then usage && return 1; fi
-
-if [ "$EUID" -ne 0 ]; then
-  echo "${0##*/} Please run as root" >&2 && exit 1
-fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -109,6 +102,8 @@ INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
 
 # shellcheck disable=SC1090
 source "$INSTANCE_CONFIG_FILE" || exit 1
+
+[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
 
 function __create_manage_file() {
   # shellcheck disable=SC2155
@@ -232,13 +227,13 @@ function __systemd_uninstall() {
   [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a systemd socket file set" >&2 && return 1
 
   if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
-    if ! systemctl stop "$INSTANCE_FULL_NAME" &>/dev/null; then
+    if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME" &>/dev/null; then
       echo "${0##*/} ERROR: Failed to stop $INSTANCE_FULL_NAME before uninstalling systemd files" >&2 && return 1
     fi
   fi
 
   if systemctl is-enabled "$INSTANCE_FULL_NAME" &>/dev/null; then
-    if ! systemctl disable "$INSTANCE_FULL_NAME"; then
+    if ! $SUDO systemctl disable "$INSTANCE_FULL_NAME"; then
       echo "WARNING: Failed to disable $INSTANCE_FULL_NAME" >&2
     fi
   fi
@@ -246,7 +241,7 @@ function __systemd_uninstall() {
   # Remove service file
   # shellcheck disable=SC2153
   if [ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]; then
-    if ! rm "$INSTANCE_SYSTEMD_SERVICE_FILE"; then
+    if ! $SUDO rm "$INSTANCE_SYSTEMD_SERVICE_FILE"; then
       echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SERVICE_FILE" >&2 && return 1
     fi
   fi
@@ -254,13 +249,13 @@ function __systemd_uninstall() {
   # Remove socket file
   # shellcheck disable=SC2153
   if [ -f "$INSTANCE_SYSTEMD_SOCKET_FILE" ]; then
-    if ! rm "$INSTANCE_SYSTEMD_SOCKET_FILE"; then
+    if ! $SUDO rm "$INSTANCE_SYSTEMD_SOCKET_FILE"; then
       echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SOCKET_FILE" >&2 && return 1
     fi
   fi
 
   # Reload systemd
-  if ! systemctl daemon-reload; then
+  if ! $SUDO systemctl daemon-reload; then
     echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
   fi
 
@@ -281,6 +276,9 @@ function __systemd_install() {
   local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.service
   local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.socket
 
+  local temp_systemd_service_file=/tmp/${INSTANCE_FULL_NAME}.service
+  local temp_systemd_socket_file=/tmp/${INSTANCE_FULL_NAME}.socket
+
   # Required by template
   # shellcheck disable=SC2155
   export INSTANCE_MANAGE_FILE=$(grep "INSTANCE_MANAGE_FILE=" <"$INSTANCE_CONFIG_FILE" | cut -d "=" -f2 | tr -d '"')
@@ -300,20 +298,28 @@ function __systemd_install() {
   if ! eval "cat <<EOF
 $(<"$service_template_file")
 EOF
-" >"$instance_systemd_service_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not copy $service_template_file to $instance_systemd_service_file" >&2 && return 1
+" >"$temp_systemd_service_file" 2>/dev/null; then
+    echo "${0##*/} ERROR: Could not generate $service_template_file to $temp_systemd_service_file" >&2 && return 1
+  fi
+
+  if ! $SUDO mv "$temp_systemd_service_file" "$instance_systemd_service_file"; then
+    echo "${0##*/} ERROR: Failed to move $temp_systemd_socket_file into $instance_systemd_service_file" >&2 && return 1
   fi
 
   # Create the socket file
   if ! eval "cat <<EOF
 $(<"$socket_template_file")
 EOF
-" >"$instance_systemd_socket_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not copy $socket_template_file to $instance_systemd_socket_file" >&2 && return 1
+" >"$temp_systemd_socket_file" 2>/dev/null; then
+    echo "${0##*/} ERROR: Could not generate $socket_template_file to $temp_systemd_socket_file" >&2 && return 1
+  fi
+
+  if ! $SUDO mv "$temp_systemd_socket_file" "$instance_systemd_socket_file"; then
+    echo "${0##*/} ERROR: Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file" >&2 && return 1
   fi
 
   # Reload systemd
-  if ! systemctl daemon-reload; then
+  if ! $SUDO systemctl daemon-reload; then
     echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
   fi
 
@@ -356,13 +362,13 @@ function __ufw_uninstall() {
   [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
 
   # Remove ufw rule
-  if ! ufw delete allow "$INSTANCE_FULL_NAME" &>/dev/null; then
+  if ! $SUDO ufw delete allow "$INSTANCE_FULL_NAME" &>/dev/null; then
     echo "${0##*/} ERROR: Failed to remove UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
   fi
 
   if [ -f "$INSTANCE_UFW_FILE" ]; then
     # Delete firewall rule file
-    if ! rm "$INSTANCE_UFW_FILE"; then
+    if ! $SUDO rm "$INSTANCE_UFW_FILE"; then
       echo "${0##*/} ERROR: Failed to remove $INSTANCE_UFW_FILE" >&2 && return 1
     fi
   fi
@@ -374,6 +380,7 @@ function __ufw_install() {
   [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
 
   local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_FULL_NAME}
+  local temp_ufw_file=/tmp/kgsm-${INSTANCE_FULL_NAME}
 
   # If firewall rule file already exists, remove it
   if [ -f "$instance_ufw_file" ]; then
@@ -384,21 +391,20 @@ function __ufw_install() {
   local ufw_template_file="$(find "$TEMPLATES_SOURCE_DIR" -type f -name ufw.tp)"
   [[ -z "$ufw_template_file" ]] && echo "${0##*/} ERROR: Could not load ufw.tp template" >&2 && return 1
 
-  # Create file
-  if ! touch "$instance_ufw_file"; then
-    echo "${0##*/} ERROR: Failed to create file $instance_ufw_file" >&2 && return 1
-  fi
-
   # Create firewall rule file from template
   if ! eval "cat <<EOF
 $(<"$ufw_template_file")
 EOF
-" >"$instance_ufw_file"; then
-    echo "${0##*/} ERROR: Failed writing rules to $instance_ufw_file" >&2 && return 1
+" >"$temp_ufw_file"; then
+    echo "${0##*/} ERROR: Failed writing rules to $temp_ufw_file" >&2 && return 1
+  fi
+
+  if ! $SUDO mv "$temp_ufw_file" "$instance_ufw_file"; then
+    echo "${0##*/} ERROR: Failed to move $temp_ufw_file into $instance_ufw_file" >&2 && return 1
   fi
 
   # Enable firewall rule
-  if ! ufw allow "$INSTANCE_FULL_NAME" &>/dev/null; then
+  if ! $SUDO ufw allow "$INSTANCE_FULL_NAME" &>/dev/null; then
     echo "${0##*/} ERROR: Failed to allow UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
   fi
 
