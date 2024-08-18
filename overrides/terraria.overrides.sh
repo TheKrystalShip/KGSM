@@ -26,20 +26,32 @@
 #
 # Available global vars:
 #
-# SERVICE_NAME
-# SERVICE_WORKING_DIR
-# SERVICE_INSTALLED_VERSION
-# SERVICE_APP_ID
-# SERVICE_STEAM_AUTH_LEVEL
-# IS_STEAM_GAME # 0 (false), 1 (true)
-# SERVICE_BACKUPS_DIR
-# SERVICE_CONFIG_DIR
-# SERVICE_INSTALL_DIR
-# SERVICE_SAVES_DIR
-# SERVICE_TEMP_DIR
+# INSTANCE_ID
+# INSTANCE_NAME
+# INSTANCE_FULL_NAME
+# INSTANCE_WORKING_DIR
+# INSTANCE_INSTALL_DIR
+# INSTANCE_SAVES_DIR
+# INSTANCE_TEMP_DIR
+# INSTANCE_BACKUPS_DIR
+# INSTANCE_LOGS_DIR
+# INSTANCE_INSTALL_DATETIME
+# INSTANCE_BLUEPRINT_FILE
+# INSTANCE_LEVEL_NAME
+# INSTANCE_PORT
+# INSTANCE_LAUNCH_BIN
+# INSTANCE_LAUNCH_ARGS
+# INSTANCE_LIFECYCLE_MANAGER
+# INSTANCE_MANAGE_FILE
+# INSTANCE_INSTALLED_VERSION
 #
-# SERVICE_OVERRIDES_SCRIPT_FILE
-# SERVICE_MANAGE_SCRIPT_FILE
+# (Optional) INSTANCE_STOP_COMMAND
+# (Optional) INSTANCE_SAVE_COMMAND
+# (Optional) INSTANCE_PID_FILE
+# (Optional) INSTANCE_OVERRIDES_FILE
+# (Optional) INSTANCE_UFW_FILE
+# (Optional) INSTANCE_SYSTEMD_SERVICE_FILE
+# (Optional) INSTANCE_SYSTEMD_SOCKET_FILE
 ################################################################################
 
 # INPUT:
@@ -49,19 +61,7 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function func_get_latest_version() {
-  # Fetch latest version
-  # shellcheck disable=SC2155
-  local newest_version_full_name=$(wget -qO- 'https://terraria.org/api/get/dedicated-servers-names' | jq .[0])
-  # Expected: terraria-server-1449.zip
-  IFS='-' read -r -a new_version_unformatted <<<"$newest_version_full_name "
-  local temp=${new_version_unformatted[2]}
-  # Expected: 1449.zip
-
-  IFS='.' read -r -a version_number <<<"$temp"
-  local newest_version=${version_number[0]}
-  # Expected: 1449
-
-  echo "$newest_version"
+  wget -qO - 'https://terraria.org/api/get/dedicated-servers-names' | jq .[0] | cut -d '-' -f3 | cut -d '.' -f1
 }
 
 # INPUT:
@@ -81,58 +81,49 @@ function func_download() {
   fi
 
   # Download zip file in $dest
-  if ! wget -P "$dest" "https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"; then
-    echo "ERROR: wget https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip" >&2
-    return 1
+  if ! wget -qO "$dest/terraria-server-${version}.zip" "https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"; then
+    echo "${0##*/} ERROR: wget https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip" >&2 && return 1
   fi
 
   # Extract zipped contents in the same $dest
-  if ! unzip "$dest"/"terraria-server-${version}.zip" -d "$dest"; then
-    echo "ERROR: unzip terraria-server-${version}.zip -d $dest" >&2
-    return 1
+  if ! unzip -q "$dest/terraria-server-${version}.zip" -d "$dest"; then
+    echo "${0##*/} ERROR: unzip terraria-server-${version}.zip -d $dest" >&2 && return 1
   fi
 
   # Remove zip file
   if ! rm "$dest"/"terraria-server-${version}.zip"; then
-    echo "ERROR: 'rm terraria-server-${version}.zip'" >&2
-    return 1
+    echo "${0##*/} ERROR: 'rm terraria-server-${version}.zip'" >&2 && return 1
   fi
 
   # Terraria extracts with the version name as the base folder, we don't want that
-  if ! mv -v "$dest"/"$version"/* "$dest"/; then
-    echo "ERROR: mv -v $dest/$version/* $dest/" >&2
-    return 1
+  if ! mv "$dest"/"$version"/* "$dest"/; then
+    echo "${0##*/} ERROR: mv $dest/$version/* $dest/" >&2 && return 1
   fi
 
   # Remove trailing empty folder
   if ! rm -rf "${dest:?}"/"$version"; then
-    echo "ERROR: rm -rf $dest/$version" >&2
-    return 1
+    echo "${0##*/} ERROR: rm -rf $dest/$version" >&2 && return 1
   fi
 
   # Terraria server comes in 3 subfolders for Windows, Mac & Linux
   # Only want the contents of the Linux folder, so move all of that outside
-  if ! mv -v "$dest"/Linux/* "$dest"/; then
-    echo "ERROR: mv -v $dest/Linux/* $$dest/" >&2
-    return 1
+  if ! mv "$dest"/Linux/* "$dest"/; then
+    echo "${0##*/} ERROR: mv $dest/Linux/* $$dest/" >&2 && return 1
   fi
 
   # Remove the Windows dir
   if ! rm -rf "${dest:?}"/Windows; then
-    echo "ERROR: rm -rf ${dest:?}/Windows" >&2
-    return 1
+    echo "${0##*/} ERROR: rm -rf ${dest:?}/Windows" >&2 && return 1
   fi
 
   # Remove the Mac dir
   if ! rm -rf "${dest:?}"/Mac; then
-    echo "ERROR: rm -rf ${dest:?}/Mac" >&2
-    return 1
+    echo "${0##*/} ERROR: rm -rf ${dest:?}/Mac" >&2 && return 1
   fi
 
   # Remove the empty Linux dir
   if ! rm -rf "${dest:?}"/Linux; then
-    echo "ERROR: rm -rf ${dest:?}/Linux" >&2
-    return 1
+    echo "${0##*/} ERROR: rm -rf ${dest:?}/Linux" >&2 && return 1
   fi
 
   return 0
@@ -150,28 +141,17 @@ function func_deploy() {
   local dest=$2
 
   # Just move everything from the source dir to dest
-  if ! mv -v "$source"/* "$dest"/; then
-    echo "ERROR: mv -v $source/* $dest/" >&2
-    return 1
+  if ! mv "$source"/* "$dest"/; then
+    echo "${0##*/} ERROR: mv $source/* $dest/" >&2 && return 1
   fi
 
   if ! chmod +x "$dest"/TerrariaServer*; then
-    echo "ERROR: chmod +x $dest/TerrariaServer*" >&2
-    return 1
+    echo "${0##*/} ERROR: chmod +x $dest/TerrariaServer*" >&2 && return 1
   fi
 
   # Remove everything else left behind in $source
   if ! rm -rf "${source:?}"/*; then
-    echo "ERROR: rm -rf ${source:?}/*" >&2
-    return 1
-  fi
-
-  if [ -n "$(ls -A "$SERVICE_CONFIG_DIR")" ]; then
-    # Config file must be in the same dir as executable, copy it
-    if ! cp "$SERVICE_CONFIG_DIR"/* "$dest"/; then
-      echo "ERROR: cp $SERVICE_CONFIG_DIR/* $dest/" >&2
-      return 1
-    fi
+    echo "${0##*/} ERROR: rm -rf ${source:?}/*" >&2 && return 1
   fi
 
   return 0

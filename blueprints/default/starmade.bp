@@ -1,46 +1,57 @@
 #!/bin/bash
 
-# Service name, lowercase with no spaces
-SERVICE_NAME="starmade"
+# DO NOT MODIFY THIS FILE
+# Instead, make a copy of it in the blueprints directory and change all the
+# desired parameters there.
+# The name of the new file can be the same as this one, acting as an override.
+
+# Unique name, lowercase with no spaces
+BP_NAME=starmade
 
 # Port(s), used by UFW
-# Values: 1111:2222/tcp|1111:2222/udp
-SERVICE_PORT="4242"
-
-# Working directory
-SERVICE_WORKING_DIR="/opt/starmade"
+# Wrap in single quotes (')
+# Example: '1111:2222/tcp|1111:2222/udp'
+BP_PORT=4242
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-SERVICE_APP_ID="335180"
+BP_APP_ID=335180
 
-# (Optional) Only applicable if SERVICE_APP_ID != 0
+# (Optional) Only applicable if BP_APP_ID != 0
 # Values: 0 for anonymous, 1 for account required
 # Default: 0
-SERVICE_STEAM_AUTH_LEVEL="1"
+BP_STEAM_AUTH_LEVEL=1
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-SERVICE_LAUNCH_BIN="java"
+BP_LAUNCH_BIN=java
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-SERVICE_LEVEL_NAME="default"
+BP_LEVEL_NAME=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: /bin
-SERVICE_INSTALL_SUBDIRECTORY="StarMade"
+BP_INSTALL_SUBDIRECTORY=StarMade
 
 # Any args passed onto the executable
-#  can be used as an absolute path to the service directory
-# /install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS="-Xms4G -Xmx4G -jar StarMade.jar -server"
+# Availble vars that can be used:
+#   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_LEVEL_NAME
+#   $INSTANCE_WORKING_DIR
+#   $INSTANCE_BACKUPS_DIR
+#   $INSTANCE_TEMP_DIR
+#   $INSTANCE_LOGS_DIR
+#   $INSTANCE_INSTALL_DIR
+#   $INSTANCE_SAVES_DIR
+#   $INSTANCE_LEVEL_NAME
+BP_LAUNCH_ARGS="-Xms4G -Xmx4G -jar StarMade.jar -server"
 
 # (Optional) Stop command sent to the input socket
-SERVICE_SOCKET_STOP_COMMAND=""
+BP_STOP_COMMAND=
 
 # (Optional) Save command sent to the input socket
-SERVICE_SOCKET_SAVE_COMMAND=""
+BP_SAVE_COMMAND=

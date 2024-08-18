@@ -1,79 +1,131 @@
 #!/bin/bash
 
 function usage() {
-  echo "$SERVICE_NAME.manage.sh
+  echo "
 Usage:
-  ./$SERVICE_NAME.manage.sh [option]
+  \$(basename "\$0") [option]
 
 Options:
-  -h --help         Prints this message
+  -h, --help            Display this help message
+  --start               Start the server in the current terminal
+  --start --background  Start the server in the background
+  --stop                Stop the server
+  --save                Save the current game state
+  --input <command>     Send an ad-hoc command to the server
 
-  --start           Starts the service.
-                    Will cd into the working directory befores starting.
-
-  --stop            Stops the service.
-                    Will issue the save command to the input socket
-                    and wait 10 seconds before shutting down.
-
-  --save            Issue the save command to the input socket.
-
-  --input <input>   Issue an ad-hoc command to the input socket.
+Examples:
+  \$(basename "\$0") --start --background
+  \$(basename "\$0") --input /save
+  \$(basename "\$0") --stop
 "
 }
 
-[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && usage && exit 1
+set -eo pipefail
 
-[[ -f "/etc/environment" ]] && source /etc/environment
+[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
 
-WORKING_DIR="$SERVICE_WORKING_DIR"
-BACKUPS_DIR="$SERVICE_BACKUPS_DIR"
-CONFIG_DIR="$SERVICE_CONFIG_DIR"
-INSTALL_DIR="$SERVICE_INSTALL_DIR"
-SAVES_DIR="$SERVICE_SAVES_DIR"
-TEMP_DIR="$SERVICE_TEMP_DIR"
-SOCKET_FILE="$SERVICE_SOCKET_FILE"
+INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
+INSTANCE_PID_FILE=$INSTANCE_PID_FILE
+TAIL_PID_FILE=$TAIL_PID_FILE
 
-function _start() {
-  cd "\$INSTALL_DIR/$SERVICE_INSTALL_SUBDIRECTORY" || return 1
-  exec $SERVICE_LAUNCH_BIN $SERVICE_LAUNCH_ARGS
+function start_foreground() {
+  cd "$INSTANCE_LAUNCH_DIR"
+  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
 }
 
-function _stop() {
-  _save
-  sleep 10
-  echo "$SERVICE_SOCKET_STOP_COMMAND" >"\$SOCKET_FILE"
+function start_background() {
+  cd "$INSTANCE_LAUNCH_DIR"
+
+  [[ -p "\$INSTANCE_SOCKET_FILE" ]] && rm "\$INSTANCE_SOCKET_FILE"
+
+  mkfifo "\$INSTANCE_SOCKET_FILE"
+
+  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS $INSTANCE_LOGS_REDIRECT <"\$INSTANCE_SOCKET_FILE" &
+
+  local server_pid=\$!
+  echo "\$server_pid" >\$INSTANCE_PID_FILE
+  echo "$INSTANCE_FULL_NAME started with PID \$server_pid, saved to \$INSTANCE_PID_FILE"
+
+  # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
+  tail -f /dev/null > "\$INSTANCE_SOCKET_FILE" &
+  echo \$! >"\$TAIL_PID_FILE"
 }
 
-function _save() {
-  echo "$SERVICE_SOCKET_SAVE_COMMAND" >"\$SOCKET_FILE"
+function stop_server() {
+  save_game
+
+  # Send stop command to socket
+  if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "$INSTANCE_STOP_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
+    rm -f "\$INSTANCE_SOCKET_FILE"
+  fi
+
+  # Kill the tail process
+  if [[ -f "\$TAIL_PID_FILE" ]]; then
+    local tail_pid
+    tail_pid=\$(<"\$TAIL_PID_FILE")
+    if kill -0 "\$tail_pid" 2>/dev/null; then
+      kill "\$tail_pid"
+    fi
+
+    rm -f "\$TAIL_PID_FILE"
+  fi
+
+  # Kill the game server
+  if [[ -f "\$INSTANCE_PID_FILE" ]]; then
+    local server_pid
+    server_pid=\$(<"\$INSTANCE_PID_FILE")
+    if kill -0 "\$server_pid" 2>/dev/null; then
+      kill "\$server_pid"
+    fi
+
+    rm -f "\$INSTANCE_PID_FILE"
+  fi
 }
 
-function _input() {
-  echo "\$1" >"\$SOCKET_FILE"
+function save_game() {
+  if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "$INSTANCE_SAVE_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
+    sleep 5
+  else
+    echo "\${0##*/} ERROR: Save failed: No active server found." >&2
+  fi
 }
 
-#Read the argument values
-while [ \$# -gt 0 ]; do
+function send_input() {
+  if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
+    echo "\$1" >>"\$INSTANCE_SOCKET_FILE"
+  else
+    echo "\${0##*/} ERROR: Input failed: No active server found." >&2
+  fi
+}
+
+while [[ \$# -gt 0 ]]; do
   case "\$1" in
   -h | --help)
     usage && exit 0
     ;;
   --start)
-    _start
+    shift
+    if [[ "\$1" == "--background" ]]; then
+      start_background
+    else
+      start_foreground
+    fi
     ;;
   --stop)
-    _stop
+    stop_server
     ;;
   --save)
-    _save
+    save_game
     ;;
   --input)
     shift
-    [[ -z "\$1" ]] && echo "\${0##*/} ERROR: Missing argument <input>" >&2 && exit 1
-    _input "\$1"
+    [[ -z "\$1" ]] && { echo "ERROR: Missing argument <command>" >&2; exit 1; }
+    send_input "\$1"
     ;;
   *)
-    echo "\${0##*/} ERROR: Unknown argument \$1" >&2 && exit 1
+    echo "ERROR: Unknown argument \$1" >&2 && exit 1
     ;;
   esac
   shift

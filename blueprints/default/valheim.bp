@@ -1,49 +1,60 @@
 #!/bin/bash
 
-# Service name, lowercase with no spaces
-SERVICE_NAME=valheim
+# DO NOT MODIFY THIS FILE
+# Instead, make a copy of it in the blueprints directory and change all the
+# desired parameters there.
+# The name of the new file can be the same as this one, acting as an override.
+
+# Unique name, lowercase with no spaces
+BP_NAME=valheim
 
 # Port(s), used by UFW
-# Values: 1111:2222/tcp|1111:2222/udp
-SERVICE_PORT="2456:2458/tcp|2456:2458/udp"
-
-# Working directory
-SERVICE_WORKING_DIR="/opt/valheim"
+# Wrap in single quotes (')
+# Example: '1111:2222/tcp|1111:2222/udp'
+BP_PORT="2456:2458"
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-SERVICE_APP_ID=896660
+BP_APP_ID=896660
 
 # (Optional)
-# Only applicable if SERVICE_APP_ID != 0
+# Only applicable if BP_APP_ID != 0
 # Values: 0 for anonymous, 1 for account required
 # Default: 0
-SERVICE_STEAM_AUTH_LEVEL=0
+BP_STEAM_AUTH_LEVEL=0
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-SERVICE_LAUNCH_BIN=start_server_bepinex.sh
+BP_LAUNCH_BIN=start_server_bepinex.sh
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-SERVICE_LEVEL_NAME="default"
+BP_LEVEL_NAME=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-SERVICE_INSTALL_SUBDIRECTORY=
+BP_INSTALL_SUBDIRECTORY=
 
 # Any args passed onto the executable
-# $WORKING_DIR can be used as an absolute path to the service directory
-# $WORKING_DIR/install is the complete path to where the service is installed
-SERVICE_LAUNCH_ARGS=
+# Availble vars that can be used:
+#   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_LEVEL_NAME
+#   $INSTANCE_WORKING_DIR
+#   $INSTANCE_BACKUPS_DIR
+#   $INSTANCE_TEMP_DIR
+#   $INSTANCE_LOGS_DIR
+#   $INSTANCE_INSTALL_DIR
+#   $INSTANCE_SAVES_DIR
+#   $INSTANCE_LEVEL_NAME
+BP_LAUNCH_ARGS=
 
 # (Optional)
 # Stop command sent to the input socket
-SERVICE_SOCKET_STOP_COMMAND=
+BP_STOP_COMMAND=
 
 # (Optional)
 # Save command sent to the input socket
-SERVICE_SOCKET_SAVE_COMMAND=
+BP_SAVE_COMMAND=

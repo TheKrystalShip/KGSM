@@ -1,3 +1,5 @@
-config.cfg
+config.ini
 blueprints/*.bp
 !blueprints/default/*.bp
+instances/*.ini
+instances/**/*.ini

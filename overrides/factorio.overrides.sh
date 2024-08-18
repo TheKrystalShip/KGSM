@@ -26,20 +26,32 @@
 #
 # Available global vars:
 #
-# SERVICE_NAME
-# SERVICE_WORKING_DIR
-# SERVICE_INSTALLED_VERSION
-# SERVICE_APP_ID
-# SERVICE_STEAM_AUTH_LEVEL
-# IS_STEAM_GAME # 0 (false), 1 (true)
-# SERVICE_BACKUPS_DIR
-# SERVICE_CONFIG_DIR
-# SERVICE_INSTALL_DIR
-# SERVICE_SAVES_DIR
-# SERVICE_TEMP_DIR
+# INSTANCE_ID
+# INSTANCE_NAME
+# INSTANCE_FULL_NAME
+# INSTANCE_WORKING_DIR
+# INSTANCE_INSTALL_DIR
+# INSTANCE_SAVES_DIR
+# INSTANCE_TEMP_DIR
+# INSTANCE_BACKUPS_DIR
+# INSTANCE_LOGS_DIR
+# INSTANCE_INSTALL_DATETIME
+# INSTANCE_BLUEPRINT_FILE
+# INSTANCE_LEVEL_NAME
+# INSTANCE_PORT
+# INSTANCE_LAUNCH_BIN
+# INSTANCE_LAUNCH_ARGS
+# INSTANCE_LIFECYCLE_MANAGER
+# INSTANCE_MANAGE_FILE
+# INSTANCE_INSTALLED_VERSION
 #
-# SERVICE_OVERRIDES_SCRIPT_FILE
-# SERVICE_MANAGE_SCRIPT_FILE
+# (Optional) INSTANCE_STOP_COMMAND
+# (Optional) INSTANCE_SAVE_COMMAND
+# (Optional) INSTANCE_PID_FILE
+# (Optional) INSTANCE_OVERRIDES_FILE
+# (Optional) INSTANCE_UFW_FILE
+# (Optional) INSTANCE_SYSTEMD_SERVICE_FILE
+# (Optional) INSTANCE_SYSTEMD_SOCKET_FILE
 ################################################################################
 
 # INPUT:
@@ -49,9 +61,7 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function func_get_latest_version() {
-  # shellcheck disable=SC2034
-  result=$(wget -qO- 'https://factorio.com/api/latest-releases' | jq .stable.headless | tr -d '"')
-  echo -n "$result"
+  wget -qO - 'https://factorio.com/api/latest-releases' | jq .stable.headless | tr -d '"'
 }
 
 # INPUT:
@@ -70,20 +80,20 @@ function func_download() {
   local output_file="$dest/factorio_headless.tar.xz"
 
   # Download
-  if ! wget https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
-    echo "ERROR: wget https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
+  if ! wget -q https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
+    echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
     return
   fi
 
   # Extract
   if ! tar -xf "$output_file" --strip-components=1 -C "$dest"; then
-    echo "ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2
+    echo "${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2
     return
   fi
 
   # Remove trailing file
   if ! rm "$output_file"; then
-    echo "ERROR: rm $output_file" >&2
+    echo "${0##*/} ERROR: rm $output_file" >&2
     return
   fi
 
@@ -96,13 +106,13 @@ function func_deploy() {
   local dest=$2
 
   if ! mv -f "$source"/* "$dest"; then
-    echo "ERROR: Failed copy contents from $source into $dest" >&2 && return 1
+    echo "${0##*/} ERROR: Failed copy contents from $source into $dest" >&2 && return 1
   fi
 
-  if [ -f "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME" ]; then
+  if [ -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]; then
     return 0
   fi
 
-  cd "$SERVICE_INSTALL_DIR/bin/x64" || return 1
-  ./"$SERVICE_LAUNCH_BIN" --create "$SERVICE_SAVES_DIR/$SERVICE_LEVEL_NAME"
+  cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
+  ./"$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME"
 }
