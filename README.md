@@ -30,12 +30,14 @@ The following packages are required in order to use KGSM:
 grep jq wget unzip tar sed coreutils findutils steamcmd
 ```
 
-- If [SteamCMD][1] is not
-  available through your distribution's package manager, you will need to
-  manually set it up and ensure `steamcmd` is available from the `$PATH`.
+> [!NOTE]
+>
+> If [SteamCMD][1] is not
+> available through your distribution's package manager, you will need to
+> manually set it up and ensure `steamcmd` is available from the `$PATH`.
 
-Optionally, KGSM can integrate with `systemd` and `ufw` through a configuration
-toggle.
+Optionally, KGSM can integrate with `systemd` and `ufw` with a simple
+configuration toggle.
 
 ## Download
 
