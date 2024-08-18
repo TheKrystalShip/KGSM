@@ -18,6 +18,12 @@ KGSM keeps all **blueprint** files inside the `blueprints/default` directory.
 These files contain the default configuration for each game server that KGSM
 supports.
 
+To get a list of all blueprints you can run:
+
+```sh
+./kgsm.sh --blueprints
+```
+
 ## I need to change some values in a default blueprint
 
 In the case where the default values need changing (for example the game world
@@ -30,8 +36,8 @@ The name of the new blueprints can be the same as the default, essentialy
 working as an override for it.
 
 > [!IMPORTANT]
-> The **.bp** extension is required in order for KGSM to load the
-> blueprint correctly
+> The **.bp** extension in the file name is required in order for KGSM to load
+> the blueprint correctly.
 
 ## I want to make a blueprint for a game KGSM doesn't have
 
@@ -39,4 +45,4 @@ Any new blueprint you make should be places in the `blueprints` directory and
 not in the `blueprints/default` directory.
 
 Also if you feel like your new blueprint should be part of KGSM, don't hesitate
-to make a request to add it!
+to [make a request](https://github.com/TheKrystalShip/KGSM/issues/new) to add it!

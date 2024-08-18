@@ -19,7 +19,7 @@ Instance configuration files can be found in the `instances` directory.
 To see a list of created instances, you can run:
 
 ```sh
-./kgsm --instances
+./kgsm.sh --instances
 ```
 
 ## How to create an instance?

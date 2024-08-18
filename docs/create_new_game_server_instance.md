@@ -76,16 +76,14 @@ steps.
 ### 3. Generate directory structure
 
 ```sh
-./modules/directories.sh -i $instance_config --install
+./modules/directories.sh -i $instance_config --create
 ```
 
 ### 4. Generate required files to run the service
 
 ```sh
-sudo ./modules/files.sh -i $instance_config --install
+./modules/files.sh -i $instance_config --create
 ```
-
-Root permissions are needed for `systemd` and `ufw`
 
 KGSM will generate a `<instance>.manage.sh` file inside the install directory
 that's used to start/stop/restart and interact with the service socket for input
@@ -101,10 +99,15 @@ required `<instance>.service` and `<instance>.socket` files inside
 If `USE_UFW` is enabled in `config.ini` it will create and enable the ufw
 firewall rule file in `UFW_RULES_DIR`.
 
+> [!NOTE]
+>
+> Root permissions are needed if `USE_SYSTEMD` or `USE_UFW` integration is
+> enabled in `config.ini`. The script will prompt for password if/when needed.
+
 ### 5. Fetch the latest version available
 
 ```sh
-latest_version=$(./modules/version.sh --blueprint factorio --latest)
+latest_version=$(./modules/version.sh -i $instance_config --latest)
 ```
 
 KGSM will internally account for any existing `[blueprint].overrides.sh`
@@ -134,7 +137,7 @@ and it will prompt for confirmation if `INSTANCE_INSTALL_DIR` is not empty.
 ### 8. Save the version
 
 ```sh
-./modules/version.sh --blueprint factorio --save $latest_version
+./modules/version.sh -i $instance_config --save $latest_version
 ```
 
 ### 9. Done
