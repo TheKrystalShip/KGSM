@@ -67,9 +67,10 @@ Usage:
 Options:
   \e[4mGeneral\e[0m
     -h, --help                  Print this help message.
-      --interactive             Print help information for interactive mode.
+
+      [--interactive]           Print help information for interactive mode.
     --update                    Update KGSM to the latest version.
-      --force                   Ignore version check and download the latest
+      [--force]                 Ignore version check and download the latest
                                 version available.
     --ip                        Get the external server IP used to connect to
                                 the server.
@@ -77,15 +78,19 @@ Options:
 
   \e[4mBlueprints\e[0m
     --create-blueprint          Create a new blueprints file.
-      -h, --help                Print help information about the blueprint
+      [-h, --help]              Print help information about the blueprint
                                 creation process.
     --blueprints                List all available blueprints.
     --install BLUEPRINT         Run the installation process for an existing
                                 blueprint.
                                 BLUEPRINT must be the name of a blueprint.
                                 Run --blueprints to see available options.
-      --install-dir <dir>       Needed in case KGSM_DEFAULT_INSTALL_DIR is not
-                                set
+      [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
+                                set.
+      [--version <version>]     CURRENTLY NOT USED
+                                Specific version to install.
+      [--id <id>]               Identifier for the instance as an alternative
+                                from letting KGSM generate one.
 
   \e[4mInstances\e[0m
     --instances [blueprint]     List all installed instances.
@@ -104,8 +109,8 @@ Options:
       -v, --version             Provide version information.
                                 Running this with no other argument has the same
                                 outcome as adding the --installed argument.
-        --installed             Print the currently installed version.
-        --latest                Print the latest available version.
+        [--installed]           Print the currently installed version.
+        [--latest]              Print the latest available version.
       --check-update            Check if a new version is available.
       --update                  Run the update process.
       --create-backup           Create a backup of the currently installed
@@ -306,20 +311,29 @@ MODULE_INSTANCE="$(find "$MODULES_SOURCE_DIR" -type f -name instances.sh)"
 function _install() {
   local blueprint=$1
   local install_dir=$2
-  local version=${3:-""}
+  local version=$3
+  local identifier=${4:-}
 
   if [[ "$blueprint" != *.bp ]]; then
     blueprint="${blueprint}.bp"
   fi
 
-  # TODO: Add option for user to specify instance name, for easy identificiation
-
   local instance
-  instance="$("$MODULE_INSTANCE" --create "$blueprint" --install-dir "$install_dir")"
+
+  # The user can pass an instance identifier instead of having KGSM generate
+  # one, for ease of use or easy identification. However it's not mandatory,
+  # if the user doen't pass one, the $MODULE_INSTANCE will generate one
+  # and use it without any issues.
+  if [[ -z "$identifier" ]]; then
+    instance="$("$MODULE_INSTANCE" --create "$blueprint" --install-dir "$install_dir")"
+  else
+    instance="$("$MODULE_INSTANCE" --create "$blueprint" --install-dir "$install_dir" --id "$identifier")"
+  fi
+
   "$MODULE_DIRECTORIES" -i "$instance" --create $debug || return $?
   $SUDO "$MODULE_FILES" -i "$instance" --create $debug || return $?
 
-  if [[ -z "$version" ]]; then
+  if [[ -z "$version" ]] || [[ "$version" -eq 0 ]]; then
     version=$("$MODULE_VERSION" -i "$instance" --latest)
   fi
 
@@ -460,9 +474,17 @@ KGSM - Interactive menu
       read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
     fi
 
+    read -r -p "Version to install (leave empty for latest): " version
+    read -r -p "Instance identifier (leave empty for default): " identifier
+
     echo "Creating an instance of $blueprint_or_instance..." >&2
     # shellcheck disable=SC2086
-    "$0" $action $blueprint_or_instance --install-dir $install_directory $debug
+    "$0" \
+      $action $blueprint_or_instance \
+      --install-dir $install_directory \
+      ${version:+--version "$version"} \
+      ${identifier:+--id "$identifier"} \
+      $debug
     ;;
   --restore-backup)
     # shellcheck disable=SC2207
@@ -509,22 +531,37 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
     bp_to_install="$1"
-    install_dir=${INSTANCE_DEFAULT_INSTALL_DIR:-}
+    bp_install_dir=$INSTANCE_DEFAULT_INSTALL_DIR
+    bp_install_version=0
+    bp_id=
     shift
     if [ -n "$1" ]; then
-      case "$1" in
-      --install-dir)
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+        --install-dir)
+          shift
+          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
+          bp_install_dir="$1"
+          ;;
+        --version)
+          shift
+          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
+          bp_install_version=$1
+          ;;
+        --id)
+          shift
+          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <id>" >&2 && exit 1
+          bp_id=$1
+          ;;
+        *)
+          echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+          ;;
+        esac
         shift
-        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
-        install_dir="$1"
-        ;;
-      *)
-        echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
-        ;;
-      esac
+      done
     fi
-    [[ -z "$install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
-    _install "$bp_to_install" "$install_dir" && exit $?
+    [[ -z "$bp_install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
+    _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id && exit $?
     ;;
   --blueprints)
     "$MODULE_BLUEPRINTS" --list && exit $?

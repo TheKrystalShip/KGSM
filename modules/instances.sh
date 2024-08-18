@@ -9,6 +9,7 @@ Usage:
 Options:
   -h, --help                      Prints this message
 
+  --generate-id <blueprint>       Create a unique instance identifier
   --list [blueprint]              Prints a list of all instances.
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
@@ -114,6 +115,7 @@ function _generate_unique_instance_name() {
 function _create_instance() {
   local blueprint=$1
   local install_dir=$2
+  local identifier=${3:-}
 
   if [[ "$blueprint" != *.bp ]]; then
     blueprint=${blueprint}.bp
@@ -127,8 +129,14 @@ function _create_instance() {
   local service_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   export instance_name=$service_name
 
-  # shellcheck disable=SC2155
-  export instance_full_name=$(_generate_unique_instance_name "$service_name")
+  instance_full_name=$identifier
+  if [[ -z "$instance_full_name" ]]; then
+    instance_full_name=$(_generate_unique_instance_name "$service_name")
+  else
+    instance_full_name="${service_name}-${identifier}"
+  fi
+
+  export instance_full_name
   export instance_id=${instance_full_name##*-}
 
   # shellcheck disable=SC2155
@@ -477,6 +485,11 @@ while [[ $# -gt 0 ]]; do
     done
     _list_instances "$blueprint" "$detailed" && exit $?
     ;;
+  --generate-id)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
+    _generate_unique_instance_name "$1" && exit $?
+    ;;
   --logs)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
@@ -510,19 +523,30 @@ while [[ $# -gt 0 ]]; do
   --create)
     blueprint=
     install_dir=
+    identifier=
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" && exit 1
     blueprint=$1
     shift
-    case "$1" in
-    --install-dir)
-      shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
-      install_dir=$1
-      ;;
-    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
-    esac
-    _create_instance $blueprint $install_dir && exit $?
+    if [[ -n "$1" ]]; then
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+        --install-dir)
+          shift
+          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
+          install_dir=$1
+          ;;
+        --id)
+          shift
+          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <id>" >&2 && exit 1
+          identifier=$1
+          ;;
+        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        esac
+        shift
+      done
+    fi
+    _create_instance "$blueprint" "$install_dir" $identifier && exit $?
     ;;
   --remove)
     shift
