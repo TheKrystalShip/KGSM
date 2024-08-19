@@ -28,7 +28,7 @@ Options:
                                   <install_dir> Directory where the instance
                                   will be created.
   --remove <instance>             Remove an instance's configuration
-  --print-info <instance>         Print a detailed description of an instance
+  --info <instance>         Print a detailed description of an instance
 
 Examples:
   $(basename "$0") --create test.bp --install-dir /opt
@@ -553,7 +553,7 @@ while [[ $# -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
     _remove "$1" && exit $?
     ;;
-  --print-info)
+  --info)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
     _print_info "$1"
