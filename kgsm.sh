@@ -97,11 +97,12 @@ Options:
                                 Optionally a blueprint name can be specified in
                                 order to only list instances of that blueprint
 
-    --instance INSTANCE OPTION  Interact with an instance.
+    -i, --instance <x> OPTION   Interact with an instance.
                                 OPTION represents one of the following:
 
       --logs                    Return the last 10 lines of the instance log.
       --status                  Return a detailed running status.
+      --info                    Print information about the instance.
       --is-active               Check if the instance is active.
       --start                   Start the instance.
       --stop                    Stop the instance.
@@ -577,7 +578,7 @@ while [[ "$#" -gt 0 ]]; do
   --instances)
     "$MODULE_INSTANCE" --list --detailed && exit $?
     ;;
-  --instance)
+  -i | --instance)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
     instance=$1
@@ -589,6 +590,9 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --status)
       "$MODULE_INSTANCE" --status "$instance" && exit $?
+      ;;
+    --info)
+      "$MODULE_INSTANCE" --info "$instance" && exit $?
       ;;
     --is-active)
       "$MODULE_INSTANCE" --is-active "$instance" && exit $?
