@@ -129,18 +129,18 @@ function __create_manage_file() {
   # Stores PID of the dummy writer that keeps input socket alive
   export TAIL_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.tail.pid"
 
-    stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(date +"%Y-%m-%dT%H:%M:%S")\".log"
+  stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(date +"%Y-%m-%dT%H:%M:%S")\".log"
 
-    export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>&1"
+  export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>&1"
 
-    if grep -q "INSTANCE_PID_FILE=" <"$INSTANCE_CONFIG_FILE"; then
-      sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
-    else
-      {
-        echo ""
-        echo "# File where the instance process ID will be stored while the instance is running"
-        echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
-      } >>"$INSTANCE_CONFIG_FILE"
+  if grep -q "INSTANCE_PID_FILE=" <"$INSTANCE_CONFIG_FILE"; then
+    sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$INSTANCE_CONFIG_FILE" >/dev/null
+  else
+    {
+      echo ""
+      echo "# File where the instance process ID will be stored while the instance is running"
+      echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
+    } >>"$INSTANCE_CONFIG_FILE"
   fi
 
   # Create manage.sh from template and put it in $instance_manage_file
@@ -218,8 +218,10 @@ function __create_overrides_file() {
 }
 
 function __systemd_uninstall() {
-  [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a systemd service file set" >&2 && return 1
-  [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]] && echo "${0##*/} ERROR: $INSTANCE_FULL_NAME doesn't have a systemd socket file set" >&2 && return 1
+  if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
+    # Nothing to uninstall
+    return 0
+  fi
 
   if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
     if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME" &>/dev/null; then
@@ -277,11 +279,24 @@ function __systemd_install() {
   # Required by template
   # shellcheck disable=SC2155
   export INSTANCE_MANAGE_FILE=$(grep "INSTANCE_MANAGE_FILE=" <"$INSTANCE_CONFIG_FILE" | cut -d "=" -f2 | tr -d '"')
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.stdin
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin
 
-  # If either files already exist, uninstall first
-  if [ -f "$instance_systemd_service_file" ] || [ -f "$instance_systemd_socket_file" ]; then
-    if ! _uninstall; then return 1; fi
+  # If service file already exists, check that it belongs to the instance
+  if [[ -f "$instance_systemd_service_file" ]]; then
+    if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
+      echo "${0##*/} ERROR: File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" >&2 && return 1
+    else
+      if ! __systemd_uninstall; then return 1; fi
+    fi
+  fi
+
+  # If socket file already exists, check that it belongs to the instance
+  if [[ -f "$instance_systemd_socket_file" ]]; then
+    if [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
+      echo "${0##*/} ERROR: File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" >&2 && return 1
+    else
+      if ! __systemd_uninstall; then return 1; fi
+    fi
   fi
 
   INSTANCE_USER=$USER
