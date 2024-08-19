@@ -301,6 +301,10 @@ EOF
     echo "${0##*/} ERROR: Failed to move $temp_systemd_socket_file into $instance_systemd_service_file" >&2 && return 1
   fi
 
+  if ! $SUDO chown root:root "$instance_systemd_service_file"; then
+    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_systemd_service_file" >&2 && return 1
+  fi
+
   # Create the socket file
   if ! eval "cat <<EOF
 $(<"$socket_template_file")
@@ -311,6 +315,10 @@ EOF
 
   if ! $SUDO mv "$temp_systemd_socket_file" "$instance_systemd_socket_file"; then
     echo "${0##*/} ERROR: Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file" >&2 && return 1
+  fi
+
+  if ! $SUDO chown root:root "$instance_systemd_socket_file"; then
+    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_systemd_socket_file" >&2 && return 1
   fi
 
   # Reload systemd
