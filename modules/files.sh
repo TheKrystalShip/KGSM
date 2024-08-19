@@ -129,10 +129,6 @@ function __create_manage_file() {
   # Stores PID of the dummy writer that keeps input socket alive
   export TAIL_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.tail.pid"
 
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    INSTANCE_LOGS_REDIRECT=""
-  else
-    # shellcheck disable=SC2140
     stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(date +"%Y-%m-%dT%H:%M:%S")\".log"
 
     export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>&1"
@@ -145,7 +141,6 @@ function __create_manage_file() {
         echo "# File where the instance process ID will be stored while the instance is running"
         echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
       } >>"$INSTANCE_CONFIG_FILE"
-    fi
   fi
 
   # Create manage.sh from template and put it in $instance_manage_file
