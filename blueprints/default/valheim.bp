@@ -11,7 +11,7 @@ BP_NAME=valheim
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT="2456:2458"
+BP_PORT='2456:2458/tcp|2456:2458/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise

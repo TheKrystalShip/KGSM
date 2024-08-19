@@ -11,7 +11,7 @@ BP_NAME=7dtd
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='26900:26903/tpc|26900:26903/udp'
+BP_PORT='26900:26903/tcp|26900:26903/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise

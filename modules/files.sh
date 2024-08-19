@@ -403,6 +403,11 @@ EOF
     echo "${0##*/} ERROR: Failed to move $temp_ufw_file into $instance_ufw_file" >&2 && return 1
   fi
 
+  # UFW expect the rule file to belong to root
+  if ! $SUDO chown root:root "$instance_ufw_file"; then
+    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_ufw_file" >&2 && return 1
+  fi
+
   # Enable firewall rule
   if ! $SUDO ufw allow "$INSTANCE_FULL_NAME" &>/dev/null; then
     echo "${0##*/} ERROR: Failed to allow UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1

@@ -11,7 +11,7 @@ BP_NAME=left4dead
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='27015:27020'
+BP_PORT='27015:27020/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
