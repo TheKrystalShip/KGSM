@@ -93,6 +93,7 @@ Options:
                                 from letting KGSM generate one.
 
   \e[4mInstances\e[0m
+    --uninstall <instance>      Run the uninstall process for an instance.
     --instances [blueprint]     List all installed instances.
                                 Optionally a blueprint name can be specified in
                                 order to only list instances of that blueprint
@@ -123,7 +124,6 @@ Options:
                                   ufw, systemd
         --remove OPTION         Remove functionality. Possible options:
                                   ufw, systemd
-      --uninstall               Run the uninstall process.
 " "$DESCRIPTION"
 }
 
@@ -480,6 +480,9 @@ KGSM - Interactive menu
       ${identifier:+--id "$identifier"} \
       $debug
     ;;
+  --uninstall)
+    "$0" --uninstall "$blueprint_or_instance"
+    ;;
   --restore-backup)
     # shellcheck disable=SC2207
     backups_array=($("$module_backup" -i "$blueprint_or_instance" --list))
@@ -595,6 +598,11 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$bp_install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
     _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id && exit $?
     ;;
+  --uninstall)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    _uninstall "$1" && exit $?
+    ;;
   --blueprints)
     "$module_blueprints" --list && exit $?
     ;;
@@ -707,9 +715,6 @@ while [[ "$#" -gt 0 ]]; do
         ;;
       *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
       esac
-      ;;
-    --uninstall)
-      _uninstall "$instance" && exit $?
       ;;
     *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
