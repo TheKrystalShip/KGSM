@@ -95,14 +95,13 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-MODULE_COMMON="$(find "$KGSM_ROOT" -type f -name common.sh)"
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-
-TEMPLATE_INPUT_FILE="$(find "$KGSM_ROOT" -type f -name blueprint.tp)"
-[[ -z "$TEMPLATE_INPUT_FILE" ]] && echo "${0##*/} ERROR: Failed to load template blueprint.tp" >&2 && exit 1
+module_common="$(find "$KGSM_ROOT" -type f -name common.sh)"
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
+source "$module_common" || exit 1
+
+template_input_file=$(__load_template blueprint.tp)
 
 _name=""
 _port=""
@@ -231,7 +230,7 @@ BLUEPRINT_OUTPUT_FILE="$BLUEPRINTS_SOURCE_DIR/$_name.bp"
 
 # Create blueprint from template file
 if ! eval "cat <<EOF
-$(<"$TEMPLATE_INPUT_FILE")
+$(<"$template_input_file")
 EOF
 " >"$BLUEPRINT_OUTPUT_FILE" 2>/dev/null; then
   echo "${0##*/} ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE" >&2

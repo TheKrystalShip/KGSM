@@ -44,10 +44,10 @@ while [[ "$#" -gt 0 ]]; do
   -i | --instance)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    INSTANCE=$1
+    instance=$1
     ;;
   --verbose)
-    VERBOSE=1
+    verbose=1
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
@@ -78,24 +78,21 @@ if [ -z "$KGSM_CONFIG_LOADED" ]; then
   export KGSM_CONFIG_LOADED=1
 fi
 
-VERSION_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name version.sh)"
-DOWNLOAD_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name download.sh)"
-BACKUP_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name backup.sh)"
-DEPLOY_SCRIPT_FILE="$(find "$KGSM_ROOT" -type f -name deploy.sh)"
+[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
 
-MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
+source "$module_common" || exit 1
 
-[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
-
-INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
-[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
+module_version=$(__load_module version.sh)
+module_download=$(__load_module download.sh)
+module_backup=$(__load_module backup.sh)
+module_deploy=$(__load_module deploy.sh)
 
 # shellcheck disable=SC1090
-source "$INSTANCE_CONFIG_FILE" || exit 1
+source "$(__load_instance "$instance")" || exit 1
 
 function func_exit_error() {
   printf "\t%s\n" "${*:- Update process cancelled}" >&2
@@ -115,25 +112,25 @@ function func_print_title() {
 
 function func_main() {
 
-  [[ $VERBOSE ]] && func_print_title "Update process started for $INSTANCE_FULL_NAME"
+  [[ $verbose ]] && func_print_title "Update process started for $INSTANCE_FULL_NAME"
 
   ############################################################################
   #### Check for new version
   ############################################################################
 
-  if [[ $VERBOSE ]]; then
+  if [[ $verbose ]]; then
     func_print_title "1/7 Version check"
     printf "\n\tChecking for latest version...\n" >&2
   fi
 
   # shellcheck disable=SC2155
-  local latest_version=$("$VERSION_SCRIPT_FILE" -i "$INSTANCE" --latest)
+  local latest_version=$("$module_version" -i "$instance" --latest)
 
-  [[ "$VERBOSE" ]] && printf "\tInstalled version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
+  [[ "$verbose" ]] && printf "\tInstalled version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
 
   [[ -z "$latest_version" ]] && echo "${0##*/} ERROR: new version number is empty, exiting" >&2 && return 1
 
-  [[ "$VERBOSE" ]] && printf "\tLatest version available:\t%s\n" "$latest_version"
+  [[ "$verbose" ]] && printf "\tLatest version available:\t%s\n" "$latest_version"
 
   if [[ "$SERVICE_INSTALLED_VERSION" == "$latest_version" ]]; then
     printf "\tWARNING: latest version already installed. Continuing would overwrite existing install\n" >&2
@@ -144,22 +141,22 @@ function func_main() {
   #### Download new version
   ############################################################################
 
-  if [[ "$VERBOSE" ]]; then
+  if [[ "$verbose" ]]; then
     func_print_title "2/7 Download"
     printf "\n\tDownloading version %s\n\n" "$latest_version" >&2
   fi
 
-  if ! "$DOWNLOAD_SCRIPT_FILE" -i "$INSTANCE"; then
+  if ! "$module_download" -i "$instance"; then
     echo "${0##*/} ERROR: Failed to download new version, exiting" >&2 && return 1
   fi
 
-  [[ "$VERBOSE" ]] && printf "\n\tDownload completed\n\n"
+  [[ "$verbose" ]] && printf "\n\tDownload completed\n\n"
 
   ############################################################################
   #### Check if service is currently running and shut it down if needed
   ############################################################################
 
-  if [[ "$VERBOSE" ]]; then
+  if [[ "$verbose" ]]; then
     func_print_title "3/7 Service status"
     printf "\n\tChecking current service status\n\n" >&2
   fi
@@ -167,77 +164,77 @@ function func_main() {
   service_status=0
   if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
     service_status=1
-    [[ "$VERBOSE" ]] && printf "\n\tWARNING: Service currently running, shutting down first...\n" >&2
+    [[ "$verbose" ]] && printf "\n\tWARNING: Service currently running, shutting down first...\n" >&2
 
-    if ! systemctl stop "$INSTANCE_FULL_NAME"; then
+    if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME"; then
       echo "${0##*/} ERROR: Failed to shutdown service, exiting" >&2 && return 1
     else
 
-      [[ "$VERBOSE" ]] && printf "\n\tService shutdown complete, continuing\n\n" >&2
+      [[ "$verbose" ]] && printf "\n\tService shutdown complete, continuing\n\n" >&2
     fi
   else
-    [[ "$VERBOSE" ]] && printf "\n\tService status %s, continuing\n\n" "$service_status" >&2
+    [[ "$verbose" ]] && printf "\n\tService status %s, continuing\n\n" "$service_status" >&2
   fi
 
   ############################################################################
   #### Backup existing install if it exists
   ############################################################################
 
-  if [[ "$VERBOSE" ]]; then
+  if [[ "$verbose" ]]; then
     func_print_title "4/7 Backup"
     printf "\n\tCreating backup of current version\n\n" >&2
   fi
 
-  if ! "$BACKUP_SCRIPT_FILE" -i "$INSTANCE" --create; then
+  if ! "$module_backup" -i "$instance" --create; then
     echo "${0##*/} ERROR: Failed to create backup, exiting" >&2 && return 1
   fi
 
-  [[ "$VERBOSE" ]] && printf "\n\tBackup complete\n\n" >&2
+  [[ "$verbose" ]] && printf "\n\tBackup complete\n\n" >&2
 
   ############################################################################
   #### Deploy newly downloaded version
   ############################################################################
 
-  if [[ "$VERBOSE" ]]; then
+  if [[ "$verbose" ]]; then
     func_print_title "5/7 Deployment"
     printf "\n\tDeploying %s...\n\n" "$latest_version" >&2
   fi
 
-  if ! "$DEPLOY_SCRIPT_FILE" -i "$INSTANCE"; then
+  if ! "$module_deploy" -i "$instance"; then
     echo "${0##*/} ERROR: Failed to deploy $latest_version, exiting" >&2 && return 1
   fi
 
-  [[ "$VERBOSE" ]] && printf "\n\tDeployment complete.\n\n"
+  [[ "$verbose" ]] && printf "\n\tDeployment complete.\n\n"
 
   ############################################################################
   #### Restore service state if needed
   ############################################################################
 
-  [[ "$VERBOSE" ]] && func_print_title "6/7 Service restore"
+  [[ "$verbose" ]] && func_print_title "6/7 Service restore"
 
   if [[ "$service_status" -eq 1 ]]; then
-    [[ "$VERBOSE" ]] && printf "\n\tStarting the service back up\n\n"
+    [[ "$verbose" ]] && printf "\n\tStarting the service back up\n\n"
 
-    if ! systemctl start "$INSTANCE_FULL_NAME"; then
+    if ! $SUDO systemctl start "$INSTANCE_FULL_NAME"; then
       echo "${0##*/} ERROR: Failed to restore service to running state, exiting" >&2 && return 1
     fi
 
-    [[ "$VERBOSE" ]] && printf "\n\tService started successfully\n\n"
+    [[ "$verbose" ]] && printf "\n\tService started successfully\n\n"
   else
-    [[ "$VERBOSE" ]] && printf "\n\tService was %s, skipping restore step\n\n" "$service_status"
+    [[ "$verbose" ]] && printf "\n\tService was %s, skipping restore step\n\n" "$service_status"
   fi
 
   ############################################################################
   #### Save the new installed version number
   ############################################################################
 
-  if [[ "$VERBOSE" ]]; then
+  if [[ "$verbose" ]]; then
     func_print_title "7/7 Updating version record"
     printf "\n\t Saving new version %s\n\n" "$latest_version"
   fi
 
   # Save new version to SERVICE_VERSION_FILE
-  "$VERSION_SCRIPT_FILE" -i "$INSTANCE" --save "$latest_version"
+  "$module_version" -i "$instance" --save "$latest_version"
 
   return 0
 }

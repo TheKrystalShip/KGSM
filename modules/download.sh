@@ -45,12 +45,12 @@ while [[ "$#" -gt 0 ]]; do
   -i | --instance)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    INSTANCE=$1
+    instance=$1
     ;;
   -v | --version)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
-    VERSION=$1
+    version=$1
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
@@ -84,29 +84,22 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-MODULE_OVERRIDES="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-[[ -z "$MODULE_OVERRIDES" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+
+# shellcheck disable=SC1090
+source "$module_common" || exit 1
+
+module_overrides=$(__load_module overrides.sh)
+
+# shellcheck disable=SC1090
+source "$(__load_instance "$instance")" || exit 1
 
 # If no version is passed, just fetch the latest
-if [[ -z "$VERSION" ]]; then
-  MODULE_VERSION="$(find "$KGSM_ROOT" -type f -name version.sh)"
-  [[ -z "$MODULE_VERSION" ]] && echo "${0##*/} ERROR: Failed to load module version.sh" >&2 && exit 1
-  VERSION=$("$MODULE_VERSION" -i "$INSTANCE" --latest)
+if [[ -z "$version" ]]; then
+  module_version=$(__load_module version.sh)
+  version=$("$module_version" -i "$instance" --latest)
 fi
-
-MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
-
-# shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
-
-[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
-
-INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
-[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
-
-# shellcheck disable=SC1090
-source "$INSTANCE_CONFIG_FILE" || exit 1
 
 # Calls SteamCMD to handle the download
 function func_download() {
@@ -135,8 +128,8 @@ function func_download() {
 }
 
 # shellcheck disable=SC1090
-source "$MODULE_OVERRIDES" "$INSTANCE" || exit 1
+source "$module_overrides" "$instance" || exit 1
 
-func_download "$VERSION" "$INSTANCE_TEMP_DIR" || exit $?
+func_download "$version" "$INSTANCE_TEMP_DIR" || exit $?
 
 exit 0

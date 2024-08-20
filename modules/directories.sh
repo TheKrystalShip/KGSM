@@ -45,7 +45,7 @@ while [[ "$#" -gt 0 ]]; do
   -i | --instance)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    INSTANCE=$1
+    instance=$1
     ;;
   *)
     break
@@ -79,19 +79,15 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
+source "$module_common" || exit 1
 
-[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
-
-INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
-[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
-
+instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
-source "$INSTANCE_CONFIG_FILE" || exit 1
+source "$instance_config_file" || exit 1
 
 declare -A DIR_ARRAY=(
   ["INSTANCE_WORKING_DIR"]=$INSTANCE_WORKING_DIR
@@ -105,15 +101,15 @@ declare -A DIR_ARRAY=(
 function _create() {
   for dir in "${!DIR_ARRAY[@]}"; do
     if ! mkdir -p "${DIR_ARRAY[$dir]}"; then echo "${0##*/} ERROR: Failed to create $dir" >&2 && return 1; fi
-    if grep -q "^$dir" <"$INSTANCE_CONFIG_FILE"; then
+    if grep -q "^$dir" <"$instance_config_file"; then
       # If it exists, modify in-place
-      sed -i "/$dir=*/c$dir=${DIR_ARRAY[$dir]}" "$INSTANCE_CONFIG_FILE" >/dev/null
+      sed -i "/$dir=*/c$dir=${DIR_ARRAY[$dir]}" "$instance_config_file" >/dev/null
     else
       # If it doesn't exist, append after INSTANCE_WORKING_DIR
       # IMPORTANT: Needs to be appended after INSTANCE_WORKING_DIR in order for
       # INSTANCE_LAUNCH_ARGS to be able to pick them up, the order matters.
       # Do not append to EOF
-      sed -i -e '/INSTANCE_WORKING_DIR=/a\' -e "$dir=${DIR_ARRAY[$dir]}" "$INSTANCE_CONFIG_FILE" >/dev/null
+      sed -i -e '/INSTANCE_WORKING_DIR=/a\' -e "$dir=${DIR_ARRAY[$dir]}" "$instance_config_file" >/dev/null
     fi
   done
 

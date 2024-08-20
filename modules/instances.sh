@@ -91,11 +91,11 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-MODULE_COMMON="$(find "$KGSM_ROOT" -type f -name common.sh)"
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
+module_common="$(find "$KGSM_ROOT" -type f -name common.sh)"
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
+source "$module_common" || exit 1
 
 function _generate_unique_instance_name() {
   local service_name="$1"
@@ -117,16 +117,11 @@ function _create_instance() {
   local install_dir=$2
   local identifier=${3:-}
 
-  if [[ "$blueprint" != *.bp ]]; then
-    blueprint=${blueprint}.bp
-  fi
+  local blueprint_abs_path
+  blueprint_abs_path=$(__load_blueprint "$blueprint")
+  local service_name
+  service_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
-  # shellcheck disable=SC2155
-  local blueprint_abs_path="$(find "$BLUEPRINTS_SOURCE_DIR" -type f -name "$blueprint" -print -quit)"
-  [[ -z "$blueprint_abs_path" ]] && echo "${0##*/} ERROR: Failed to load blueprint: $blueprint" >&2 && return 1
-
-  # shellcheck disable=SC2155
-  local service_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   export instance_name=$service_name
 
   instance_full_name=$identifier
@@ -183,8 +178,8 @@ function _create_instance() {
     export instance_ufw_file=$UFW_RULES_DIR/kgsm-$instance_full_name
   fi
 
-  local instance_template_file=$TEMPLATES_SOURCE_DIR/instance.tp
-  [[ ! -f "$instance_template_file" ]] && echo "${0##*/} ERROR: Failed to locate instance template file" >&2 && return 1
+  local instance_template_file
+  instance_template_file=$(__load_template instance.tp)
 
   local instance_dir_path=$INSTANCES_SOURCE_DIR/$service_name
   if [ ! -d "$instance_dir_path" ]; then
@@ -267,12 +262,8 @@ EOF
 
 function _remove() {
   local instance=$1
-  if [[ "$instance" != *.ini ]]; then
-    instance="${instance}.ini"
-  fi
-
-  instance_abs_path="$(find "$KGSM_ROOT" -type f -name "$instance")"
-  [[ -z "$instance_abs_path" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+  local instance_abs_path
+  instance_abs_path="$(__load_instance "$instance")"
 
   local instance_name
   instance_name=$(grep "INSTANCE_NAME=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')
@@ -293,15 +284,8 @@ function _remove() {
 function _print_info() {
   local instance=$1
 
-  if [[ $instance != *.ini ]]; then
-    instance="${instance}.ini"
-  fi
-
-  instance_config_file="$(find "$KGSM_ROOT" -type f -name "$instance")"
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
   # shellcheck disable=SC1090
-  source "$instance_config_file" || return 1
+  source "$(__load_instance "$instance")" || return 1
 
   {
     echo "Instance:            $INSTANCE_FULL_NAME"
@@ -378,9 +362,7 @@ function __manage_instance() {
   local instance=$1
   local action=$2
 
-  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
+  instance_config_file=$(__load_instance "$instance")
 
   # shellcheck disable=SC2155
   local instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
@@ -442,12 +424,8 @@ function __manage_instance() {
 function _get_logs() {
   local instance=$1
 
-  [[ "$instance" != *.ini ]] && instance="${instance}.ini"
-  instance_config_file=$(find "$KGSM_ROOT" -type f -name "$instance")
-  [[ -z "$instance_config_file" ]] && echo "${0##*/} ERROR: Could not find $instance" >&2 && return 1
-
   # shellcheck disable=SC1090
-  source "$instance_config_file" || return 1
+  source "$(__load_instance "$instance")" || return 1
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     [[ "$instance" == *.ini ]] && instance=${instance//.ini}

@@ -58,7 +58,7 @@ while [[ "$#" -gt 0 ]]; do
   -i | --instance)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    INSTANCE=$1
+    instance=$1
     ;;
   *)
     break
@@ -92,22 +92,17 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-MODULE_OVERRIDES="$(find "$KGSM_ROOT" -type f -name overrides.sh)"
-[[ -z "$MODULE_OVERRIDES" ]] && echo "${0##*/} ERROR: Failed to load module overrides.sh" >&2 && exit 1
-
-MODULE_COMMON=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$MODULE_COMMON" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
-source "$MODULE_COMMON" || exit 1
+source "$module_common" || exit 1
 
-[[ $INSTANCE != *.ini ]] && INSTANCE="${INSTANCE}.ini"
+module_overrides=$(__load_module overrides.sh)
 
-INSTANCE_CONFIG_FILE=$(find "$KGSM_ROOT" -type f -name "$INSTANCE")
-[[ -z "$INSTANCE_CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find instance $INSTANCE" >&2 && exit 1
-
+instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
-source "$INSTANCE_CONFIG_FILE" || exit 1
+source "$instance_config_file" || exit 1
 
 # https://github.com/ValveSoftware/steam-for-linux/issues/10975
 function func_get_latest_version() {
@@ -140,7 +135,7 @@ function func_get_latest_version() {
 }
 
 function _compare() {
-  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && echo "${0##*/} ERROR: $INSTANCE is missing INSTANCE_INSTALLED_VERSION varible" >&2 && return 1
+  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && echo "${0##*/} ERROR: $instance is missing INSTANCE_INSTALLED_VERSION varible" >&2 && return 1
 
   local latest_version
   latest_version=$(func_get_latest_version)
@@ -154,14 +149,14 @@ function _compare() {
 function _save_version() {
   local version=$1
 
-  if grep -q "INSTANCE_INSTALLED_VERSION=" <"$INSTANCE_CONFIG_FILE"; then
-    sed -i "/INSTANCE_INSTALLED_VERSION=*/c\INSTANCE_INSTALLED_VERSION=$version" "$INSTANCE_CONFIG_FILE" >/dev/null
+  if grep -q "INSTANCE_INSTALLED_VERSION=" <"$instance_config_file"; then
+    sed -i "/INSTANCE_INSTALLED_VERSION=*/c\INSTANCE_INSTALLED_VERSION=$version" "$instance_config_file" >/dev/null
   else
     {
       echo ""
       echo "# Installed version"
       echo "INSTANCE_INSTALLED_VERSION=$version"
-    } >>"$INSTANCE_CONFIG_FILE"
+    } >>"$instance_config_file"
   fi
 
   echo "$version" >"${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version"
@@ -170,7 +165,7 @@ function _save_version() {
 }
 
 # shellcheck disable=SC1090
-source "$MODULE_OVERRIDES" "$INSTANCE"
+source "$module_overrides" "$instance"
 
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
