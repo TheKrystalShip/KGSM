@@ -118,6 +118,11 @@ Options:
                                 version, if any.
       --restore-backup NAME     Restore a backup.
                                 NAME is the backup name.
+      --modify                  Modify and existing instance.
+        --add OPTION            Add additional functionality. Possible options:
+                                  ufw, systemd
+        --remove OPTION         Remove functionality. Possible options:
+                                  ufw, systemd
       --uninstall               Run the uninstall process.
 " "$DESCRIPTION"
 }
@@ -140,6 +145,11 @@ Interactive mode menu options:
   \e[4mRestart\e[0m            Restart an instance.
 
   \e[4mStatus\e[0m             Print a detailed information about an instance.
+
+  \e[4mModify\e[0m             Modify and existing instance to add or remove
+                               features.
+                               Currently 'ufw' and 'systemd' integrations can
+                               be added/removed.
 
   \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
                      It will print out the new version if found, otherwise
@@ -254,10 +264,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && usage && exit 0
     case "$1" in
-      --interactive)
+    --interactive)
       usage_interactive && exit 0
       ;;
-      *) echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+    *) echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --update)
@@ -362,6 +372,7 @@ KGSM - Interactive menu
     "Stop"
     "Restart"
     "Status"
+    "Modify"
     "Check for update"
     "Update"
     "Logs"
@@ -379,6 +390,7 @@ KGSM - Interactive menu
     ["Stop"]=--stop
     ["Restart"]=--restart
     ["Status"]=--status
+    ["Modify"]=--modify
     ["Check for update"]=--check-update
     ["Update"]=--update
     ["Logs"]=--logs
@@ -485,6 +497,44 @@ KGSM - Interactive menu
     done
     # shellcheck disable=SC2086
     "$0" --instance $blueprint_or_instance $action $backup_to_restore $debug
+    ;;
+  --modify)
+    declare -a modify_options=()
+    declare -A modify_arg_map=(
+      ["Add systemd"]="--add systemd"
+      ["Remove systemd"]="--remove systemd"
+      ["Add ufw"]="--add ufw"
+      ["Remove ufw"]="--remove ufw"
+    )
+    local mod_action
+
+    local instance_config_file
+    instance_config_file=$(__load_instance "$blueprint_or_instance")
+
+    if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" <"$instance_config_file"; then
+      modify_options+=("Remove systemd")
+    else
+      modify_options+=("Add systemd")
+    fi
+
+    if grep -q "INSTANCE_UFW_FILE=" <"$instance_config_file"; then
+      modify_options+=("Remove ufw")
+    else
+      modify_options+=("Add ufw")
+    fi
+
+    select mod_arg in "${modify_options[@]}"; do
+      if [[ -z "$mod_arg" ]]; then
+        echo "Didn't understand \"$REPLY\"" >&2
+        REPLY=
+      else
+        mod_action="${modify_arg_map[$mod_arg]}"
+        break
+      fi
+    done
+
+    # shellcheck disable=SC2086
+    "$0" --instance "$blueprint_or_instance" --modify $mod_action
     ;;
   *)
     # shellcheck disable=SC2086
@@ -623,6 +673,39 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       -h | --help) "$module_backup" --help && exit $? ;;
       *) "$module_backup" -i "$instance" --restore "$1" $debug && exit $? ;;
+      esac
+      ;;
+    --modify)
+      shift
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+      case "$1" in
+      --add)
+        shift
+        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+        case "$1" in
+        ufw)
+          "$module_files" -i "$instance" --create --ufw
+          ;;
+        systemd)
+          "$module_files" -i "$instance" --create --systemd
+          ;;
+        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        esac
+        ;;
+      --remove)
+        shift
+        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+        case "$1" in
+        ufw)
+          "$module_files" -i "$instance" --remove --ufw
+          ;;
+        systemd)
+          "$module_files" -i "$instance" --remove --systemd
+          ;;
+        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        esac
+        ;;
+      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
       esac
       ;;
     --uninstall)

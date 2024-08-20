@@ -12,11 +12,11 @@ Options:
                              INSTANCE_FULL_NAME from the instance config file
                              The .ini extension is not required
     --create                 Generates all files:
-                             [instance].manage.sh file, [instance].override.sh
+                             instance.manage.sh file, instance.override.sh
                              file if applicable, systemd service/ socket files
                              and ufw firewall rules if applicable.
-      [--manage]             Creates the [instance].manage.sh file
-      [--override]           Creates the [instance].overrides.sh file if applicable
+      [--manage]             Creates the instance.manage.sh file
+      [--override]           Creates the instance.overrides.sh file if applicable
       [--systemd]            Generates the systemd service/socket files
       [--ufw]                Generates the ufw firewall rule file and enables it
     --remove                 Removes and disables systemd service/socket files
@@ -108,6 +108,16 @@ function _create_manage_file() {
   local instance_manage_file="${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh"
   export INSTANCE_SOCKET_FILE="${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin"
 
+  if grep -q "INSTANCE_SOCKET_FILE=" <"$instance_config_file"; then
+    sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE" "$instance_config_file" >/dev/null
+  else
+    {
+      echo ""
+      echo "# Path to the Unix Domain Socket"
+      echo "INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE"
+    } >>"$instance_config_file"
+  fi
+
   # shellcheck disable=SC2155
   local instance_install_subdir=$(grep "BP_INSTALL_SUBDIRECTORY=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
 
@@ -166,7 +176,7 @@ EOF
   else
     {
       echo ""
-      echo "# Path to the [instance].manage.sh script file"
+      echo "# Path to the instance.manage.sh script file"
       echo "INSTANCE_MANAGE_FILE=$instance_manage_file"
     } >>"$instance_config_file"
   fi
@@ -205,7 +215,7 @@ function _create_overrides_file() {
   else
     {
       echo ""
-      echo "# Path to the [instance].overrides.sh script file"
+      echo "# Path to the instance.overrides.sh script file"
       echo "INSTANCE_OVERRIDES_FILE=$instance_overrides_file"
     } >>"$instance_config_file"
   fi
@@ -250,6 +260,22 @@ function _systemd_uninstall() {
   # Reload systemd
   if ! $SUDO systemctl daemon-reload; then
     echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
+  fi
+
+  # Remove entries from instance config file
+  sed -i "\%# Path to the systemd instance.service file%d" "$instance_config_file" >/dev/null
+  if ! sed -i "\%INSTANCE_SYSTEMD_SERVICE_FILE=$INSTANCE_SYSTEMD_SERVICE_FILE%d" "$instance_config_file" >/dev/null; then
+    echo "${0##*/} ERROR: Failed to remove INSTANCE_SYSTEMD_SERVICE_FILE from $instance_config_file" >&2 && return 1
+  fi
+
+  sed -i "\%# Path to the systemd instance.socket file%d" "$instance_config_file" >/dev/null
+  if ! sed -i "\%INSTANCE_SYSTEMD_SOCKET_FILE=$INSTANCE_SYSTEMD_SOCKET_FILE%d" "$instance_config_file" >/dev/null; then
+    echo "${0##*/} ERROR: Failed to remove INSTANCE_SYSTEMD_SOCKET_FILE from $instance_config_file" >&2 && return 1
+  fi
+
+  # Change the INSTANCE_LIFECYCLE_MANAGER to standalone
+  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=standalone" "$instance_config_file" >/dev/null; then
+    echo "${0##} ERROR: Failed to update the INSTANCE_LIFECYCLE_MANAGER to standalone" >&2 && return 1
   fi
 
   return 0
@@ -338,7 +364,6 @@ EOF
     sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE" "$instance_config_file" >/dev/null
   else
     {
-      echo ""
       echo "# Path to the Unix Domain Socket"
       echo "INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE"
     } >>"$instance_config_file"
@@ -348,8 +373,7 @@ EOF
     sed -i "/INSTANCE_SYSTEMD_SERVICE_FILE=*/c\INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file" "$instance_config_file" >/dev/null
   else
     {
-      echo ""
-      echo "# Path to the systemd [instance].service file"
+      echo "# Path to the systemd instance.service file"
       echo "INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file"
     } >>"$instance_config_file"
   fi
@@ -358,10 +382,14 @@ EOF
     sed -i "/INSTANCE_SYSTEMD_SOCKET_FILE=*/c\INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file" "$instance_config_file" >/dev/null
   else
     {
-      echo ""
-      echo "# Path to the systemd [instance].socket file"
+      echo "# Path to the systemd instance.socket file"
       echo "INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file"
     } >>"$instance_config_file"
+  fi
+
+  # Change the INSTANCE_LIFECYCLE_MANAGER to systemd
+  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=systemd" "$instance_config_file" >/dev/null; then
+    echo "${0##} ERROR: Failed to update the INSTANCE_LIFECYCLE_MANAGER to systemd" >&2 && return 1
   fi
 
   return 0
@@ -382,6 +410,12 @@ function _ufw_uninstall() {
     if ! $SUDO rm "$INSTANCE_UFW_FILE"; then
       echo "${0##*/} ERROR: Failed to remove $INSTANCE_UFW_FILE" >&2 && return 1
     fi
+  fi
+
+  # Remove UFW entries from the instance config file
+  sed -i "\%# Path the the UFW firewall rule file%d" "$instance_config_file" >/dev/null
+  if ! sed -i "\%INSTANCE_UFW_FILE=$INSTANCE_UFW_FILE%d" "$instance_config_file" >/dev/null; then
+    echo "${0##*/} ERROR: Failed to remove UFW firewall rule file from $instance_config_file" >&2 && return 1
   fi
 
   return 0
@@ -427,7 +461,6 @@ EOF
     sed -i "/INSTANCE_UFW_FILE=*/c\INSTANCE_UFW_FILE=$instance_ufw_file" "$instance_config_file" >/dev/null
   else
     {
-      echo ""
       echo "# Path the the UFW firewall rule file"
       echo "INSTANCE_UFW_FILE=$instance_ufw_file"
     } >>"$instance_config_file"
