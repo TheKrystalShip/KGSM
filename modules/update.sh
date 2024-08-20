@@ -90,12 +90,13 @@ module_version=$(__load_module version.sh)
 module_download=$(__load_module download.sh)
 module_backup=$(__load_module backup.sh)
 module_deploy=$(__load_module deploy.sh)
+module_instances=$(__load_module instances.sh)
 
 # shellcheck disable=SC1090
 source "$(__load_instance "$instance")" || exit 1
 
 function func_exit_error() {
-  printf "\t%s\n" "${*:- Update process cancelled}" >&2
+  printf "%s\n" "${*:- Update process cancelled}" >&2
   exit 1
 }
 
@@ -104,9 +105,11 @@ trap func_exit_error INT
 
 function func_print_title() {
   {
+    echo ""
     echo "================================================================================"
     echo "> $1 <"
     echo "================================================================================"
+    echo ""
   } >&2
 }
 
@@ -120,20 +123,21 @@ function func_main() {
 
   if [[ $verbose ]]; then
     func_print_title "1/7 Version check"
-    printf "\n\tChecking for latest version...\n" >&2
+    printf "Checking for latest version...\n" >&2
   fi
 
-  # shellcheck disable=SC2155
-  local latest_version=$("$module_version" -i "$instance" --latest)
+  local latest_version
+  latest_version=$("$module_version" -i "$instance" --latest)
 
-  [[ "$verbose" ]] && printf "\tInstalled version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
+  [[ "$verbose" ]] && printf "Installed version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
 
   [[ -z "$latest_version" ]] && echo "${0##*/} ERROR: new version number is empty, exiting" >&2 && return 1
 
-  [[ "$verbose" ]] && printf "\tLatest version available:\t%s\n" "$latest_version"
+  [[ "$verbose" ]] && printf "Latest version available:\t%s\n" "$latest_version"
 
-  if [[ "$SERVICE_INSTALLED_VERSION" == "$latest_version" ]]; then
-    printf "\tWARNING: latest version already installed. Continuing would overwrite existing install\n" >&2
+  if [[ "$INSTANCE_INSTALLED_VERSION" == "$latest_version" ]]; then
+    printf "WARNING: latest version already installed.\n" >&2
+    printf "Continuing would overwrite existing install\n" >&2
     read -r -p "Continue? (Y/n): " confirm && [[ $confirm != [nN] ]] || exit 1
   fi
 
@@ -143,37 +147,37 @@ function func_main() {
 
   if [[ "$verbose" ]]; then
     func_print_title "2/7 Download"
-    printf "\n\tDownloading version %s\n\n" "$latest_version" >&2
+    printf "Downloading version %s\n" "$latest_version" >&2
   fi
 
   if ! "$module_download" -i "$instance"; then
     echo "${0##*/} ERROR: Failed to download new version, exiting" >&2 && return 1
   fi
 
-  [[ "$verbose" ]] && printf "\n\tDownload completed\n\n"
+  [[ "$verbose" ]] && printf "Download completed\n"
 
   ############################################################################
-  #### Check if service is currently running and shut it down if needed
+  #### Check if instance is currently running and shut it down if needed
   ############################################################################
 
   if [[ "$verbose" ]]; then
-    func_print_title "3/7 Service status"
-    printf "\n\tChecking current service status\n\n" >&2
+    func_print_title "3/7 Instance status"
+    printf "Checking current instance status\n" >&2
   fi
 
-  service_status=0
-  if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
-    service_status=1
-    [[ "$verbose" ]] && printf "\n\tWARNING: Service currently running, shutting down first...\n" >&2
+  local instance_status
+  instance_status=$("$module_instances" --is-active "$instance")
 
-    if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME"; then
-      echo "${0##*/} ERROR: Failed to shutdown service, exiting" >&2 && return 1
-    else
+  if [[ "$instance_status" == "active" ]]; then
+    [[ "$verbose" ]] && printf "Instance %s is currently running, shutting down...\n" "$instance" >&2
 
-      [[ "$verbose" ]] && printf "\n\tService shutdown complete, continuing\n\n" >&2
+    if ! "$module_instances" --stop "$instance"; then
+      echo "${0##*/} ERROR: Failed to shutdown $instance" >&2 && return 1
     fi
+
+    [[ "$verbose" ]] && printf "Instance %s successfully stopped\n" "$instance" >&2
   else
-    [[ "$verbose" ]] && printf "\n\tService status %s, continuing\n\n" "$service_status" >&2
+    [[ "$verbose" ]] && printf "Instance %s is not currently running, continuing\n" "$instance" >&2
   fi
 
   ############################################################################
@@ -182,14 +186,14 @@ function func_main() {
 
   if [[ "$verbose" ]]; then
     func_print_title "4/7 Backup"
-    printf "\n\tCreating backup of current version\n\n" >&2
+    printf "Creating backup of current version\n" >&2
   fi
 
   if ! "$module_backup" -i "$instance" --create; then
     echo "${0##*/} ERROR: Failed to create backup, exiting" >&2 && return 1
   fi
 
-  [[ "$verbose" ]] && printf "\n\tBackup complete\n\n" >&2
+  [[ "$verbose" ]] && printf "Backup complete\n" >&2
 
   ############################################################################
   #### Deploy newly downloaded version
@@ -197,31 +201,31 @@ function func_main() {
 
   if [[ "$verbose" ]]; then
     func_print_title "5/7 Deployment"
-    printf "\n\tDeploying %s...\n\n" "$latest_version" >&2
+    printf "Deploying %s...\n" "$latest_version" >&2
   fi
 
   if ! "$module_deploy" -i "$instance"; then
     echo "${0##*/} ERROR: Failed to deploy $latest_version, exiting" >&2 && return 1
   fi
 
-  [[ "$verbose" ]] && printf "\n\tDeployment complete.\n\n"
+  [[ "$verbose" ]] && printf "Deployment complete.\n"
 
   ############################################################################
-  #### Restore service state if needed
+  #### Restore instance state if needed
   ############################################################################
 
-  [[ "$verbose" ]] && func_print_title "6/7 Service restore"
+  [[ "$verbose" ]] && func_print_title "6/7 Restore"
 
-  if [[ "$service_status" -eq 1 ]]; then
-    [[ "$verbose" ]] && printf "\n\tStarting the service back up\n\n"
+  if [[ "$instance_status" == "active" ]]; then
+    [[ "$verbose" ]] && printf "Starting the instance back up\n"
 
-    if ! $SUDO systemctl start "$INSTANCE_FULL_NAME"; then
-      echo "${0##*/} ERROR: Failed to restore service to running state, exiting" >&2 && return 1
+    if ! "$module_instances" --start "$instance"; then
+      echo "${0##*/} ERROR: Failed to start $instance" >&2 && return 1
     fi
 
-    [[ "$verbose" ]] && printf "\n\tService started successfully\n\n"
+    [[ "$verbose" ]] && printf "Instance started successfully\n"
   else
-    [[ "$verbose" ]] && printf "\n\tService was %s, skipping restore step\n\n" "$service_status"
+    [[ "$verbose" ]] && printf "Instance was %s, skipping restore step\n" "$instance_status"
   fi
 
   ############################################################################
@@ -230,11 +234,14 @@ function func_main() {
 
   if [[ "$verbose" ]]; then
     func_print_title "7/7 Updating version record"
-    printf "\n\t Saving new version %s\n\n" "$latest_version"
+    printf "Saving new version %s\n" "$latest_version"
   fi
 
-  # Save new version to SERVICE_VERSION_FILE
-  "$module_version" -i "$instance" --save "$latest_version"
+  if ! "$module_version" -i "$instance" --save "$latest_version"; then
+    echo "${0##*/} ERROR: Failed to save version $latest_version for $instance" >&2 && return 1
+  fi
+
+  [[ "$verbose" ]] && printf "Successfully updated %s to version %s\n" "$instance" "$latest_version" >&2
 
   return 0
 }
