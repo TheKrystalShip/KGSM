@@ -500,7 +500,7 @@ KGSM - Interactive menu
       fi
     done
     # shellcheck disable=SC2086
-    "$0" --instance $instance $action $backup_to_restore $debug
+    "$0" --instance $blueprint_or_instance $action $backup_to_restore $debug
     ;;
   *)
     # shellcheck disable=SC2086
