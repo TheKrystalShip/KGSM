@@ -4,15 +4,15 @@ function usage() {
   echo "Scaffolds the necessary directory structure.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-  --create                    Generates the directory structure
-  --remove                    Removes the directory structure
+    --create                  Generates the directory structure
+    --remove                  Removes the directory structure
 
 Examples:
   $(basename "$0") -i valheim-h1up6V --create

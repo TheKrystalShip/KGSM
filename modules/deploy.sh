@@ -4,7 +4,7 @@ function usage() {
   echo "Runs the deployment process
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance>
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message

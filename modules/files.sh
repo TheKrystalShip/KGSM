@@ -4,25 +4,25 @@ function usage() {
   echo "Manages the various necessary files to run a game server.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                 Prints this message
   -i, --instance <instance>  Full name of the instance, equivalent of
                              INSTANCE_FULL_NAME from the instance config file
                              The .ini extension is not required
-  --create                   Generates all files:
+    --create                 Generates all files:
                              [instance].manage.sh file, [instance].override.sh
                              file if applicable, systemd service/ socket files
                              and ufw firewall rules if applicable.
-    [--manage]               Creates the [instance].manage.sh file
-    [--override]             Creates the [instance].overrides.sh file if applicable
-    [--systemd]              Generates the systemd service/socket files
-    [--ufw]                  Generates the ufw firewall rule file and enables it
-  --remove                   Removes and disables systemd service/socket files
+      [--manage]             Creates the [instance].manage.sh file
+      [--override]           Creates the [instance].overrides.sh file if applicable
+      [--systemd]            Generates the systemd service/socket files
+      [--ufw]                Generates the ufw firewall rule file and enables it
+    --remove                 Removes and disables systemd service/socket files
                              and UFW firewall rule
-    [--systemd]              Removes the systemd service and socket files
-    [--ufw]                  Removes the ufw firewall rule files
+      [--systemd]            Removes the systemd service and socket files
+      [--ufw]                Removes the ufw firewall rule files
 
 Examples:
   $(basename "$0") -i factorio-L2ZeLQ.ini --create

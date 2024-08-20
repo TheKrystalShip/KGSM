@@ -4,20 +4,20 @@ function usage() {
   echo "Used to fetch various version informations.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance> [option]
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message
   -i, --instance <instance>   Full name of the instance, equivalent of
                               INSTANCE_FULL_NAME from the instance config file
                               The .ini extension is not required
-  --installed                 Prints the currently installed version
-  --latest                    Prints the latest version available
-  --compare                   Compares the latest version available with
+    --installed               Prints the currently installed version
+    --latest                  Prints the latest version available
+    --compare                 Compares the latest version available with
                               the currently installed version. If the latest
                               available version is different than the installed
                               version then it prints the latest version
-  --save <version>            Save the given version
+    --save <version>          Save the given version
 
 Exit codes:
   0: Success / New version was found, written to stdout

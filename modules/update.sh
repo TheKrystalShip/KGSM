@@ -4,7 +4,7 @@ function usage() {
   echo "Runs a full update process for a game server.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance>
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message

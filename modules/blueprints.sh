@@ -4,7 +4,7 @@ function usage() {
   echo "Provides information about blueprints and creates new ones.
 
 Usage:
-  $(basename "$0") [option]
+  $(basename "$0") OPTION
 
 Options:
   -h, --help                    Prints this message.

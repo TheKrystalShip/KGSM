@@ -62,7 +62,7 @@ function usage() {
   printf "%s
 
 Usage:
-  $(basename "$0") [option]
+  $(basename "$0") OPTION
 
 Options:
   \e[4mGeneral\e[0m

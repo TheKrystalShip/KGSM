@@ -4,7 +4,7 @@ function usage() {
   echo "Manages instance creation and gathers information post-creation
 
 Usage:
-  $(basename "$0") [option]
+  $(basename "$0") OPTION
 
 Options:
   -h, --help                      Prints this message

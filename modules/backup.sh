@@ -4,7 +4,7 @@ function usage() {
   echo "Creates or restores backups.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance> OPTION
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message

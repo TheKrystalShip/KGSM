@@ -4,7 +4,7 @@ function usage() {
   echo "Download the necessary files for a game server.
 
 Usage:
-  $(basename "$0") [-i | --instance] <instance> OPTIONS
+  $(basename "$0") [-i | --instance <instance>] OPTION
 
 Options:
   -h, --help                  Prints this message
