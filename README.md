@@ -1,30 +1,35 @@
 # KGSM - Krystal Game Server Manager
 
-A simple, efficient and portable command-line tool for installing, updating,
-and managing game servers on Linux systems.
+Welcome! This is your go-to tool for setting up and managing game
+servers on Linux. If you're looking for a simple solution for setting up a few
+game servers, this is it. It takes care of the heavy lifting so you can focus
+on what really matters—playing games with your friends.
 
-KGSM streamlines the setup of game servers by providing all the necessary
-scripts for managing their lifecycle without the need for ongoing involvment
-post-creation.
+KGSM makes it easy to install, update, and manage your game servers with minimal
+hassle. It's designed to be simple, efficient, and portable, perfect for someone
+who wants a quick and easy solution without having to spend hours reading
+documentation or watching tutorials.
 
-## Compatibility
+## Will it work for me?
 
-KGSM is designed to work with `bash`, and optionally `systemd` and `ufw`.
+As much as I'd like for KGSM to work on every system, unfortunately I don't have
+that much free time to test everywhere and fix all the potential differences
+between distributions.
 
-Tested and developed on:
+I've developed and tested on the following:
 
-- Manjaro 24.0.2 Wynsdey
+- Manjaro 25.0.2 Wydnesdey
 - Kernel v6.5.13-7-MANJARO
 - Bash 5.2.26
-- systemd 256
-- ufw 0.36.2
+- Systemd 256
+- Ufw 0.36.2
 
-While it aims for broad compatibility with minimal dependencies, functionality
-on other distributions is not guaranteed.
+In _theory_ it should work on most GNU/Linux systems as long as the dependencies
+are met.
 
-## Requirements
+## What You'll Need
 
-The following packages are required in order to use KGSM:
+Before diving in, make sure your system has the following packages:
 
 ```sh
 grep jq wget unzip tar sed coreutils findutils steamcmd
@@ -32,71 +37,72 @@ grep jq wget unzip tar sed coreutils findutils steamcmd
 
 > [!NOTE]
 >
-> If [SteamCMD][1] is not
-> available through your distribution's package manager, you will need to
-> manually set it up and ensure `steamcmd` is available from the `$PATH`.
+> If [SteamCMD][1] isn't available through your distro’s package manager, you'll
+> need to set it up manually.
 
-Optionally, KGSM can integrate with `systemd` and `ufw` with a simple
-configuration toggle.
+For an even smoother experience, you can integrate KGSM with `systemd` and
+[`ufw`][2] with just a few configuration tweaks.
 
-## Download
+## Getting Started
 
-There's a few options on how to get the software:
+There are a few ways to grab KGSM:
 
-Either clone the repository using `git`, download the latest [Release][3]
-available or use the install script by running the following command:
+1. Clone the repository using `git`
+2. Download the latest [Release][3]
+3. Use this handy install script:
 
 ```sh
 wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/install.sh | sh
 ```
 
-The installation is fully contained to the subdirectory KGSM creates.
+Everything will be contained in a subdirectory KGSM creates, keeping your
+system clean and organized.
 
-## How to use
+## How to Use KGSM
 
-### Run the Project
+Once you've got KGSM, running it is simple. Just execute:
 
-Once downloaded, run `./kgsm.sh`. This will create a `config.ini` file with
-default values in the same directory. Review and modify this file as needed.
+```sh
+./kgsm.sh
+```
 
-After that, running `./kgsm.sh` will start it in interactive mode where you'll
-be presented with a menu of different actions to choose from.
+The first time you run it, KGSM will create a `config.ini` file with default
+settings. Feel free to tweak this file to suit your needs. After that,
+running it again will take you into an interactive menu where you can choose
+what to do.
 
-For a description of each menu option you can either pick the `Help` option in
-the menu, or run `./kgsm.sh` with the following arguments:
+Need help? Either select the `Help` option in the menu or run:
 
 ```sh
 ./kgsm.sh --help --interactive
 ```
 
-For automation, KGSM accepts named arguments for all operations.
-To see a descriptive list of the named arguments, run:
+For those who love automation, KGSM supports named arguments for all its
+operations. For a full list of options just run:
 
 ```sh
 ./kgsm.sh --help
 ```
 
-For a more in-depth explanation on the different features and how to use them,
-please check the [Documentation][4]
+There's also [Documentation][4] for the project which explains how KGSM operates
+in case you need it.
 
-## Updating
+## Keeping Up-to-Date
 
-KGSM comes with built-in updating capabilities.
-In order to update to the latest version, run:
+Updating KGSM is a breeze. Just run:
 
 ```sh
 ./kgsm.sh --update
 ```
 
-Alternatively in case of emergencies or accidental lose of critical files, you
-can _attempt_ to repair the install by running:
+In case you run into issues or lose any files, you can try a repair with:
 
 ```sh
 ./kgsm.sh --update --force
 ```
 
-This will re-download all KGSM specific files, any blueprint overrides you
-might have will be preserved.
+This will re-download all the KGSM-specific files while preserving your custom
+settings.
 
 ## License
 
