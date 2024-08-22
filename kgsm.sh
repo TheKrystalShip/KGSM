@@ -691,12 +691,8 @@ while [[ "$#" -gt 0 ]]; do
         shift
         [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
         case "$1" in
-        ufw)
-          "$module_files" -i "$instance" --create --ufw
-          ;;
-        systemd)
-          "$module_files" -i "$instance" --create --systemd
-          ;;
+        ufw) "$module_files" -i "$instance" --create --ufw $debug && exit $? ;;
+        systemd) "$module_files" -i "$instance" --create --systemd $debug && exit $? ;;
         *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
         esac
         ;;
@@ -704,12 +700,8 @@ while [[ "$#" -gt 0 ]]; do
         shift
         [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
         case "$1" in
-        ufw)
-          "$module_files" -i "$instance" --remove --ufw
-          ;;
-        systemd)
-          "$module_files" -i "$instance" --remove --systemd
-          ;;
+        ufw) "$module_files" -i "$instance" --remove --ufw $debug && exit $? ;;
+        systemd) "$module_files" -i "$instance" --remove --systemd $debug && exit $? ;;
         *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
         esac
         ;;
