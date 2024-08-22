@@ -325,7 +325,7 @@ function _install() {
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
 
-  if [[ "$version" -eq 0 ]]; then
+  if [[ "$version" == 0 ]]; then
     version=$("$module_version" -i "$instance" --latest)
   fi
 

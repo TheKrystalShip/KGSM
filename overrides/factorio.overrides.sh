@@ -80,7 +80,7 @@ function func_download() {
   local output_file="$dest/factorio_headless.tar.xz"
 
   # Download
-  if ! wget -q https://factorio.com/get-download/stable/headless/linux64 -O "$output_file"; then
+  if ! wget -q "https://factorio.com/get-download/${version}/headless/linux64" -O "$output_file"; then
     echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
     return
   fi
