@@ -147,9 +147,9 @@ Interactive mode menu options:
   \e[4mStatus\e[0m             Print a detailed information about an instance.
 
   \e[4mModify\e[0m             Modify and existing instance to add or remove
-                               features.
-                               Currently 'ufw' and 'systemd' integrations can
-                               be added/removed.
+                     features.
+                     Currently 'ufw' and 'systemd' integrations can
+                     be added/removed.
 
   \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
                      It will print out the new version if found, otherwise
