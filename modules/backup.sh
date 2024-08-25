@@ -91,56 +91,87 @@ instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit 1
 
+module_instances=$(__load_module instances.sh)
+
 function _create() {
   # Check for content inside the install directory before attempting to
   # create a backup. If empty, skip
   if [ -z "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
     # $source is empty, nothing to back up
-    echo "WARNING: $INSTANCE_INSTALL_DIR is empty, skipping backup" >&2 && return 0
+    echo "${0##*/} WARNING: $INSTANCE_INSTALL_DIR is empty, skipping backup" >&2 && return 0
   fi
 
-  # shellcheck disable=SC2155
+  # Check instance running state before attempting to create backup
+  if "$module_instances" --is-active "$instance" >/dev/null; then
+    echo "${0##*/} ERROR: Instance $instance is currently running, please shut down before attempting to create a backup" >&2 && return 1
+  fi
+
+  #shellcheck disable=SC2155
   local datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
-  local output_dir="${INSTANCE_BACKUPS_DIR}/${INSTANCE_FULL_NAME}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
+  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_FULL_NAME}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
 
-  # Create backup folder if it doesn't exit
-  if [ ! -d "$output_dir" ]; then
-    if ! mkdir -p "$output_dir"; then
-      echo "${0##*/} ERROR: Error creating backup folder $output_dir" >&2 && return 1
+  if [[ "$COMPRESS_BACKUPS" == 1 ]]; then
+    output="${output}.tar.gz"
+
+    if ! touch "$output"; then
+      echo "${0##*/} ERROR: Failed to create $output" >&2 && return 1
     fi
-  fi
 
-  # Move everything from the install directory into a backup folder
-  if ! mv "$INSTANCE_INSTALL_DIR"/* "$output_dir"/; then
-    echo "${0##*/} ERROR: Failed to move contents from $INSTANCE_INSTALL_DIR into $output_dir" >&2
-    rm -rf "${output_dir:?}"
-    return 1
-  fi
+    cd "$INSTANCE_INSTALL_DIR"
 
-  if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/cINSTANCE_INSTALLED_VERSION=0" "$instance_config_file" >/dev/null; then
-    echo "WARNING: Failed to reset version in $instance_config_file" >&2
+    if ! tar -czf "$output" .; then
+      echo "${0##*/} ERROR: Failed to compress $output" >&2 && return 1
+    fi
+  else
+    # Create backup folder if it doesn't exit
+    if [ ! -d "$output" ]; then
+      if ! mkdir -p "$output"; then
+        echo "${0##*/} ERROR: Error creating backup folder $output" >&2 && return 1
+      fi
+    fi
+
+    # Copy everything from the install directory into a backup folder
+    if ! cp -r "$INSTANCE_INSTALL_DIR"/* "$output"/; then
+      echo "${0##*/} ERROR: Failed to create backup $output" >&2
+      rm -rf "${output:?}"
+      return 1
+    fi
   fi
 
   return 0
 }
 
 function _restore() {
-  local source=$1
+  local source="$INSTANCE_BACKUPS_DIR/$1"
   local backup_version
 
-  # Get version number from $source
-  IFS='-' read -ra backup_name <<<"$source"
-  backup_version="${backup_name[2]}"
-  unset IFS
-
-  if [ -n "$(ls -A -I .gitignore "$INSTANCE_INSTALL_DIR")" ]; then
-    # $INSTANCE_INSTALL_DIR is not empty
-    read -r -p "WARNING: $INSTANCE_INSTALL_DIR is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+  if [[ ! -f "$source" ]] && [[ ! -d "$source" ]]; then
+    echo "${0##*/} ERROR: Could not find backup $source" >&2 && return 1
   fi
 
-  # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
-  if ! mv "$INSTANCE_BACKUPS_DIR/$source"/* "$INSTANCE_INSTALL_DIR"/; then
-    echo "${0##*/} ERROR: Failed to move contents from $source into $INSTANCE_INSTALL_DIR" >&2 && return 1
+  # Get version number from $source
+  IFS='-' read -ra backup_name <<<"${source#"$INSTANCE_BACKUPS_DIR/"}"
+  echo "${backup_name[*]}" >&2
+  unset IFS
+
+  if [ -n "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
+    # $INSTANCE_INSTALL_DIR is not empty, create new backup before proceeding
+    _create || echo "${0##*/} ERROR: Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}" >&2 && return 1
+    if ! rm -rf "${INSTANCE_INSTALL_DIR:?}"/*; then
+      echo "${0##*/} ERROR: Failed to clear $INSTANCE_INSTALL_DIR, exiting" >&2 && return 1
+    fi
+  fi
+
+  if [[ "$source" == *.gz ]]; then
+    cd "$INSTANCE_INSTALL_DIR"
+    if ! tar -xzf "$source" .; then
+      echo "${0##*/} ERROR: Failed to restore $source" >&2 && return 1
+    fi
+  else
+    # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
+    if ! cp -r "$source"/* "$INSTANCE_INSTALL_DIR"/; then
+      echo "${0##*/} ERROR: Failed to restore backup $source" >&2 && return 1
+    fi
   fi
 
   # Updated $INSTANCE_INSTALLED_VERSION with $backup_version
@@ -154,11 +185,6 @@ function _restore() {
     if ! echo "$backup_version" >"$instance_version_file"; then
       echo "${0##*/} ERROR: Failed to restore version in $instance_version_file" >&2 && return 1
     fi
-  fi
-
-  # Remove empty backup directory
-  if ! rm -rf "${INSTANCE_BACKUPS_DIR:?}/${source:?}"; then
-    echo "ERROR: Failed to remove $source" >&2 && return 1
   fi
 
   return 0
@@ -182,9 +208,6 @@ function _list_backups() {
 #Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
-  -h | --help)
-    usage && exit 0
-    ;;
   --create)
     _create && exit $?
     ;;
