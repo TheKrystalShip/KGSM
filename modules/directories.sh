@@ -129,13 +129,13 @@ function _remove() {
 while [ $# -gt 0 ]; do
   case "$1" in
   --create)
-    _create && exit $?
+    _create; exit $?
     ;;
   --remove)
-    _remove && exit $?
+    _remove; exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1
+    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift

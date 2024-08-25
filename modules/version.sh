@@ -171,18 +171,18 @@ source "$module_overrides" "$instance"
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   --compare)
-    _compare && exit $?
+    _compare; exit $?
     ;;
   --installed)
     echo "$INSTANCE_INSTALLED_VERSION" && exit 0
     ;;
   --latest)
-    func_get_latest_version && exit $?
+    func_get_latest_version; exit $?
     ;;
   --save)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
-    _save_version "$1" && exit $?
+    _save_version "$1"; exit $?
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1

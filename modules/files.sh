@@ -501,32 +501,32 @@ while [ $# -gt 0 ]; do
   case "$1" in
   --create)
     shift
-    [[ -z "$1" ]] && _create && exit $?
+    if [[ -z "$1" ]]; then _create; exit $?; fi
     case "$1" in
     --manage)
-      _create_manage_file && exit $?
+      _create_manage_file; exit $?
       ;;
     --override)
-      _create_overrides_file && exit $?
+      _create_overrides_file; exit $?
       ;;
     --systemd)
-      _systemd_install && exit $?
+      _systemd_install; exit $?
       ;;
     --ufw)
-      _ufw_install && exit $?
+      _ufw_install; exit $?
       ;;
     *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac
     ;;
   --remove)
     shift
-    [[ -z "$1" ]] && _remove && exit $?
+    if [[ -z "$1" ]]; then _remove; exit $?; fi
     case "$1" in
     --systemd)
-      _systemd_uninstall && exit $?
+      _systemd_uninstall; exit $?
       ;;
     --ufw)
-      _ufw_uninstall && exit $?
+      _ufw_uninstall; exit $?
       ;;
     *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
     esac

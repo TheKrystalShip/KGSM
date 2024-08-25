@@ -456,7 +456,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
   --list)
     shift
-    [[ -z "$1" ]] && _list_instances && exit $?
+    if [[ -z "$1" ]]; then _list_instances; exit $?; fi
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --detailed)
@@ -541,7 +541,7 @@ while [[ $# -gt 0 ]]; do
   --info)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _print_info "$1"
+    _print_info "$1"; exit $?
     ;;
   *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
   esac

@@ -209,15 +209,15 @@ function _list_backups() {
 while [ $# -gt 0 ]; do
   case "$1" in
   --create)
-    _create && exit $?
+    _create; exit $?
     ;;
   --restore)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <source>" >&2
-    _restore "$1" && exit $?
+    _restore "$1"; exit $?
     ;;
   --list)
-    _list_backups && exit $?
+    _list_backups; exit $?
     ;;
   *)
     echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1

@@ -555,10 +555,10 @@ while [[ "$#" -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
     case "$1" in
-    -h | --help) "$module_blueprints" --help $debug && exit $? ;;
+    -h | --help) "$module_blueprints" --help $debug; exit $? ;;
     *)
       # shellcheck disable=SC2068
-      "$module_blueprints" --create $@ $debug && exit $?
+      "$module_blueprints" --create $@ $debug; exit $?
       ;;
     esac
     ;;
@@ -596,29 +596,28 @@ while [[ "$#" -gt 0 ]]; do
       done
     fi
     [[ -z "$bp_install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
-    _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id && exit $?
+    _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id; exit $?
     ;;
   --uninstall)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _uninstall "$1" && exit $?
+    _uninstall "$1"; exit $?
     ;;
   --blueprints)
-    "$module_blueprints" --list && exit $?
+    "$module_blueprints" --list; exit $?
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
-      wget -qO- https://icanhazip.com && exit $?
+      wget -qO- https://icanhazip.com; exit $?
     else
-      echo "${0##*/} ERROR: wget is required but not installed" >&2
-      exit 1
+      echo "${0##*/} ERROR: wget is required but not installed" >&2 && exit 1
     fi
     ;;
   --update)
-    update_script "$@" && exit $?
+    update_script "$@"; exit $?
     ;;
   --instances)
-    "$module_instance" --list --detailed && exit $?
+    "$module_instance" --list --detailed; exit $?
     ;;
   -i | --instance)
     shift
@@ -628,59 +627,59 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      "$module_instance" --logs "$instance" && exit $?
+      "$module_instance" --logs "$instance"; exit $?
       ;;
     --status)
-      "$module_instance" --status "$instance" && exit $?
+      "$module_instance" --status "$instance"; exit $?
       ;;
     --info)
-      "$module_instance" --info "$instance" && exit $?
+      "$module_instance" --info "$instance"; exit $?
       ;;
     --is-active)
-      "$module_instance" --is-active "$instance" && exit $?
+      "$module_instance" --is-active "$instance"; exit $?
       ;;
     --start)
-      "$module_instance" --start "$instance" && exit $?
+      "$module_instance" --start "$instance"; exit $?
       ;;
     --stop)
-      "$module_instance" --stop "$instance" && exit $?
+      "$module_instance" --stop "$instance"; exit $?
       ;;
     --restart)
-      "$module_instance" --restart "$instance" && exit $?
+      "$module_instance" --restart "$instance"; exit $?
       ;;
     -v | --version)
       shift
-      [[ -z "$1" ]] && "$module_version" -i "$instance" --installed $debug && exit $?
+      if [[ -z "$1" ]]; then "$module_version" -i "$instance" --installed $debug; exit $?; fi
       case "$1" in
-      --installed) "$module_version" -i "$instance" --installed $debug && exit $? ;;
-      --latest) "$module_version" -i "$instance" --latest $debug && exit $? ;;
+      --installed) "$module_version" -i "$instance" --installed $debug; exit $? ;;
+      --latest) "$module_version" -i "$instance" --latest $debug; exit $? ;;
       *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
       esac
       ;;
     --check-update)
       case "$1" in
-      -h | --help) "$module_version" --help && exit $? ;;
-      *) "$module_version" -i "$instance" --compare $debug && exit $? ;;
+      -h | --help) "$module_version" --help; exit $? ;;
+      *) "$module_version" -i "$instance" --compare $debug; exit $? ;;
       esac
       ;;
     --update)
       case "$1" in
-      -h | --help) "$module_update" --help && exit $? ;;
-      *) "$module_update" -i "$instance" $debug && exit $? ;;
+      -h | --help) "$module_update" --help; exit $? ;;
+      *) "$module_update" -i "$instance" $debug; exit $? ;;
       esac
       ;;
     --create-backup)
       case "$1" in
-      -h | --help) "$module_backup" --help && exit $? ;;
-      *) "$module_backup" -i "$instance" --create $debug && exit $? ;;
+      -h | --help) "$module_backup" --help; exit $? ;;
+      *) "$module_backup" -i "$instance" --create $debug; exit $? ;;
       esac
       ;;
     --restore-backup)
       [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
       shift
       case "$1" in
-      -h | --help) "$module_backup" --help && exit $? ;;
-      *) "$module_backup" -i "$instance" --restore "$1" $debug && exit $? ;;
+      -h | --help) "$module_backup" --help; exit $? ;;
+      *) "$module_backup" -i "$instance" --restore "$1" $debug; exit $? ;;
       esac
       ;;
     --modify)
@@ -691,17 +690,17 @@ while [[ "$#" -gt 0 ]]; do
         shift
         [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
         case "$1" in
-        ufw) "$module_files" -i "$instance" --create --ufw $debug && exit $? ;;
-        systemd) "$module_files" -i "$instance" --create --systemd $debug && exit $? ;;
-        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        ufw) "$module_files" -i "$instance" --create --ufw $debug; exit $? ;;
+        systemd) "$module_files" -i "$instance" --create --systemd $debug; exit $? ;;
+        *) echo "${0##*/} ERROR: Invalid argument $1" >&2; exit 1 ;;
         esac
         ;;
       --remove)
         shift
         [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
         case "$1" in
-        ufw) "$module_files" -i "$instance" --remove --ufw $debug && exit $? ;;
-        systemd) "$module_files" -i "$instance" --remove --systemd $debug && exit $? ;;
+        ufw) "$module_files" -i "$instance" --remove --ufw $debug; exit $? ;;
+        systemd) "$module_files" -i "$instance" --remove --systemd $debug; exit $? ;;
         *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
         esac
         ;;
