@@ -381,6 +381,12 @@ function __manage_instance() {
         # so just return 0 afterwords to exit the function
         return 0
         ;;
+      is-active)
+        local is_active
+        is_active=$(systemctl "$action" "$instance_copy")
+        [[ "$is_active" == "active" ]] && return 0
+        return 1
+        ;;
       # everything else does
       *)
         $SUDO systemctl $action "$instance_copy" --no-pager
@@ -408,14 +414,15 @@ function __manage_instance() {
       _print_info "$instance"
     ;;
     is-active)
+      set +eo pipefail
       # shellcheck disable=SC2155
-      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" | tr -d '"')
-      [[ -z "$instance_pid_file" ]] && echo "inactive" && return 1
-      [[ ! -f "$instance_pid_file" ]] && echo "inactive" && return 1
+      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+      set -eo pipefail
+      [[ -z "$instance_pid_file" ]] && return 1
+      [[ ! -f "$instance_pid_file" ]] && return 1
+      [[ -n $(cat "$instance_pid_file") ]] && return 0
 
-      if [[ -n $(cat "$instance_pid_file") ]]; then echo "active" && return 0; fi
-
-      echo "inactive" && return 1
+      return 1
     ;;
     *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
   esac
@@ -461,42 +468,42 @@ while [[ $# -gt 0 ]]; do
       esac
     shift
     done
-    _list_instances "$blueprint" "$detailed" && exit $?
+    _list_instances "$blueprint" "$detailed"; exit $?
     ;;
   --generate-id)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
-    _generate_unique_instance_name "$1" && exit $?
+    _generate_unique_instance_name "$1"; exit $?
     ;;
   --logs)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _get_logs "$1"
+    _get_logs "$1"; exit $?
     ;;
   --status)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    __manage_instance "$1" "status" && exit $?
+    __manage_instance "$1" "status"; exit $?
     ;;
   --is-active)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    __manage_instance "$1" "is-active" && exit $?
+    __manage_instance "$1" "is-active"; exit $?
     ;;
   --start)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    __manage_instance "$1" "start" && exit $?
+    __manage_instance "$1" "start"; exit $?
     ;;
   --stop)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    __manage_instance "$1" "stop" && exit $?
+    __manage_instance "$1" "stop"; exit $?
     ;;
   --restart)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    __manage_instance "$1" "restart" && exit $?
+    __manage_instance "$1" "restart"; exit $?
     ;;
   --create)
     blueprint=
@@ -524,12 +531,12 @@ while [[ $# -gt 0 ]]; do
         shift
       done
     fi
-    _create_instance "$blueprint" "$install_dir" $identifier && exit $?
+    _create_instance "$blueprint" "$install_dir" $identifier; exit $?
     ;;
   --remove)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _remove "$1" && exit $?
+    _remove "$1"; exit $?
     ;;
   --info)
     shift
