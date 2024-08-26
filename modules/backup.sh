@@ -151,7 +151,7 @@ function _restore() {
 
   # Get version number from $source
   IFS='-' read -ra backup_name <<<"${source#"$INSTANCE_BACKUPS_DIR/"}"
-  echo "${backup_name[*]}" >&2
+  backup_version="${backup_name[2]}"
   unset IFS
 
   if [ -n "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
