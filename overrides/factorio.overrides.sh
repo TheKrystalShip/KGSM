@@ -105,8 +105,12 @@ function func_deploy() {
   local source=$1
   local dest=$2
 
-  if ! mv -f "$source"/* "$dest"; then
+  if ! cp -r "$source"/* "$dest"; then
     echo "${0##*/} ERROR: Failed copy contents from $source into $dest" >&2 && return 1
+  fi
+
+  if ! rm -rf "${source:?}"/*; then
+    echo "${0##*/} WARNING: Failed to clear $source" >&2
   fi
 
   if [ -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]; then

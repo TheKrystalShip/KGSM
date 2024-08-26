@@ -94,20 +94,17 @@ function func_deploy() {
 
   # Check if $source is empty
   if [ -z "$(ls -A -I .gitignore "$source")" ]; then
-    echo "WARNING: $source is empty, nothing to deploy. Exiting" >&2
+    echo "${0##*/} WARNING: $source is empty, nothing to deploy. Exiting" >&2
     return 1
   fi
 
-  # Check if $dest is empty
-  if [ -n "$(ls -A -I .gitignore "$dest")" ]; then
-    # $dest is not empty
-    read -r -p "WARNING: $dest is not empty, continue? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+  # Copy everything from $source into $dest
+  if ! cp -r "$source"/* "$dest"; then
+    echo "${0##*/} ERROR: Failed to copy contents from $source into $dest" >&2 && return 1
   fi
 
-  # Move everything from $source into $dest
-  if ! mv "$source"/* "$dest"/; then
-    echo "${0##*/} ERROR: Failed to move contents from $source into $dest" >&2
-    return 1
+  if ! rm -rf "${source:?}"/*; then
+    echo "${0##*/} ERROR: Failed to clear $source" >&2 && return 1
   fi
 
   return 0
