@@ -14,6 +14,7 @@ Options:
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
   --logs <instance>               Return the last 10 lines of the instance log.
+    [-f, --follow]                  --follow will read in realtime.
   --status <instance>             Return a detailed running status.
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
@@ -430,26 +431,28 @@ function __manage_instance() {
 
 function _get_logs() {
   local instance=$1
+  local follow=${2:-}
 
   # shellcheck disable=SC1090
   source "$(__load_instance "$instance")" || return 1
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     [[ "$instance" == *.ini ]] && instance=${instance//.ini}
-    journalctl -n 10 -u "$instance" --no-pager
+
+    if [[ -z "$follow" ]]; then
+      journalctl -n 10 -u "$instance" --no-pager
+    else
+      journalctl -fu "$instance"
+    fi
     return $?
   fi
 
-  # shellcheck disable=SC2155
-  local instance_logs_dir=$(grep "INSTANCE_LOGS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_logs_dir" ]] && echo "${0##*/} ERROR: Malformed instance config, no INSTANCE_LOGS_DIR found" >&2 && return 1
-
   # shellcheck disable=SC2012
   # shellcheck disable=SC2155
-  local latest_log_file=$(ls "$instance_logs_dir" -t | head -1)
+  local latest_log_file=$(ls "$INSTANCE_LOGS_DIR" -t | head -1)
   [[ -z "$latest_log_file" ]] && echo "${0##*/} INFO: No logs found for $instance" >&2 && return 0
 
-  tail "$instance_logs_dir/$latest_log_file"
+  tail "$INSTANCE_LOGS_DIR/$latest_log_file" ${follow:+-f}
 }
 
 while [[ $# -gt 0 ]]; do
@@ -478,7 +481,16 @@ while [[ $# -gt 0 ]]; do
   --logs)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _get_logs "$1"; exit $?
+    instance=$1
+    shift
+    if [[ -z "$1" ]]; then _get_logs "$instance"; exit $?; fi
+    case "$1" in
+      -f | --follow)
+        _get_logs "$instance" "$1"; exit $?
+        ;;
+      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+        ;;
+    esac
     ;;
   --status)
     shift

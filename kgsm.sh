@@ -102,6 +102,7 @@ Options:
                                 OPTION represents one of the following:
 
       --logs                    Return the last 10 lines of the instance log.
+        [-f, --follow]            --follow will read in realtime.
       --status                  Return a detailed running status.
       --info                    Print information about the instance.
       --is-active               Check if the instance is active.
@@ -627,7 +628,16 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
     case "$1" in
     --logs)
-      "$module_instance" --logs "$instance"; exit $?
+      shift
+      if [[ -z "$1" ]]; then "$module_instance" --logs "$instance"; exit $?; fi
+      case "$1" in
+        -f | --follow)
+          "$module_instance" --logs "$instance" --follow; exit $?
+          ;;
+        *)
+          echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+          ;;
+      esac
       ;;
     --status)
       "$module_instance" --status "$instance"; exit $?
