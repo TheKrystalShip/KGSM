@@ -16,7 +16,7 @@ if [[ $@ =~ "--debug" ]]; then
 fi
 
 # Absolute path to this script file
-SELF_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
 # Read configuration file
 CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini)"
