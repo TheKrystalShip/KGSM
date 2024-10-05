@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# DO NOT MODIFY THIS FILE
+# Instead, make a copy of it in the blueprints directory and change all the
+# desired parameters there.
+# The name of the new file can be the same as this one, acting as an override.
+
+# Unique name, lowercase with no spaces
+BP_NAME=necesse
+
+# Port(s), used by UFW
+# Wrap in single quotes (')
+# Example: '1111:2222/tcp|1111:2222/udp'
+BP_PORT='14159/tcp|14159/udp'
+
+# Steam APP_ID
+# Values: 0 if not applicable, Valid Steam app id otherwise
+# Default: 0
+BP_APP_ID=1169370
+
+# (Optional)
+# Only used if BP_APP_ID != 0
+# Values: 0 for anonymous, 1 for account required
+BP_STEAM_AUTH_LEVEL=0
+
+# Name of the executable that will start the server
+# Values: start.sh / my_game.x86_64 / start_server
+BP_LAUNCH_BIN=StartServer-nogui.sh
+
+# Savefile name or world name, level, whichever is applicable
+# Values: my_world / de_dust2 / my_cool_factorio_map
+BP_LEVEL_NAME=default
+
+# (Optional)
+# If the executable happens to be in a subdirectory from the main install
+# and needs to be ran from inside that subdirectory
+# Values: Relative path from inside install directory: $INSTALL_DIR/bin
+BP_INSTALL_SUBDIRECTORY=
+
+# Any args passed onto the executable
+# Availble vars that can be used:
+#   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_WORKING_DIR
+#   $INSTANCE_BACKUPS_DIR
+#   $INSTANCE_TEMP_DIR
+#   $INSTANCE_LOGS_DIR
+#   $INSTANCE_INSTALL_DIR
+#   $INSTANCE_SAVES_DIR
+#   $INSTANCE_LEVEL_NAME
+BP_LAUNCH_ARGS="-world $INSTANCE_LEVEL_NAME -localdir"
+
+# (Optional)
+# Stop command sent to the input socket
+BP_STOP_COMMAND=
+
+# (Optional)
+# Save command sent to the input socket
+BP_SAVE_COMMAND=
