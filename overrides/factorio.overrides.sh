@@ -81,23 +81,19 @@ function func_download() {
 
   # Download
   if ! wget -q "https://factorio.com/get-download/${version}/headless/linux64" -O "$output_file"; then
-    echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2
-    return
+    echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2 && return 1
   fi
 
   # Extract
   if ! tar -xf "$output_file" --strip-components=1 -C "$dest"; then
-    echo "${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2
-    return
+    echo "${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2 && return 1
   fi
 
   # Remove trailing file
   if ! rm "$output_file"; then
-    echo "${0##*/} ERROR: rm $output_file" >&2
-    return
+    echo "${0##*/} ERROR: rm $output_file" >&2 && return 1
   fi
 
-  # shellcheck disable=SC2034
   return 0
 }
 
@@ -113,10 +109,12 @@ function func_deploy() {
     echo "${0##*/} WARNING: Failed to clear $source" >&2
   fi
 
-  if [ -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]; then
-    return 0
+  # Check if savefile exists, factorio needs to boot with an existing
+  # save otherwise it fails to start. Create a savefile at this stage
+  if [[ ! -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]]; then
+    cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
+    "$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" || return 1
   fi
 
-  cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
-  ./"$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME"
+  return 0
 }
