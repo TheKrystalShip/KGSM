@@ -107,7 +107,7 @@ function _generate_unique_instance_name() {
     instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-4}")
     instance_full_name="${service_name}-${instance_id}"
 
-    if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/$instance_full_name" ]]; then
+    if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
       echo "$instance_full_name" && return
     fi
   done
@@ -128,12 +128,17 @@ function _create_instance() {
   instance_full_name=$identifier
   if [[ -z "$instance_full_name" ]]; then
     instance_full_name=$(_generate_unique_instance_name "$service_name")
+
+    export instance_id=${instance_full_name##*-}
   else
-    instance_full_name="${service_name}-${identifier}"
+    if [[ -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
+      echo "${0##*/} ERROR: Instance with id \"$identifier\" already exists" >&2 && return 1
+    fi
+
+    instance_full_name="${identifier}"
   fi
 
   export instance_full_name
-  export instance_id=${instance_full_name##*-}
 
   # shellcheck disable=SC2155
   export instance_port=$(grep "BP_PORT=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
