@@ -114,6 +114,7 @@ Options:
                                 outcome as adding the --installed argument.
         [--installed]           Print the currently installed version.
         [--latest]              Print the latest available version.
+      --backups                 Print a list of created backups.
       --check-update            Check if a new version is available.
       --update                  Run the update process.
       --create-backup           Create a backup of the currently installed
@@ -678,6 +679,8 @@ while [[ "$#" -gt 0 ]]; do
       *) "$module_update" -i "$instance" $debug; exit $? ;;
       esac
       ;;
+    --backups)
+      "$module_backup" -i "$instance" --list $debug; exit $? ;;
     --create-backup)
       case "$1" in
       -h | --help) "$module_backup" --help; exit $? ;;
