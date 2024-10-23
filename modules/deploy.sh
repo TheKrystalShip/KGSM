@@ -99,7 +99,7 @@ function func_deploy() {
   fi
 
   # Copy everything from $source into $dest
-  if ! cp -r "$source"/* "$dest"; then
+  if ! cp -rf "$source"/* "$dest"; then
     echo "${0##*/} ERROR: Failed to copy contents from $source into $dest" >&2 && return 1
   fi
 
