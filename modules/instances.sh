@@ -19,7 +19,12 @@ Options:
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
   --stop <instance>               Stop the instance.
+  --save <instance>               Issue the save command to the instance.
   --restart <instance>            Restart the instance.
+  --input <command>               Issue a command to the instance if it has an
+                                  interactive console. Displays the last 10
+                                  lines of the instance log after issuing the
+                                  command.
   --create <blueprint>
     --install-dir <install_dir>   Creates a new instance for the given blueprint
                                   and returns the name of the instance config
@@ -28,6 +33,8 @@ Options:
                                   instance from.
                                   <install_dir> Directory where the instance
                                   will be created.
+    --id <identifier>             Optional: Specify an instance identifier
+                                  instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
   --info <instance>         Print a detailed description of an instance
 
@@ -367,6 +374,7 @@ function _list_instances() {
 function __manage_instance() {
   local instance=$1
   local action=$2
+  local command=${3:-}
 
   instance_config_file=$(__load_instance "$instance")
 
@@ -401,8 +409,8 @@ function __manage_instance() {
     esac
   fi
 
-  # shellcheck disable=SC2155
-  local instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  local instance_manage_file
+  instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
   [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
 
   case "$action" in
@@ -415,6 +423,15 @@ function __manage_instance() {
     restart)
       "$instance_manage_file" --stop
       "$instance_manage_file" --start --background
+    ;;
+    save)
+      "$instance_manage_file" --save
+    ;;
+    input)
+      [[ -z "$command" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && return 1
+      "$instance_manage_file" --input "$command"
+      sleep 1
+      _get_logs "$instance"
     ;;
     status)
       _print_info "$instance"
@@ -521,6 +538,20 @@ while [[ $# -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
     __manage_instance "$1" "restart"; exit $?
+    ;;
+  --save)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    __manage_instance "$1" "save"; exit $?
+    ;;
+  --input)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && exit 1
+    command=$1
+    __manage_instance "$instance" "input" "$command"; exit $?
     ;;
   --create)
     blueprint=

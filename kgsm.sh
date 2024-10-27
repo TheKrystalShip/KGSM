@@ -109,6 +109,11 @@ Options:
       --start                   Start the instance.
       --stop                    Stop the instance.
       --restart                 Restart the instance.
+      --save                    Issues the save command to the instance.
+      --input <command>         Send a command to the instance's interactive
+                                console, if the instance accepts commands.
+                                Will display the last 10 lines of the instance
+                                log.
       -v, --version             Provide version information.
                                 Running this with no other argument has the same
                                 outcome as adding the --installed argument.
@@ -657,6 +662,14 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --restart)
       "$module_instance" --restart "$instance"; exit $?
+      ;;
+    --save)
+      "$module_instance" --save "$instance"; exit $?
+      ;;
+    --input)
+      shift
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && exit 1
+      "$module_instance" --input "$instance" "$1"; exit $?
       ;;
     -v | --version)
       shift
