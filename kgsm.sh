@@ -611,7 +611,7 @@ while [[ "$#" -gt 0 ]]; do
     _uninstall "$1"; exit $?
     ;;
   --blueprints)
-    "$module_blueprints" --list; exit $?
+    "$module_blueprints" --list $debug; exit $?
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
@@ -624,7 +624,7 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@"; exit $?
     ;;
   --instances)
-    "$module_instance" --list --detailed; exit $?
+    "$module_instance" --list --detailed $debug; exit $?
     ;;
   -i | --instance)
     shift
@@ -635,10 +635,10 @@ while [[ "$#" -gt 0 ]]; do
     case "$1" in
     --logs)
       shift
-      if [[ -z "$1" ]]; then "$module_instance" --logs "$instance"; exit $?; fi
+      if [[ -z "$1" ]]; then "$module_instance" --logs "$instance" $debug; exit $?; fi
       case "$1" in
         -f | --follow)
-          "$module_instance" --logs "$instance" --follow; exit $?
+          "$module_instance" --logs "$instance" --follow $debug; exit $?
           ;;
         *)
           echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
@@ -646,30 +646,30 @@ while [[ "$#" -gt 0 ]]; do
       esac
       ;;
     --status)
-      "$module_instance" --status "$instance"; exit $?
+      "$module_instance" --status "$instance" $debug; exit $?
       ;;
     --info)
-      "$module_instance" --info "$instance"; exit $?
+      "$module_instance" --info "$instance" $debug; exit $?
       ;;
     --is-active)
-      "$module_instance" --is-active "$instance"; exit $?
+      "$module_instance" --is-active "$instance" $debug; exit $?
       ;;
     --start)
-      "$module_instance" --start "$instance"; exit $?
+      "$module_instance" --start "$instance" $debug; exit $?
       ;;
     --stop)
-      "$module_instance" --stop "$instance"; exit $?
+      "$module_instance" --stop "$instance" $debug; exit $?
       ;;
     --restart)
-      "$module_instance" --restart "$instance"; exit $?
+      "$module_instance" --restart "$instance" $debug; exit $?
       ;;
     --save)
-      "$module_instance" --save "$instance"; exit $?
+      "$module_instance" --save "$instance" $debug; exit $?
       ;;
     --input)
       shift
       [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && exit 1
-      "$module_instance" --input "$instance" "$1"; exit $?
+      "$module_instance" --input "$instance" "$1" $debug; exit $?
       ;;
     -v | --version)
       shift
