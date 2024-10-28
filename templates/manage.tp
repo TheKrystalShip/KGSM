@@ -88,7 +88,7 @@ function save_game() {
     echo "$INSTANCE_SAVE_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
     sleep 5
   else
-    echo "\${0##*/} ERROR: Save failed: No active server found." >&2
+    echo "\${0##*/} ERROR: Save failed: No active server found." >&2 && return 1
   fi
 }
 
@@ -96,7 +96,7 @@ function send_input() {
   if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
     echo "\$1" >>"\$INSTANCE_SOCKET_FILE"
   else
-    echo "\${0##*/} ERROR: Input failed: No active server found." >&2
+    echo "\${0##*/} ERROR: Input failed: No active server found." >&2 && return 1
   fi
 }
 

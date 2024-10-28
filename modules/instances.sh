@@ -378,51 +378,46 @@ function __manage_instance() {
 
   instance_config_file=$(__load_instance "$instance")
 
-  # shellcheck disable=SC2155
-  local instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    # systemctl doesn't need the .ini extension
-    instance_copy=$instance
-    if [[ "$instance" == *.ini ]]; then
-      instance_copy=${instance//.ini}
-    fi
-    case "$action" in
-      # status doesn't require sudo
-      status)
-        systemctl $action "$instance_copy" --no-pager
-        # systemctl status returns exit code 3, but it prints everything we need
-        # so just return 0 afterwords to exit the function
-        return 0
-        ;;
-      is-active)
-        local is_active
-        is_active=$(systemctl "$action" "$instance_copy")
-        [[ "$is_active" == "active" ]] && return 0
-        return 1
-        ;;
-      # everything else does
-      *)
-        $SUDO systemctl $action "$instance_copy" --no-pager
-        return $?
-        ;;
-    esac
-  fi
+  local instance_lifecycle_manager
+  instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
 
   local instance_manage_file
   instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
   [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
 
+  local instance_copy
+  instance_copy=$instance
+  if [[ "$instance" == *.ini ]]; then
+    instance_copy=${instance//.ini}
+  fi
+
+  local instance_is_managed_by_systemd
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+    instance_is_managed_by_systemd=1
+  fi
+
   case "$action" in
     start)
-      "$instance_manage_file" --start --background
+      if [[ "$instance_is_managed_by_systemd" ]]; then
+        $SUDO systemctl start "$instance_copy" --no-pager
+      else
+        "$instance_manage_file" --start --background
+      fi
     ;;
     stop)
-      "$instance_manage_file" --stop
+      if [[ "$instance_is_managed_by_systemd" ]]; then
+        $SUDO systemctl stop "$instance_copy" --no-pager
+      else
+        "$instance_manage_file" --stop
+      fi
     ;;
     restart)
-      "$instance_manage_file" --stop
-      "$instance_manage_file" --start --background
+      if [[ "$instance_is_managed_by_systemd" ]]; then
+        $SUDO systemctl restart "$instance_copy" --no-pager
+      else
+        "$instance_manage_file" --stop
+        "$instance_manage_file" --start --background
+      fi
     ;;
     save)
       "$instance_manage_file" --save
@@ -434,18 +429,33 @@ function __manage_instance() {
       _get_logs "$instance"
     ;;
     status)
-      _print_info "$instance"
+      if [[ "$instance_is_managed_by_systemd" ]]; then
+        # systemctl status doesn't require sudo
+        systemctl status "$instance_copy" --no-pager
+        # systemctl status returns exit code 3, but it prints everything we need
+        # so just return 0 afterwords to exit the function
+        return 0
+      else
+        _print_info "$instance"
+      fi
     ;;
     is-active)
-      set +eo pipefail
-      # shellcheck disable=SC2155
-      local instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-      set -eo pipefail
-      [[ -z "$instance_pid_file" ]] && return 1
-      [[ ! -f "$instance_pid_file" ]] && return 1
-      [[ -n $(cat "$instance_pid_file") ]] && return 0
+      if [[ "$instance_is_managed_by_systemd" ]]; then
+        local is_active
+        is_active=$(systemctl "$action" "$instance_copy" --no-pager)
+        [[ "$is_active" == "active" ]] && return 0
+        return 1
+      else
+        set +eo pipefail
+        local instance_pid_file
+        instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+        set -eo pipefail
+        [[ -z "$instance_pid_file" ]] && return 1
+        [[ ! -f "$instance_pid_file" ]] && return 1
+        [[ -n $(cat "$instance_pid_file") ]] && return 0
 
-      return 1
+        return 1
+      fi
     ;;
     *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
   esac
