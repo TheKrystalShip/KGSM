@@ -53,6 +53,15 @@ fi
 
 set -eo pipefail
 
+# Trap CTRL-C
+trap "echo "" && exit" INT
+
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
+[[ -z "$module_common" ]] && echo -e "${0##*/} ${RED}ERROR${END}: Could not find module common.sh" >&2 && exit 1
+
+# shellcheck disable=SC1090
+source "$module_common" || exit 1
+
 function get_version() {
   [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
 }
@@ -204,13 +213,13 @@ function check_for_update() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo -e "${0##*/} ${RED}ERROR${END}: wget is required but not installed" >&2 && return 1
+    __print_error "wget is required but not installed" && return 1
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ]; then
-    echo -e "${0##*/} ${BLUE}INFO${END}: New version available: $LATEST_VERSION
-Please run ./${0##*/} --update to get the latest version" >&2
+    __print_info "New version available: $LATEST_VERSION"
+    __print_info "Please run './${0##*/} --update' to get the latest version"
   fi
 }
 
@@ -228,29 +237,29 @@ function update_script() {
     [ "$arg" = "--force" ] && force=1
   done
 
-  echo -e "${0##*/} ${BLUE}INFO${END}: Checking for updates..." >&2
+  __print_info "Checking for updates..."
 
   # Fetch the latest version number
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -qO - "$version_url")
   else
-    echo -e "${0##*/} ${RED}ERROR${END}: wget is required to check for updates." >&2 && return 1
+    __print_error "wget is required to check for updates." && return 1
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ] || [ "$force" -eq 1 ]; then
-    echo -e "${0##*/} ${BLUE}INFO${END}: New version available: $LATEST_VERSION. Updating..." >&2
+    __print_info "New version available: $LATEST_VERSION. Updating..."
 
     # Backup the current script
     local backup_file="${0}.${script_version:-0}.bak"
     cp "$0" "$backup_file"
-    echo -e "${0##*/} ${BLUE}INFO${END}: Backup of the current script created at $backup_file" >&2
+    __print_info "Backup of the current script created at $backup_file"
 
     # Download the repository tarball
     if command -v wget >/dev/null 2>&1; then
       wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
     else
-      echo -e "${0##*/} ${RED}ERROR${END}: wget is required to download the update" >&2 && return 1
+      __print_error "wget is required to download the update" && return 1
     fi
 
     # Extract the tarball
@@ -258,16 +267,16 @@ function update_script() {
       # Overwrite the existing files with the new ones
       cp -r KGSM-main/* .
       chmod +x kgsm.sh modules/*.sh
-      echo -e "${0##*/} ${GREEN}SUCCESS${END}: KGSM updated to version $LATEST_VERSION" >&2
+      __print_success "KGSM updated to version $LATEST_VERSION"
 
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
-      echo -e "${0##*/} ${RED}ERROR${END}: Failed to extract the update. Reverting to the previous version." >&2
+      __print_error "Failed to extract the update. Reverting to the previous version."
       mv "${0}.${script_version:-0}.bak" "$0"
     fi
   else
-    echo -e "${0##*/} ${BLUE}INFO${END}: You are already using the latest version: $script_version." >&2
+    __print_info "You are already using the latest version: $script_version."
   fi
 
   return 0
@@ -285,7 +294,7 @@ while [[ "$#" -gt 0 ]]; do
       usage_interactive && exit 0
       ;;
     *)
-      echo -e "${0##*/} ${RED}ERROR${END}: Unknown argument $1" >&2 && exit 1
+      __print_error "Unknown argument $1" && exit 1
       ;;
     esac
     ;;
@@ -298,15 +307,6 @@ while [[ "$#" -gt 0 ]]; do
   esac
   shift
 done
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
-
-module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$module_common" ]] && echo -e "${0##*/} ${RED}ERROR${END}: Could not find module common.sh" >&2 && exit 1
-
-# shellcheck disable=SC1090
-source "$module_common" || exit 1
 
 module_blueprints=$(__load_module blueprints.sh)
 module_directories=$(__load_module directories.sh)

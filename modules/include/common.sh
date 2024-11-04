@@ -42,25 +42,25 @@ export COLOR_BLUE="\033[0;34m"
 export COLOR_END="\033[0m"
 
 function __print_error() {
-  echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END}: $1" >&2
+  echo -e "[${0##*/} - ${COLOR_RED}ERROR${COLOR_END}] $1" >&2
 }
 
 export -f __print_error
 
 function __print_success() {
-  echo -e "${0##*/} ${COLOR_GREEN}SUCCESS${COLOR_END}: $1" >&2
+  echo -e "[${0##*/} - ${COLOR_GREEN}SUCCESS${COLOR_END}] $1" >&2
 }
 
 export -f __print_success
 
 function __print_warning() {
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END}: $1" >&2
+  echo -e "[${0##*/} - ${COLOR_ORANGE}WARNING${COLOR_END}] $1" >&2
 }
 
 export -f __print_warning
 
 function __print_info() {
-  echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END}: $1" >&2
+  echo -e "[${0##*/} - ${COLOR_BLUE}INFO${COLOR_END}] $1" >&2
 }
 
 export -f __print_info
