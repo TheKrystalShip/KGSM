@@ -86,7 +86,7 @@ function func_download() {
   fi
 
   # Extract
-  if ! tar -xf "$dest_file" --strip-components=1 -C "$dest" 2>&- 1>&2; then
+  if ! tar -xf "$dest_file" --strip-components=1 -C "$dest" >/dev/null 2>&1; then
     __print_error "tar -xf $dest_file --strip-components=1 -C $dest" && return 1
   fi
 
@@ -107,14 +107,16 @@ function func_deploy() {
   fi
 
   if ! rm -rf "${source:?}"/*; then
-    __print_warning "Failed to clear $source"
+    __print_warning "Failed to clear $source, continuing..."
   fi
 
   # Check if savefile exists, factorio needs to boot with an existing
   # save otherwise it fails to start. Create a savefile at this stage
   if [[ ! -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]]; then
     cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
-    "$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" || return 1
+    if ! "$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" >/dev/null 2>&1; then
+      __print_error "Failed to create savefile $INSTANCE_LEVEL_NAME, server won't be able to start without it" && return 1
+    fi
   fi
 
   return 0
