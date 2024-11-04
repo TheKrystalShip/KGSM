@@ -226,10 +226,12 @@ function check_for_update() {
 # Define a function to update the script and other files
 function update_script() {
   # Define the raw URL of the script and version file
-  # shellcheck disable=SC2155
-  local script_version=$(get_version)
+  local script_version
+  script_version=$(get_version)
   local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
   local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz"
+  local local_temp_file="kgsm.tar.gz"
+  local local_temp_dir="KGSM-Main"
 
   local force=0
   for arg in "$@"; do
@@ -256,25 +258,24 @@ function update_script() {
     __print_info "Backup of the current script created at $backup_file"
 
     # Download the repository tarball
-    if command -v wget >/dev/null 2>&1; then
-      wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
-    else
-      __print_error "wget is required to download the update" && return 1
+    if ! wget -qO "$local_temp_file" "$repo_archive_url" 2>/dev/null; then
+      __print_error "Failed to download new version from $repo_archive_url" && return 1
     fi
 
     # Extract the tarball
-    if tar -xzf "kgsm.tar.gz"; then
-      # Overwrite the existing files with the new ones
-      cp -r KGSM-main/* .
-      chmod +x kgsm.sh modules/*.sh
-      __print_success "KGSM updated to version $LATEST_VERSION"
-
-      # Cleanup
-      rm -rf "KGSM-main" "kgsm.tar.gz"
-    else
+    if ! tar -xzf "$local_temp_file"; then
       __print_error "Failed to extract the update. Reverting to the previous version."
       mv "${0}.${script_version:-0}.bak" "$0"
     fi
+
+    # Overwrite the existing files with the new ones
+    cp -r "$local_temp_dir"/* .
+    chmod +x kgsm.sh modules/*.sh
+
+    # Cleanup
+    rm -rf "$local_temp_dir" "$local_temp_file"
+
+    __print_success "KGSM updated to version $LATEST_VERSION"
   else
     __print_info "You are already using the latest version: $script_version."
   fi
