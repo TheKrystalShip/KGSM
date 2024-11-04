@@ -154,7 +154,7 @@ function _create_manage_file() {
 $(<"$manage_template_file")
 EOF
 " >"$instance_manage_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not generate template for $instance_manage_file" >&2 && return 1
+    __print_error "Could not generate template for $instance_manage_file" && return 1
   fi
 
   INSTANCE_USER=$USER
@@ -164,11 +164,11 @@ EOF
 
   # Make sure file is owned by the user and not root
   if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_manage_file"; then
-    echo "${0##*/} ERROR: Failed to assing $instance_manage_file to $INSTANCE_USER" >&2 && return 1
+    __print_error "Failed to assing $instance_manage_file to $INSTANCE_USER" && return 1
   fi
 
   if ! chmod +x "$instance_manage_file"; then
-    echo "${0##*/} ERROR: Failed to add +x permission to $instance_manage_file" >&2 && return 1
+    __print_error "Failed to add +x permission to $instance_manage_file" && return 1
   fi
 
   if grep -q "INSTANCE_MANAGE_FILE=" <"$instance_config_file"; then
@@ -193,7 +193,7 @@ function _create_overrides_file() {
 
   # Make copy
   if ! cp -f "$overrides_file" "$instance_overrides_file"; then
-    echo "${0##*/} ERROR: Could not copy $overrides_file to $instance_overrides_file" >&2 && return 1
+    __print_error "Could not copy $overrides_file to $instance_overrides_file" && return 1
   fi
 
   INSTANCE_USER=$USER
@@ -203,11 +203,11 @@ function _create_overrides_file() {
 
   # Make sure file is owned by the user and not root
   if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_overrides_file"; then
-    echo "${0##*/} ERROR: Failed to assing $instance_overrides_file to $INSTANCE_USER" >&2 && return 1
+    __print_error "Failed to assing $instance_overrides_file to $INSTANCE_USER" && return 1
   fi
 
   # if ! chmod +x "$instance_overrides_file"; then
-  #   echo "${0##*/} ERROR: Failed to add +x permission to $instance_overrides_file" >&2 && return 1
+  #   __print_error "Failed to add +x permission to $instance_overrides_file" && return 1
   # fi
 
   if grep -q "INSTANCE_OVERRIDES_FILE=" <"$instance_config_file"; then
@@ -231,7 +231,7 @@ function _systemd_uninstall() {
 
   if systemctl is-active "$INSTANCE_FULL_NAME" &>/dev/null; then
     if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME" &>/dev/null; then
-      echo "${0##*/} ERROR: Failed to stop $INSTANCE_FULL_NAME before uninstalling systemd files" >&2 && return 1
+      __print_error "Failed to stop $INSTANCE_FULL_NAME before uninstalling systemd files" && return 1
     fi
   fi
 
@@ -245,7 +245,7 @@ function _systemd_uninstall() {
   # shellcheck disable=SC2153
   if [ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]; then
     if ! $SUDO rm "$INSTANCE_SYSTEMD_SERVICE_FILE"; then
-      echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SERVICE_FILE" >&2 && return 1
+      __print_error "Failed to remove $INSTANCE_SYSTEMD_SERVICE_FILE" && return 1
     fi
   fi
 
@@ -253,24 +253,24 @@ function _systemd_uninstall() {
   # shellcheck disable=SC2153
   if [ -f "$INSTANCE_SYSTEMD_SOCKET_FILE" ]; then
     if ! $SUDO rm "$INSTANCE_SYSTEMD_SOCKET_FILE"; then
-      echo "${0##*/} ERROR: Failed to remove $INSTANCE_SYSTEMD_SOCKET_FILE" >&2 && return 1
+      __print_error "Failed to remove $INSTANCE_SYSTEMD_SOCKET_FILE" && return 1
     fi
   fi
 
   # Reload systemd
   if ! $SUDO systemctl daemon-reload; then
-    echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
+    __print_error "Failed to reload systemd" && return 1
   fi
 
   # Remove entries from instance config file
   sed -i "\%# Path to the systemd instance.service file%d" "$instance_config_file" >/dev/null
   if ! sed -i "\%INSTANCE_SYSTEMD_SERVICE_FILE=$INSTANCE_SYSTEMD_SERVICE_FILE%d" "$instance_config_file" >/dev/null; then
-    echo "${0##*/} ERROR: Failed to remove INSTANCE_SYSTEMD_SERVICE_FILE from $instance_config_file" >&2 && return 1
+    __print_error "Failed to remove INSTANCE_SYSTEMD_SERVICE_FILE from $instance_config_file" && return 1
   fi
 
   sed -i "\%# Path to the systemd instance.socket file%d" "$instance_config_file" >/dev/null
   if ! sed -i "\%INSTANCE_SYSTEMD_SOCKET_FILE=$INSTANCE_SYSTEMD_SOCKET_FILE%d" "$instance_config_file" >/dev/null; then
-    echo "${0##*/} ERROR: Failed to remove INSTANCE_SYSTEMD_SOCKET_FILE from $instance_config_file" >&2 && return 1
+    __print_error "Failed to remove INSTANCE_SYSTEMD_SOCKET_FILE from $instance_config_file" && return 1
   fi
 
   # Change the INSTANCE_LIFECYCLE_MANAGER to standalone
@@ -282,7 +282,7 @@ function _systemd_uninstall() {
 }
 
 function _systemd_install() {
-  [[ -z "$SYSTEMD_DIR" ]] && echo "${0##*/} ERROR: SYSTEMD_DIR is expected but it's not set" >&2 && return 1
+  [[ -z "$SYSTEMD_DIR" ]] && __print_error "SYSTEMD_DIR is expected but it's not set" && return 1
 
   local service_template_file
   local socket_template_file
@@ -303,7 +303,7 @@ function _systemd_install() {
   # If service file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_service_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
-      echo "${0##*/} ERROR: File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" >&2 && return 1
+      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" && return 1
     else
       if ! _systemd_uninstall; then return 1; fi
     fi
@@ -312,7 +312,7 @@ function _systemd_install() {
   # If socket file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_socket_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
-      echo "${0##*/} ERROR: File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" >&2 && return 1
+      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" && return 1
     else
       if ! _systemd_uninstall; then return 1; fi
     fi
@@ -328,15 +328,15 @@ function _systemd_install() {
 $(<"$service_template_file")
 EOF
 " >"$temp_systemd_service_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not generate $service_template_file to $temp_systemd_service_file" >&2 && return 1
+    __print_error "Could not generate $service_template_file to $temp_systemd_service_file" && return 1
   fi
 
   if ! $SUDO mv "$temp_systemd_service_file" "$instance_systemd_service_file"; then
-    echo "${0##*/} ERROR: Failed to move $temp_systemd_socket_file into $instance_systemd_service_file" >&2 && return 1
+    __print_error "Failed to move $temp_systemd_socket_file into $instance_systemd_service_file" && return 1
   fi
 
   if ! $SUDO chown root:root "$instance_systemd_service_file"; then
-    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_systemd_service_file" >&2 && return 1
+    __print_error "Failed to assign root user ownership to $instance_systemd_service_file" && return 1
   fi
 
   # Create the socket file
@@ -344,20 +344,20 @@ EOF
 $(<"$socket_template_file")
 EOF
 " >"$temp_systemd_socket_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not generate $socket_template_file to $temp_systemd_socket_file" >&2 && return 1
+    __print_error "Could not generate $socket_template_file to $temp_systemd_socket_file" && return 1
   fi
 
   if ! $SUDO mv "$temp_systemd_socket_file" "$instance_systemd_socket_file"; then
-    echo "${0##*/} ERROR: Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file" >&2 && return 1
+    __print_error "Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file" && return 1
   fi
 
   if ! $SUDO chown root:root "$instance_systemd_socket_file"; then
-    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_systemd_socket_file" >&2 && return 1
+    __print_error "Failed to assign root user ownership to $instance_systemd_socket_file" && return 1
   fi
 
   # Reload systemd
   if ! $SUDO systemctl daemon-reload; then
-    echo "${0##*/} ERROR: Failed to reload systemd" >&2 && return 1
+    __print_error "Failed to reload systemd" && return 1
   fi
 
   if grep -q "INSTANCE_SOCKET_FILE=" <"$instance_config_file"; then
@@ -396,33 +396,33 @@ EOF
 }
 
 function _ufw_uninstall() {
-  [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
+  [[ -z "$UFW_RULES_DIR" ]] && __print_error "UFW_RULES_DIR is expected but it's not set" && return 1
   [[ -z "$INSTANCE_UFW_FILE" ]] && return 0
   [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
 
   # Remove ufw rule
   if ! $SUDO ufw delete allow "$INSTANCE_FULL_NAME" &>/dev/null; then
-    echo "${0##*/} ERROR: Failed to remove UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
+    __print_error "Failed to remove UFW rule for $INSTANCE_FULL_NAME" && return 1
   fi
 
   if [ -f "$INSTANCE_UFW_FILE" ]; then
     # Delete firewall rule file
     if ! $SUDO rm "$INSTANCE_UFW_FILE"; then
-      echo "${0##*/} ERROR: Failed to remove $INSTANCE_UFW_FILE" >&2 && return 1
+      __print_error "Failed to remove $INSTANCE_UFW_FILE" && return 1
     fi
   fi
 
   # Remove UFW entries from the instance config file
   sed -i "\%# Path the the UFW firewall rule file%d" "$instance_config_file" >/dev/null
   if ! sed -i "\%INSTANCE_UFW_FILE=$INSTANCE_UFW_FILE%d" "$instance_config_file" >/dev/null; then
-    echo "${0##*/} ERROR: Failed to remove UFW firewall rule file from $instance_config_file" >&2 && return 1
+    __print_error "Failed to remove UFW firewall rule file from $instance_config_file" && return 1
   fi
 
   return 0
 }
 
 function _ufw_install() {
-  [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: UFW_RULES_DIR is expected but it's not set" >&2 && return 1
+  [[ -z "$UFW_RULES_DIR" ]] && __print_error "UFW_RULES_DIR is expected but it's not set" && return 1
 
   local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_FULL_NAME}
   local temp_ufw_file=/tmp/kgsm-${INSTANCE_FULL_NAME}
@@ -440,21 +440,21 @@ function _ufw_install() {
 $(<"$ufw_template_file")
 EOF
 " >"$temp_ufw_file"; then
-    echo "${0##*/} ERROR: Failed writing rules to $temp_ufw_file" >&2 && return 1
+    __print_error "Failed writing rules to $temp_ufw_file" && return 1
   fi
 
   if ! $SUDO mv "$temp_ufw_file" "$instance_ufw_file"; then
-    echo "${0##*/} ERROR: Failed to move $temp_ufw_file into $instance_ufw_file" >&2 && return 1
+    __print_error "Failed to move $temp_ufw_file into $instance_ufw_file" && return 1
   fi
 
   # UFW expect the rule file to belong to root
   if ! $SUDO chown root:root "$instance_ufw_file"; then
-    echo "${0##*/} ERROR: Failed to assign root user ownership to $instance_ufw_file" >&2 && return 1
+    __print_error "Failed to assign root user ownership to $instance_ufw_file" && return 1
   fi
 
   # Enable firewall rule
   if ! $SUDO ufw allow "$INSTANCE_FULL_NAME" &>/dev/null; then
-    echo "${0##*/} ERROR: Failed to allow UFW rule for $INSTANCE_FULL_NAME" >&2 && return 1
+    __print_error "Failed to allow UFW rule for $INSTANCE_FULL_NAME" && return 1
   fi
 
   if grep -q "INSTANCE_UFW_FILE=" <"$instance_config_file"; then
@@ -515,7 +515,7 @@ while [ $# -gt 0 ]; do
     --ufw)
       _ufw_install; exit $?
       ;;
-    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) __print_error "Invalid argument $1" && exit 1 ;;
     esac
     ;;
   --remove)
@@ -528,10 +528,10 @@ while [ $# -gt 0 ]; do
     --ufw)
       _ufw_uninstall; exit $?
       ;;
-    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) __print_error "Invalid argument $1" && exit 1 ;;
     esac
     ;;
-  *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+  *) __print_error "Invalid argument $1" && exit 1 ;;
   esac
   shift
 done

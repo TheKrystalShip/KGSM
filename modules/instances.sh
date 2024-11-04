@@ -36,7 +36,7 @@ Options:
     --id <identifier>             Optional: Specify an instance identifier
                                   instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
-  --info <instance>         Print a detailed description of an instance
+  --info <instance>               Print a detailed description of an instance
 
 Examples:
   $(basename "$0") --create test.bp --install-dir /opt

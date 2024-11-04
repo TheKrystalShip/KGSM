@@ -110,13 +110,13 @@ function func_get_latest_version() {
   app_id="$(grep "BP_APP_ID=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   {
     [[ -z "$app_id" ]] || [[ "$app_id" -eq 0 ]];
-  } && echo "${0##*/} ERROR: APP_ID is expected but it's not set" >&2 && return 1
+  } && __print_error "APP_ID is expected but it's not set" && return 1
 
   username=anonymous
   auth_level="$(grep "BP_STEAM_AUTH_LEVEL=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   if [[ $auth_level -ne 0 ]]; then
-    [[ -z "$STEAM_USERNAME" ]] && echo "${0##*/} ERROR: STEAM_USERNAME is expected but it's not set" >&2 && return 1
-    [[ -z "$STEAM_PASSWORD" ]] && echo "${0##*/} ERROR: STEAM_PASSWORD is expected but it's not set" >&2 && return 1
+    [[ -z "$STEAM_USERNAME" ]] && __print_error "STEAM_USERNAME is expected but it's not set" && return 1
+    [[ -z "$STEAM_PASSWORD" ]] && __print_error "STEAM_PASSWORD is expected but it's not set" && return 1
 
     username="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
@@ -135,7 +135,7 @@ function func_get_latest_version() {
 }
 
 function _compare() {
-  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && echo "${0##*/} ERROR: $instance is missing INSTANCE_INSTALLED_VERSION varible" >&2 && return 1
+  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && __print_error "$instance is missing INSTANCE_INSTALLED_VERSION varible" && return 1
 
   local latest_version
   latest_version=$(func_get_latest_version)
@@ -181,11 +181,11 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --save)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit 1
     _save_version "$1"; exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    __print_error "Invalid argument $1" && exit 1
     ;;
   esac
   shift

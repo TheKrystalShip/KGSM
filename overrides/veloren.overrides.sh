@@ -79,19 +79,21 @@ function func_download() {
   local version=$1
   local dest=$2
 
+  local download_url="https://download.veloren.net/latest/linux/x86_64/weekly"
+
   # Download zip file in $dest
-  if ! wget -P "$dest" "https://download.veloren.net/latest/linux/x86_64/weekly"; then
-    echo "${0##*/} ERROR: wget -P $dest https://download.veloren.net/latest/linux/x86_64/weekly" >&2 && return 1
+  if ! wget -P "$dest" "$download_url"; then
+    __print_error "wget -P $dest $download_url" && return 1
   fi
 
   # Extract zipped contents in the same $dest
   if ! unzip "$dest"/weekly -d "$dest"; then
-    echo "${0##*/} ERROR: unzip $dest/weekly -d $dest" >&2 && return 1
+    __print_error "unzip $dest/weekly -d $dest" && return 1
   fi
 
   # Remove zip file
   if ! rm "$dest"/weekly; then
-    echo "${0##*/} ERROR: rm $dest/weekly" >&2 && return 1
+    __print_error "rm $dest/weekly" && return 1
   fi
 
   return 0

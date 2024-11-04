@@ -77,21 +77,22 @@ function func_download() {
   local dest=$2
 
   # Download new version in $dest
-  local output_file="$dest/factorio_headless.tar.xz"
+  local download_url="https://factorio.com/get-download/${version}/headless/linux64"
+  local dest_file="$dest/factorio_headless.tar.xz"
 
   # Download
-  if ! wget -q "https://factorio.com/get-download/${version}/headless/linux64" -O "$output_file"; then
-    echo "${0##*/} ERROR: wget -q https://factorio.com/get-download/stable/headless/linux64 -O $output_file" >&2 && return 1
+  if ! wget -qO "$dest_file" "$download_url"; then
+    __print_error "wget -qO $dest_file $download_url" && return 1
   fi
 
   # Extract
-  if ! tar -xf "$output_file" --strip-components=1 -C "$dest"; then
-    echo "${0##*/} ERROR: tar -xf $output_file --strip-components=1 -C $dest" >&2 && return 1
+  if ! tar -xf "$dest_file" --strip-components=1 -C "$dest" 2>&- 1>&2; then
+    __print_error "tar -xf $dest_file --strip-components=1 -C $dest" && return 1
   fi
 
   # Remove trailing file
-  if ! rm "$output_file"; then
-    echo "${0##*/} ERROR: rm $output_file" >&2 && return 1
+  if ! rm "$dest_file"; then
+    __print_error "rm $dest_file" && return 1
   fi
 
   return 0
@@ -102,11 +103,11 @@ function func_deploy() {
   local dest=$2
 
   if ! cp -r "$source"/* "$dest"; then
-    echo "${0##*/} ERROR: Failed copy contents from $source into $dest" >&2 && return 1
+    __print_error "Failed copy contents from $source into $dest" && return 1
   fi
 
   if ! rm -rf "${source:?}"/*; then
-    echo "${0##*/} WARNING: Failed to clear $source" >&2
+    __print_warning "Failed to clear $source"
   fi
 
   # Check if savefile exists, factorio needs to boot with an existing

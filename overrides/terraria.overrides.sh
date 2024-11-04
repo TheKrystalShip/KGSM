@@ -80,50 +80,53 @@ function func_download() {
     version=$(func_get_latest_version)
   fi
 
+  local download_url="https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"
+  local dest_file="${dest}/terraria-server-${version}.zip"
+
   # Download zip file in $dest
-  if ! wget -qO "$dest/terraria-server-${version}.zip" "https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip"; then
-    echo "${0##*/} ERROR: wget https://terraria.org/api/download/pc-dedicated-server/terraria-server-${version}.zip" >&2 && return 1
+  if ! wget -qO "$dest_file" "$download_url"; then
+    __print_error "wget -qO $dest_file $download_url" && return 1
   fi
 
   # Extract zipped contents in the same $dest
-  if ! unzip -q "$dest/terraria-server-${version}.zip" -d "$dest"; then
-    echo "${0##*/} ERROR: unzip terraria-server-${version}.zip -d $dest" >&2 && return 1
+  if ! unzip -q "$dest_file" -d "$dest"; then
+    __print_error "unzip -q $dest_file -d $dest" && return 1
   fi
 
   # Remove zip file
-  if ! rm "$dest"/"terraria-server-${version}.zip"; then
-    echo "${0##*/} ERROR: 'rm terraria-server-${version}.zip'" >&2 && return 1
+  if ! rm "$dest_file"; then
+    __print_error "rm $dest_file" && return 1
   fi
 
   # Terraria extracts with the version name as the base folder, we don't want that
   if ! mv "$dest"/"$version"/* "$dest"/; then
-    echo "${0##*/} ERROR: mv $dest/$version/* $dest/" >&2 && return 1
+    __print_error "mv $dest/$version/* $dest/" && return 1
   fi
 
   # Remove trailing empty folder
   if ! rm -rf "${dest:?}"/"$version"; then
-    echo "${0##*/} ERROR: rm -rf $dest/$version" >&2 && return 1
+    __print_error "rm -rf $dest/$version" && return 1
   fi
 
   # Terraria server comes in 3 subfolders for Windows, Mac & Linux
   # Only want the contents of the Linux folder, so move all of that outside
   if ! mv "$dest"/Linux/* "$dest"/; then
-    echo "${0##*/} ERROR: mv $dest/Linux/* $$dest/" >&2 && return 1
+    __print_error "mv $dest/Linux/* $dest/" && return 1
   fi
 
   # Remove the Windows dir
   if ! rm -rf "${dest:?}"/Windows; then
-    echo "${0##*/} ERROR: rm -rf ${dest:?}/Windows" >&2 && return 1
+    __print_error "rm -rf ${dest:?}/Windows" && return 1
   fi
 
   # Remove the Mac dir
   if ! rm -rf "${dest:?}"/Mac; then
-    echo "${0##*/} ERROR: rm -rf ${dest:?}/Mac" >&2 && return 1
+    __print_error "rm -rf ${dest:?}/Mac" && return 1
   fi
 
   # Remove the empty Linux dir
   if ! rm -rf "${dest:?}"/Linux; then
-    echo "${0##*/} ERROR: rm -rf ${dest:?}/Linux" >&2 && return 1
+    __print_error "rm -rf ${dest:?}/Linux" && return 1
   fi
 
   return 0
@@ -142,16 +145,16 @@ function func_deploy() {
 
   # Just move everything from the source dir to dest
   if ! mv "$source"/* "$dest"/; then
-    echo "${0##*/} ERROR: mv $source/* $dest/" >&2 && return 1
+    __print_error "mv $source/* $dest/" && return 1
   fi
 
   if ! chmod +x "$dest"/TerrariaServer*; then
-    echo "${0##*/} ERROR: chmod +x $dest/TerrariaServer*" >&2 && return 1
+    __print_error "chmod +x $dest/TerrariaServer*" && return 1
   fi
 
   # Remove everything else left behind in $source
   if ! rm -rf "${source:?}"/*; then
-    echo "${0##*/} ERROR: rm -rf ${source:?}/*" >&2 && return 1
+    __print_error "rm -rf ${source:?}/*" && return 1
   fi
 
   return 0

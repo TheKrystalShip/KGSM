@@ -109,16 +109,16 @@ function func_deploy() {
   local dest=$2
 
   if ! cp -r "$source"/* "$dest"; then
-    echo "${0##*/} ERROR: Failed to copy $source into $dest" >&2 && return 1
+    __print_error "Failed to copy $source into $dest" && return 1
   fi
 
   if ! rm -rf "${source:?}/*"; then
-    echo "${0##*/} ERROR: Failed to clear $source" >&2 && return 1
+    __print_error "Failed to clear $source" && return 1
   fi
 
   # https://barotraumagame.com/wiki/Hosting_a_Dedicated_Server#Linux_Dedicated_Server_Hosting
   if ! mkdir -p "${HOME}/.local/share/Daedalic Entertainment GmbH/Barotrauma"; then
-    echo "${0##*/} ERROR: Failed to create required directory" >&2 && return 1
+    __print_error "Failed to create required directory" && return 1
   fi
 
   return 0

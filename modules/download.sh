@@ -107,13 +107,13 @@ function func_download() {
   local version=$1
   local dest=$2
 
-  [[ -z "$INSTANCE_APP_ID" ]] && echo "${0##*/} ERROR: INSTANCE_APP_ID is expected but it's not set" >&2 && return 1
-  [[ -z "$INSTANCE_STEAM_ACCOUNT_NEEDED" ]] && echo "${0##*/} ERROR: INSTANCE_STEAM_ACCOUNT_NEEDED is expected but it's not set" >&2 && return 1
+  [[ -z "$INSTANCE_APP_ID" ]] && __print_error "INSTANCE_APP_ID is expected but it's not set" && return 1
+  [[ -z "$INSTANCE_STEAM_ACCOUNT_NEEDED" ]] && __print_error "INSTANCE_STEAM_ACCOUNT_NEEDED is expected but it's not set" && return 1
 
   username=anonymous
   if [[ $INSTANCE_STEAM_ACCOUNT_NEEDED -ne 0 ]]; then
-    [[ -z "$STEAM_USERNAME" ]] && echo "${0##*/} ERROR: STEAM_USERNAME is expected but it's not set" >&2 && return 1
-    [[ -z "$STEAM_PASSWORD" ]] && echo "${0##*/} ERROR: STEAM_PASSWORD is expected but it's not set" >&2 && return 1
+    [[ -z "$STEAM_USERNAME" ]] && __print_error "STEAM_USERNAME is expected but it's not set" && return 1
+    [[ -z "$STEAM_PASSWORD" ]] && __print_error "STEAM_PASSWORD is expected but it's not set" && return 1
 
     username="$STEAM_USERNAME $STEAM_PASSWORD"
   fi

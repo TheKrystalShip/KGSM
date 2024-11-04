@@ -100,7 +100,7 @@ declare -A DIR_ARRAY=(
 
 function _create() {
   for dir in "${!DIR_ARRAY[@]}"; do
-    if ! mkdir -p "${DIR_ARRAY[$dir]}"; then echo "${0##*/} ERROR: Failed to create $dir" >&2 && return 1; fi
+    if ! mkdir -p "${DIR_ARRAY[$dir]}"; then __print_error "Failed to create $dir" && return 1; fi
     if grep -q "^$dir" <"$instance_config_file"; then
       # If it exists, modify in-place
       sed -i "/$dir=*/c$dir=${DIR_ARRAY[$dir]}" "$instance_config_file" >/dev/null
@@ -119,7 +119,7 @@ function _create() {
 function _remove() {
   # Remove main working directory
   if ! rm -rf "${INSTANCE_WORKING_DIR?}"; then
-    echo "${0##*/} ERROR: Failed to remove $INSTANCE_WORKING_DIR" >&2 && return 1
+    __print_error "Failed to remove $INSTANCE_WORKING_DIR" && return 1
   fi
 
   return 0
@@ -135,7 +135,7 @@ while [ $# -gt 0 ]; do
     _remove; exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    __print_error "Invalid argument $1" && exit 1
     ;;
   esac
   shift

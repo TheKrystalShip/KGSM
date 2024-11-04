@@ -77,11 +77,11 @@ function func_download() {
 
   # shellcheck disable=SC2155
   local release_url="$(wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
-  [[ -z "$release_url" ]] && echo "${0##*/} ERROR: Could not find the URL of the latest release, exiting" >&2 && return 1
+  [[ -z "$release_url" ]] && __print_error "Could not find the URL of the latest release, exiting" && return 1
 
   # shellcheck disable=SC2155
   local release_server_jar_url="$(wget -qO - "$release_url" | jq -r '{url: .downloads.server.url} | .[]')"
-  [[ -z "$release_server_jar_url" ]] && echo "${0##*/} ERROR: Could not find the URL of the JAR file" >&2 && return 1
+  [[ -z "$release_server_jar_url" ]] && __print_error "Could not find the URL of the JAR file" && return 1
 
   local local_release_jar="$dest/minecraft_server.$version.jar"
 
@@ -104,13 +104,13 @@ function func_deploy() {
   local dest=$2
 
   if ! mv -f "$source"/*.jar "$dest"/release.jar; then
-    echo "${0##*/} ERROR: mv -f $source/* $dest/" >&2 && return 1
+    __print_error "mv -f $source/* $dest/" && return 1
   fi
 
   local eula_file=$dest/eula.txt
 
   if ! echo "eula=true" >"$eula_file"; then
-    echo "WARNING: Failed to configure eula.txt file, continuing" >&2
+    __print_warning "Failed to configure eula.txt file, continuing"
   fi
 
   return 0

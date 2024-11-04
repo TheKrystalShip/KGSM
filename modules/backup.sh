@@ -98,12 +98,12 @@ function _create() {
   # create a backup. If empty, skip
   if [ -z "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
     # $source is empty, nothing to back up
-    echo "${0##*/} WARNING: $INSTANCE_INSTALL_DIR is empty, skipping backup" >&2 && return 0
+    __print_warning "$INSTANCE_INSTALL_DIR is empty, skipping backup" && return 0
   fi
 
   # Check instance running state before attempting to create backup
   if "$module_instances" --is-active "$instance" >/dev/null; then
-    echo "${0##*/} ERROR: Instance $instance is currently running, please shut down before attempting to create a backup" >&2 && return 1
+    __print_error "Instance $instance is currently running, please shut down before attempting to create a backup" && return 1
   fi
 
   #shellcheck disable=SC2155
@@ -114,25 +114,25 @@ function _create() {
     output="${output}.tar.gz"
 
     if ! touch "$output"; then
-      echo "${0##*/} ERROR: Failed to create $output" >&2 && return 1
+      __print_error "Failed to create $output" && return 1
     fi
 
     cd "$INSTANCE_INSTALL_DIR"
 
     if ! tar -czf "$output" .; then
-      echo "${0##*/} ERROR: Failed to compress $output" >&2 && return 1
+      __print_error "Failed to compress $output" && return 1
     fi
   else
     # Create backup folder if it doesn't exit
     if [ ! -d "$output" ]; then
       if ! mkdir -p "$output"; then
-        echo "${0##*/} ERROR: Error creating backup folder $output" >&2 && return 1
+        __print_error "Error creating backup folder $output" && return 1
       fi
     fi
 
     # Copy everything from the install directory into a backup folder
     if ! cp -r "$INSTANCE_INSTALL_DIR"/* "$output"/; then
-      echo "${0##*/} ERROR: Failed to create backup $output" >&2
+      __print_error "Failed to create backup $output"
       rm -rf "${output:?}"
       return 1
     fi
@@ -146,7 +146,7 @@ function _restore() {
   local backup_version
 
   if [[ ! -f "$source" ]] && [[ ! -d "$source" ]]; then
-    echo "${0##*/} ERROR: Could not find backup $source" >&2 && return 1
+    __print_error "Could not find backup $source" && return 1
   fi
 
   # Get version number from $source
@@ -156,34 +156,34 @@ function _restore() {
 
   if [ -n "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
     # $INSTANCE_INSTALL_DIR is not empty, create new backup before proceeding
-    _create || echo "${0##*/} ERROR: Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}" >&2 && return 1
+    _create || __print_error "Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}" && return 1
     if ! rm -rf "${INSTANCE_INSTALL_DIR:?}"/*; then
-      echo "${0##*/} ERROR: Failed to clear $INSTANCE_INSTALL_DIR, exiting" >&2 && return 1
+      __print_error "Failed to clear $INSTANCE_INSTALL_DIR, exiting" && return 1
     fi
   fi
 
   if [[ "$source" == *.gz ]]; then
     cd "$INSTANCE_INSTALL_DIR"
     if ! tar -xzf "$source" .; then
-      echo "${0##*/} ERROR: Failed to restore $source" >&2 && return 1
+      __print_error "Failed to restore $source" && return 1
     fi
   else
     # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
     if ! cp -r "$source"/* "$INSTANCE_INSTALL_DIR"/; then
-      echo "${0##*/} ERROR: Failed to restore backup $source" >&2 && return 1
+      __print_error "Failed to restore backup $source" && return 1
     fi
   fi
 
   # Updated $INSTANCE_INSTALLED_VERSION with $backup_version
   if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/cINSTANCE_INSTALLED_VERSION=$backup_version" "$instance_config_file" >/dev/null; then
-    echo "ERROR: Failed to update version in $instance_config_file" >&2 && return 1
+    __print_error "Failed to update version in $instance_config_file" && return 1
   fi
 
   # Update instance version file with $backup_version
   instance_version_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version
   if [[ -f "$instance_version_file" ]]; then
     if ! echo "$backup_version" >"$instance_version_file"; then
-      echo "${0##*/} ERROR: Failed to restore version in $instance_version_file" >&2 && return 1
+      __print_error "Failed to restore version in $instance_version_file" && return 1
     fi
   fi
 
@@ -193,7 +193,7 @@ function _restore() {
 function _list_backups() {
   local instance_backups_dir
   instance_backups_dir=$(grep "INSTANCE_BACKUPS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_backups_dir" ]] && echo "${0##*/} ERROR: Malformed instance config file $instance_config_file, missing INSTANCE_BACKUPS_DIR" >&2 && return 1
+  [[ -z "$instance_backups_dir" ]] && __print_error "Malformed instance config file $instance_config_file, missing INSTANCE_BACKUPS_DIR" && return 1
 
   shopt -s extglob nullglob
 
@@ -213,14 +213,14 @@ while [ $# -gt 0 ]; do
     ;;
   --restore)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <source>" >&2
+    [[ -z "$1" ]] && __print_error "Missing argument <source>"
     _restore "$1"; exit $?
     ;;
   --list)
     _list_backups; exit $?
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    __print_error "Invalid argument $1" && exit 1
     ;;
   esac
   shift

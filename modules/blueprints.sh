@@ -151,79 +151,79 @@ while [ $# -gt 0 ]; do
       --custom)
         _list_custom_blueprints && exit 0
         ;;
-      *) echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+      *) __print_error "Unknown argument $1" && exit 1
     esac
     ;;
   --create)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing arguments" >&2 && exit 1
     case "$1" in
     --name)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <name>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <name>" >&2 && exit 1
       _name="$1"
       ;;
     --port)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <port>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <port>" && exit 1
       _port="$1"
       ;;
     --app-id)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <app-id>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <app-id>" && exit 1
       _app_id="$1"
       ;;
     --steam-auth-level)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <steam-auth-level>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <steam-auth-level>" && exit 1
       _steam_auth_level="$1"
       ;;
     --launch-bin)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <launch-bin>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <launch-bin>" && exit 1
       _launch_bin="$1"
       ;;
     --level-name)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <level-name>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <level-name>" && exit 1
       _level_name="$1"
       ;;
     --install-subdirectory)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install-subdirectory>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <install-subdirectory>" && exit 1
       _install_subdirectory="$1"
       ;;
     --launch-args)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <launch-args>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <launch-args>" && exit 1
       _launch_args="$1"
       ;;
     --stop-command)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <stop-command>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <stop-command>" && exit 1
       _stop_command="$1"
       ;;
     --save-command)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <save-command>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <save-command>" && exit 1
       _save_command="$1"
       ;;
     *)
-      echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+      __print_error "Invalid argument $1" >&2 && exit 1
       ;;
     esac
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    __print_error "Invalid argument $1" >&2 && exit 1
     ;;
   esac
   shift
 done
 
-[[ -z "$_name" ]] && echo "${0##*/} ERROR: --name cannot be empty." >&2 && exit 1
-[[ -z "$_port" ]] && echo "${0##*/} ERROR: --port cannot be empty." >&2 && exit 1
-[[ -z "$_launch_bin" ]] && echo "${0##*/} ERROR: --launch-bin cannot be empty." >&2 && exit 1
-[[ "$_steam_auth_level" == "1" ]] && [[ "$_app_id" == "0" ]] && echo "${0##*/} ERROR: --app-id cannot be empty." >&2 && exit 1
+[[ -z "$_name" ]] && __print_error "--name cannot be empty." >&2 && exit 1
+[[ -z "$_port" ]] && __print_error "--port cannot be empty." >&2 && exit 1
+[[ -z "$_launch_bin" ]] && __print_error "--launch-bin cannot be empty." >&2 && exit 1
+[[ "$_steam_auth_level" == "1" ]] && [[ "$_app_id" == "0" ]] && __print_error "--app-id cannot be empty." >&2 && exit 1
 
 # Output file path
 BLUEPRINT_OUTPUT_FILE="$BLUEPRINTS_SOURCE_DIR/$_name.bp"
@@ -233,5 +233,5 @@ if ! eval "cat <<EOF
 $(<"$template_input_file")
 EOF
 " >"$BLUEPRINT_OUTPUT_FILE" 2>/dev/null; then
-  echo "${0##*/} ERROR: Failed to create $BLUEPRINT_OUTPUT_FILE" >&2
+  __print_error "Failed to create $BLUEPRINT_OUTPUT_FILE" >&2
 fi

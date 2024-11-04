@@ -1,5 +1,11 @@
 #!/bin/bash
 
+RED="\033[0;31m"
+ORANGE="\033[0;33m"
+BLUE="\033[0;34m"
+GREEN="\033[0;32m"
+END="\033[0m"
+
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -35,12 +41,12 @@ else
   CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
-    echo "${0##*/} WARNING: config.ini not found, created new file" >&2
-    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
+    echo -e "${0##*/} ${ORANGE}WARNING${END}: config.ini not found, created new file" >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: Please ensure configuration is correct before running the script again" >&2
     exit 0
   else
-    echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
-    echo "${0##*/} INFO: Try to repair the install by running ${0##*/} --update --force" >&2
+    echo -e "${0##*/} ${RED}ERROR${END}: Could not find config.default.ini, install might be broken" >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: Try to repair the install by running ${0##*/} --update --force" >&2
     exit 1
   fi
 fi
@@ -59,24 +65,25 @@ If you have any problems while using KGSM, please don't hesitate to create an
 issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
 function usage() {
-  printf "%s
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  echo -e "$DESCRIPTION"
 
+  echo -e "
 Usage:
   $(basename "$0") OPTION
 
 Options:
-  \e[4mGeneral\e[0m
+  ${UNDERLINE}General${END}
     -h, --help                  Print this help message.
-
       [--interactive]           Print help information for interactive mode.
     --update                    Update KGSM to the latest version.
       [--force]                 Ignore version check and download the latest
                                 version available.
-    --ip                        Get the external server IP used to connect to
-                                the server.
+    --ip                        Print the external server IP address.
     -v, --version               Print the KGSM version.
 
-  \e[4mBlueprints\e[0m
+  ${UNDERLINE}Blueprints${END}
     --create-blueprint          Create a new blueprints file.
       [-h, --help]              Print help information about the blueprint
                                 creation process.
@@ -87,12 +94,13 @@ Options:
                                 Run --blueprints to see available options.
       [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
                                 set.
-      [--version <version>]     CURRENTLY NOT USED
+      [--version <version>]     WARNING: Not used by game servers that come from
+                                steamcmd, only used by custom game servers.
                                 Specific version to install.
       [--id <id>]               Identifier for the instance as an alternative
                                 from letting KGSM generate one.
 
-  \e[4mInstances\e[0m
+  ${UNDERLINE}Instances${END}
     --uninstall <instance>      Run the uninstall process for an instance.
     --instances [blueprint]     List all installed instances.
                                 Optionally a blueprint name can be specified in
@@ -131,57 +139,60 @@ Options:
                                   ufw, systemd
         --remove OPTION         Remove functionality. Possible options:
                                   ufw, systemd
-" "$DESCRIPTION"
+"
 }
 
 function usage_interactive() {
-  printf "%s
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Interactive mode menu options:
-  \e[4mInstall\e[0m            Run the installation process for a blueprint.
+  echo -e "$DESCRIPTION"
 
-  \e[4mList blueprints\e[0m    Display a list of all blueprints.
+  echo -e "Interactive mode menu options:
+  ${UNDERLINE}Install${END}            Run the installation process for a blueprint.
 
-  \e[4mList instances\e[0m     Display a list of all created instances with a detailed
+  ${UNDERLINE}List blueprints${END}    Display a list of all blueprints.
+
+  ${UNDERLINE}List instances${END}     Display a list of all created instances with a detailed
                      description.
 
-  \e[4mStart\e[0m              Start up an instance.
+  ${UNDERLINE}Start${END}              Start up an instance.
 
-  \e[4mStop\e[0m               Stop a running instance.
+  ${UNDERLINE}Stop${END}               Stop a running instance.
 
-  \e[4mRestart\e[0m            Restart an instance.
+  ${UNDERLINE}Restart${END}            Restart an instance.
 
-  \e[4mStatus\e[0m             Print a detailed information about an instance.
+  ${UNDERLINE}Status${END}             Print a detailed information about an instance.
 
-  \e[4mModify\e[0m             Modify and existing instance to add or remove
+  ${UNDERLINE}Modify${END}             Modify and existing instance to add or remove
                      features.
                      Currently 'ufw' and 'systemd' integrations can
                      be added/removed.
 
-  \e[4mCheck for update\e[0m   Check if a new version of a instance is available.
+  ${UNDERLINE}Check for update${END}   Check if a new version of a instance is available.
                      It will print out the new version if found, otherwise
                      it will fail with exit code 1.
 
-  \e[4mUpdate\e[0m             Runs a check for a new instance version, creates a
+  ${UNDERLINE}Update${END}             Runs a check for a new instance version, creates a
                      backup of the current installation if any, downloads the new
                      version and deploys it.
 
-  \e[4mLogs\e[0m               Print out the last 10 lines of the latest instance
+  ${UNDERLINE}Logs${END}               Print out the last 10 lines of the latest instance
                      log file.
 
-  \e[4mCreate backup\e[0m      Creates a backup of an instance.
+  ${UNDERLINE}Create backup${END}      Creates a backup of an instance.
 
-  \e[4mRestore backup\e[0m     Restores a backup of an instance
+  ${UNDERLINE}Restore backup${END}     Restores a backup of an instance
                      It will prompt to select a backup to restore and
                      also if the current installation directory of the
                      instance is not empty.
 
-  \e[4mUninstall\e[0m          Runs the uninstall process for an instance.
+  ${UNDERLINE}Uninstall${END}          Runs the uninstall process for an instance.
                      Warning: This will remove everything other than the
                      blueprint file the instance is based on.
 
-  \e[4mHelp\e[0m               Prints this message
-" "$DESCRIPTION"
+  ${UNDERLINE}Help${END}               Prints this message
+"
 }
 
 function check_for_update() {
@@ -193,13 +204,13 @@ function check_for_update() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    echo "${0##*/} ERROR: wget is required but not installed" >&2 && return 1
+    echo -e "${0##*/} ${RED}ERROR${END}: wget is required but not installed" >&2 && return 1
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ]; then
-    printf "\033[0;33mNew version available: %s
-Please run ./%s --update to get the latest version\033[0m\n\n" "$LATEST_VERSION" "${0##*/}" >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: New version available: $LATEST_VERSION
+Please run ./${0##*/} --update to get the latest version" >&2
   fi
 }
 
@@ -217,30 +228,29 @@ function update_script() {
     [ "$arg" = "--force" ] && force=1
   done
 
-  echo "Checking for updates..." >&2
+  echo -e "${0##*/} ${BLUE}INFO${END}: Checking for updates..." >&2
 
   # Fetch the latest version number
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -qO - "$version_url")
   else
-    echo "${0##*/} ERROR: wget is required to check for updates." >&2 && return 1
+    echo -e "${0##*/} ${RED}ERROR${END}: wget is required to check for updates." >&2 && return 1
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ] || [ "$force" -eq 1 ]; then
-    echo "${0##*/} New version available: $LATEST_VERSION. Updating..." >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: New version available: $LATEST_VERSION. Updating..." >&2
 
     # Backup the current script
     local backup_file="${0}.${script_version:-0}.bak"
     cp "$0" "$backup_file"
-    echo "${0##*/} Backup of the current script created at $backup_file" >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: Backup of the current script created at $backup_file" >&2
 
     # Download the repository tarball
     if command -v wget >/dev/null 2>&1; then
       wget -O "kgsm.tar.gz" "$repo_archive_url" 2>/dev/null
     else
-      echo "${0##*/} ERROR: wget is required to download the update." >&2
-      return 1
+      echo -e "${0##*/} ${RED}ERROR${END}: wget is required to download the update" >&2 && return 1
     fi
 
     # Extract the tarball
@@ -248,16 +258,16 @@ function update_script() {
       # Overwrite the existing files with the new ones
       cp -r KGSM-main/* .
       chmod +x kgsm.sh modules/*.sh
-      echo "${0##*/} KGSM updated successfully to version $LATEST_VERSION." >&2
+      echo -e "${0##*/} ${GREEN}SUCCESS${END}: KGSM updated to version $LATEST_VERSION" >&2
 
       # Cleanup
       rm -rf "KGSM-main" "kgsm.tar.gz"
     else
-      echo "${0##*/} ERROR: Failed to extract the update. Reverting to the previous version." >&2
+      echo -e "${0##*/} ${RED}ERROR${END}: Failed to extract the update. Reverting to the previous version." >&2
       mv "${0}.${script_version:-0}.bak" "$0"
     fi
   else
-    echo "${0##*/} You are already using the latest version: $script_version." >&2
+    echo -e "${0##*/} ${BLUE}INFO${END}: You are already using the latest version: $script_version." >&2
   fi
 
   return 0
@@ -274,7 +284,9 @@ while [[ "$#" -gt 0 ]]; do
     --interactive)
       usage_interactive && exit 0
       ;;
-    *) echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1 ;;
+    *)
+      echo -e "${0##*/} ${RED}ERROR${END}: Unknown argument $1" >&2 && exit 1
+      ;;
     esac
     ;;
   --update)
@@ -291,7 +303,7 @@ done
 trap "echo "" && exit" INT
 
 module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+[[ -z "$module_common" ]] && echo -e "${0##*/} ${RED}ERROR${END}: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$module_common" || exit 1
@@ -340,7 +352,7 @@ function _install() {
   "$module_deploy" -i "$instance" $debug || return $?
   "$module_version" -i "$instance" --save "$version" $debug || return $?
 
-  echo "Instance $instance has been created in $install_dir" >&2 && return 0
+  __print_success "Instance $instance has been created in $install_dir" && return 0
 }
 
 function _uninstall() {
@@ -452,7 +464,7 @@ KGSM - Interactive menu
     ;;
   esac
 
-  [[ "${#blueprints_or_instances[@]}" -eq 0 ]] && echo "${0##*/} INFO: No instances found" >&2 && return 0
+  [[ "${#blueprints_or_instances[@]}" -eq 0 ]] && __print_warning "No instances found" && return 0
 
   # Select blueprint/instance for the action
   select bp in "${blueprints_or_instances[@]}"; do
@@ -560,7 +572,7 @@ while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing arguments" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing arguments" && exit 1
     case "$1" in
     -h | --help) "$module_blueprints" --help $debug; exit $? ;;
     *)
@@ -571,7 +583,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --install)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
     bp_to_install="$1"
     bp_install_dir=$INSTANCE_DEFAULT_INSTALL_DIR
     bp_install_version=0
@@ -582,32 +594,32 @@ while [[ "$#" -gt 0 ]]; do
         case "$1" in
         --install-dir)
           shift
-          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit 1
           bp_install_dir="$1"
           ;;
         --version)
           shift
-          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <version>" >&2 && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit 1
           bp_install_version=$1
           ;;
         --id)
           shift
-          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <id>" >&2 && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit 1
           bp_id=$1
           ;;
         *)
-          echo "${0##*/} ERROR: Unknown argument $1" >&2 && exit 1
+          __print_error "Unknown argument $1" && exit 1
           ;;
         esac
         shift
       done
     fi
-    [[ -z "$bp_install_dir" ]] && echo "${0##*/} ERROR: Missing argument <dir>" >&2 && exit 1
+    [[ -z "$bp_install_dir" ]] && __print_error "Missing argument <dir>" && exit 1
     _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id; exit $?
     ;;
   --uninstall)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     _uninstall "$1"; exit $?
     ;;
   --blueprints)
@@ -617,7 +629,7 @@ while [[ "$#" -gt 0 ]]; do
     if command -v wget >/dev/null 2>&1; then
       wget -qO- https://icanhazip.com; exit $?
     else
-      echo "${0##*/} ERROR: wget is required but not installed" >&2 && exit 1
+      __print_error "wget is required but not installed" && exit 1
     fi
     ;;
   --update)
@@ -628,10 +640,10 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   -i | --instance)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     instance=$1
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument [OPTION]" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit 1
     case "$1" in
     --logs)
       shift
@@ -641,7 +653,7 @@ while [[ "$#" -gt 0 ]]; do
           "$module_instance" --logs "$instance" --follow $debug; exit $?
           ;;
         *)
-          echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+          __print_error "Invalid argument $1" && exit 1
           ;;
       esac
       ;;
@@ -668,7 +680,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --input)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit 1
       "$module_instance" --input "$instance" "$1" $debug; exit $?
       ;;
     -v | --version)
@@ -677,7 +689,7 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --installed) "$module_version" -i "$instance" --installed $debug; exit $? ;;
       --latest) "$module_version" -i "$instance" --latest $debug; exit $? ;;
-      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && usage && exit 1 ;;
+      *) __print_error "Invalid argument $1" && exit 1 ;;
       esac
       ;;
     --check-update)
@@ -701,7 +713,7 @@ while [[ "$#" -gt 0 ]]; do
       esac
       ;;
     --restore-backup)
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <backup>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit 1
       shift
       case "$1" in
       -h | --help) "$module_backup" --help; exit $? ;;
@@ -710,30 +722,30 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --modify)
       shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
       case "$1" in
       --add)
         shift
-        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
         case "$1" in
         ufw) "$module_files" -i "$instance" --create --ufw $debug; exit $? ;;
         systemd) "$module_files" -i "$instance" --create --systemd $debug; exit $? ;;
-        *) echo "${0##*/} ERROR: Invalid argument $1" >&2; exit 1 ;;
+        *) __print_error "Invalid argument $1"; exit 1 ;;
         esac
         ;;
       --remove)
         shift
-        [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <option>" >&2 && exit 1
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
         case "$1" in
         ufw) "$module_files" -i "$instance" --remove --ufw $debug; exit $? ;;
         systemd) "$module_files" -i "$instance" --remove --systemd $debug; exit $? ;;
-        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        *) __print_error "Invalid argument $1" && exit 1 ;;
         esac
         ;;
-      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+      *) __print_error "Invalid argument $1" && exit 1 ;;
       esac
       ;;
-    *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+    *) __print_error "Invalid argument $1" && exit 1 ;;
     esac
     ;;
   -v | --version)
@@ -745,7 +757,7 @@ This is free software; you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law." && exit 0
     ;;
   *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+    __print_error "Invalid argument $1" && exit 1
     ;;
   esac
   shift

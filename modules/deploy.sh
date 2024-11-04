@@ -100,11 +100,11 @@ function func_deploy() {
 
   # Copy everything from $source into $dest
   if ! cp -rf "$source"/* "$dest"; then
-    echo "${0##*/} ERROR: Failed to copy contents from $source into $dest" >&2 && return 1
+    __print_error "Failed to copy contents from $source into $dest" && return 1
   fi
 
   if ! rm -rf "${source:?}"/*; then
-    echo "${0##*/} ERROR: Failed to clear $source" >&2 && return 1
+    __print_error "Failed to clear $source" && return 1
   fi
 
   return 0

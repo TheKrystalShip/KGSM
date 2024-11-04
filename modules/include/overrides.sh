@@ -2,18 +2,18 @@
 
 # Params
 if [ $# -eq 0 ]; then
-  echo "${0##*/} ERROR: Service name not supplied" >&2 && exit 1
+  echo "${0##*/} ERROR: Sourcing error, blueprint name not specified" >&2 && exit 1
 fi
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
     echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
   else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
   fi
 fi

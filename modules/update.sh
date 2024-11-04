@@ -131,7 +131,7 @@ function func_main() {
 
   [[ "$verbose" ]] && printf "Installed version:\t%s\n" "$INSTANCE_INSTALLED_VERSION" >&2
 
-  [[ -z "$latest_version" ]] && echo "${0##*/} ERROR: new version number is empty, exiting" >&2 && return 1
+  [[ -z "$latest_version" ]] && __print_error "new version number is empty, exiting" && return 1
 
   [[ "$verbose" ]] && printf "Latest version available:\t%s\n" "$latest_version"
 
@@ -151,7 +151,7 @@ function func_main() {
   fi
 
   if ! "$module_download" -i "$instance"; then
-    echo "${0##*/} ERROR: Failed to download new version, exiting" >&2 && return 1
+    __print_error "Failed to download new version, exiting" && return 1
   fi
 
   [[ "$verbose" ]] && printf "Download completed\n"
@@ -172,7 +172,7 @@ function func_main() {
     [[ "$verbose" ]] && printf "Instance %s is currently running, shutting down...\n" "$instance" >&2
 
     if ! "$module_instances" --stop "$instance"; then
-      echo "${0##*/} ERROR: Failed to shutdown $instance" >&2 && return 1
+      __print_error "Failed to shutdown $instance" && return 1
     fi
 
     [[ "$verbose" ]] && printf "Instance %s successfully stopped\n" "$instance" >&2
@@ -190,7 +190,7 @@ function func_main() {
   fi
 
   if ! "$module_backup" -i "$instance" --create; then
-    echo "${0##*/} ERROR: Failed to create backup, exiting" >&2 && return 1
+    __print_error "Failed to create backup, exiting" && return 1
   fi
 
   [[ "$verbose" ]] && printf "Backup complete\n" >&2
@@ -205,7 +205,7 @@ function func_main() {
   fi
 
   if ! "$module_deploy" -i "$instance"; then
-    echo "${0##*/} ERROR: Failed to deploy $latest_version, exiting" >&2 && return 1
+    __print_error "Failed to deploy $latest_version, exiting" && return 1
   fi
 
   [[ "$verbose" ]] && printf "Deployment complete.\n"
@@ -220,7 +220,7 @@ function func_main() {
     [[ "$verbose" ]] && printf "Starting the instance back up\n"
 
     if ! "$module_instances" --start "$instance"; then
-      echo "${0##*/} ERROR: Failed to start $instance" >&2 && return 1
+      __print_error "Failed to start $instance" && return 1
     fi
 
     [[ "$verbose" ]] && printf "Instance started successfully\n"
@@ -238,7 +238,7 @@ function func_main() {
   fi
 
   if ! "$module_version" -i "$instance" --save "$latest_version"; then
-    echo "${0##*/} ERROR: Failed to save version $latest_version for $instance" >&2 && return 1
+    __print_error "Failed to save version $latest_version for $instance" && return 1
   fi
 
   [[ "$verbose" ]] && printf "Successfully updated %s to version %s\n" "$instance" "$latest_version" >&2

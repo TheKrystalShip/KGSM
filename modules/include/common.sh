@@ -2,13 +2,13 @@
 
 # Check for KGSM_ROOT env variable
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
+  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
   # shellcheck disable=SC1091
   source /etc/environment
   if [ -z "$KGSM_ROOT" ]; then
     echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
   else
-    echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
+    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
     if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
   fi
 fi
@@ -34,13 +34,44 @@ export MODULES_INCLUDE_SOURCE_DIR=$MODULES_SOURCE_DIR/include
 # Directory where instances and their config is stored
 export INSTANCES_SOURCE_DIR=$KGSM_ROOT/instances
 
+# Colored console output functions
+export COLOR_RED="\033[0;31m"
+export COLOR_GREEN="\033[0;32m"
+export COLOR_ORANGE="\033[0;33m"
+export COLOR_BLUE="\033[0;34m"
+export COLOR_END="\033[0m"
+
+function __print_error() {
+  echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END}: $1" >&2
+}
+
+export -f __print_error
+
+function __print_success() {
+  echo -e "${0##*/} ${COLOR_GREEN}SUCCESS${COLOR_END}: $1" >&2
+}
+
+export -f __print_success
+
+function __print_warning() {
+  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END}: $1" >&2
+}
+
+export -f __print_warning
+
+function __print_info() {
+  echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END}: $1" >&2
+}
+
+export -f __print_info
+
 function __find_or_fail() {
   local file_name=$1
   local source=${2:-$KGSM_ROOT}
 
   local file_path
   file_path=$(find "$source" -type f -name "$file_name" -print -quit)
-  [[ -z "$file_path" ]] && echo "${0##*/} ERROR: Could not find $file_name" >&2 && return 1
+  [[ -z "$file_path" ]] && __print_error "Could not find $file_name" && return 1
 
   echo "$file_path"
 }
