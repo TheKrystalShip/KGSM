@@ -1,11 +1,5 @@
 #!/bin/bash
 
-RED="\033[0;31m"
-ORANGE="\033[0;33m"
-BLUE="\033[0;34m"
-GREEN="\033[0;32m"
-END="\033[0m"
-
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -41,12 +35,11 @@ else
   CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
-    echo -e "${0##*/} ${ORANGE}WARNING${END}: config.ini not found, created new file" >&2
-    echo -e "${0##*/} ${BLUE}INFO${END}: Please ensure configuration is correct before running the script again" >&2
+    echo "${0##*/} WARNING: config.ini not found, created new file" >&2
+    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
     exit 0
   else
-    echo -e "${0##*/} ${RED}ERROR${END}: Could not find config.default.ini, install might be broken" >&2
-    echo -e "${0##*/} ${BLUE}INFO${END}: Try to repair the install by running ${0##*/} --update --force" >&2
+    echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
     exit 1
   fi
 fi
@@ -57,7 +50,7 @@ set -eo pipefail
 trap "echo "" && exit" INT
 
 module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
-[[ -z "$module_common" ]] && echo -e "${0##*/} ${RED}ERROR${END}: Could not find module common.sh" >&2 && exit 1
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$module_common" || exit 1
