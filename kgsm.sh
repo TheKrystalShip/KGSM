@@ -223,8 +223,9 @@ function update_script() {
   script_version=$(get_version)
   local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
   local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz"
+  local repo_compare_url="https://api.github.com/repos/TheKrystalShip/KGSM/compare"
   local local_temp_file="kgsm.tar.gz"
-  local local_temp_dir="KGSM-Main"
+  local local_temp_dir="KGSM-main"
 
   local force=0
   for arg in "$@"; do
@@ -265,10 +266,20 @@ function update_script() {
     cp -r "$local_temp_dir"/* .
     chmod +x kgsm.sh modules/*.sh
 
+    # Print changelog
+    local commits_url="${repo_compare_url}/${script_version}...${LATEST_VERSION}"
+    local bold="\033[1m"
+    local bold_end="\033[0m"
+    __print_info "Changes between ${bold}${script_version}${bold_end} and ${bold}$LATEST_VERSION${bold_end}:"
+    wget -qO- "$commits_url" | jq -r \
+      '.commits[]
+      | select(.commit.message | test("^Bumped version to [0-9]+\\.[0-9]+\\.[0-9]+") | not)
+      | "\(.sha[0:7]): \(.commit.message)"'
+
     # Cleanup
     rm -rf "$local_temp_dir" "$local_temp_file"
 
-    __print_success "KGSM updated to version $LATEST_VERSION"
+    __print_success "KGSM updated to version ${bold}$LATEST_VERSION${bold_end}"
   else
     __print_info "You are already using the latest version: $script_version."
   fi
