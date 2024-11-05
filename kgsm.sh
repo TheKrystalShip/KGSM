@@ -19,7 +19,7 @@ fi
 SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
 # Read configuration file
-CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini)"
+CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini -print -quit)"
 if [ -f "$CONFIG_FILE" ]; then
   while IFS= read -r line || [ -n "$line" ]; do
     # Ignore comment lines and empty lines
@@ -32,7 +32,7 @@ if [ -f "$CONFIG_FILE" ]; then
   export KGSM_ROOT
   export KGSM_CONFIG_LOADED=1
 else
-  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini)"
+  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini -print -quit)"
   if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
     cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
     echo "${0##*/} WARNING: config.ini not found, created new file" >&2

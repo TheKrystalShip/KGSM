@@ -71,7 +71,7 @@ fi
 
 # Read configuration file
 if [ -z "$KGSM_CONFIG_LOADED" ]; then
-  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini)"
+  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini -print -quit)"
   [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
   while IFS= read -r line || [ -n "$line" ]; do
     # Ignore comment lines and empty lines
@@ -84,7 +84,7 @@ fi
 # Trap CTRL-C
 trap "echo "" && exit" INT
 
-module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
 [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090

@@ -20,7 +20,7 @@ fi
 
 instance=$1
 
-module_common=$(find "$KGSM_ROOT" -type f -name common.sh)
+module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
 [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090

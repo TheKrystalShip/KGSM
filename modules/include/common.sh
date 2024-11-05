@@ -70,7 +70,7 @@ function __find_or_fail() {
   local source=${2:-$KGSM_ROOT}
 
   local file_path
-  file_path=$(find "$source" -type f -name "$file_name" -print -quit)
+  file_path="$(find "$source" -type f -name "$file_name" -print -quit)"
   [[ -z "$file_path" ]] && __print_error "Could not find $file_name" && return 1
 
   echo "$file_path"
@@ -107,3 +107,5 @@ function __load_template() {
   [[ "$template" != *.tp ]] && template="${template}.tp"
   __find_or_fail "$template" "$TEMPLATES_SOURCE_DIR"
 }
+
+export -f __load_template
