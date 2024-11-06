@@ -304,7 +304,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
     ;;
   --update)
-    update_script "$@" && exit $?
+    update_script "$@"; exit $?
     ;;
   *)
     break
