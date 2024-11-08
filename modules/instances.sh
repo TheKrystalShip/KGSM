@@ -363,8 +363,11 @@ function _list_instances() {
   # Remove trailing directories from path, leave only filename
   for i in "${!instances[@]}"; do
     # instances["$i"]=$(basename "${instances[$i]}")
+    local filename
+    filename="$(basename "${instances[$i]}")"
+
     if [[ -z "$detailed" ]]; then
-      basename "${instances[$i]}"
+      echo "${filename%.ini}"
     else
       _print_info "$(basename "${instances[$i]}")"
     fi
