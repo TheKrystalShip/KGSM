@@ -1,82 +1,82 @@
-#!/bin/bash
+  #!/bin/bash
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug=" --debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
-# Absolute path to this script file
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Read configuration file
-CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini -print -quit)"
-if [ -f "$CONFIG_FILE" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    # Export each key-value pair
-    export "${line?}"
-  done <"$CONFIG_FILE"
-  # shellcheck disable=SC2155
-  [[ -z "$KGSM_ROOT" ]] && KGSM_ROOT="$SELF_PATH"
-  export KGSM_ROOT
-  export KGSM_CONFIG_LOADED=1
-else
-  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini -print -quit)"
-  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
-    cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
-    echo "${0##*/} WARNING: config.ini not found, created new file" >&2
-    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
-    exit 0
-  else
-    echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
-    exit 1
+  debug=
+  # shellcheck disable=SC2199
+  if [[ $@ =~ "--debug" ]]; then
+    debug=" --debug"
+    export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+    set -x
+    for a; do
+      shift
+      case $a in
+      --debug) continue ;;
+      *) set -- "$@" "$a" ;;
+      esac
+    done
   fi
-fi
 
-set -eo pipefail
+  # Absolute path to this script file
+  SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
-# Trap CTRL-C
-trap "echo "" && exit" INT
+  # Read configuration file
+  CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini -print -quit)"
+  if [ -f "$CONFIG_FILE" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      # Ignore comment lines and empty lines
+      if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+      # Export each key-value pair
+      export "${line?}"
+    done <"$CONFIG_FILE"
+    # shellcheck disable=SC2155
+    [[ -z "$KGSM_ROOT" ]] && KGSM_ROOT="$SELF_PATH"
+    export KGSM_ROOT
+    export KGSM_CONFIG_LOADED=1
+  else
+    CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini -print -quit)"
+    if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
+      cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
+      echo "${0##*/} WARNING: config.ini not found, created new file" >&2
+      echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
+      exit 0
+    else
+      echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
+      exit 1
+    fi
+  fi
 
-module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+  set -eo pipefail
 
-# shellcheck disable=SC1090
-source "$module_common" || exit 1
+  # Trap CTRL-C
+  trap "echo "" && exit" INT
 
-function get_version() {
-  [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
-}
+  module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
+  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
-DESCRIPTION="Krystal Game Server Manager - $(get_version)
+  # shellcheck disable=SC1090
+  source "$module_common" || exit 1
 
-Create, install, and manage game servers on Linux.
+  function get_version() {
+    [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
+  }
 
-If you have any problems while using KGSM, please don't hesitate to create an
-issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
+  DESCRIPTION="Krystal Game Server Manager - $(get_version)
 
-function usage() {
-  local UNDERLINE="\e[4m"
-  local END="\e[0m"
-  echo -e "$DESCRIPTION"
+  Create, install, and manage game servers on Linux.
 
-  echo -e "
-Usage:
-  $(basename "$0") OPTION
+  If you have any problems while using KGSM, please don't hesitate to create an
+  issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
-Options:
-  ${UNDERLINE}General${END}
+  function usage() {
+    local UNDERLINE="\e[4m"
+    local END="\e[0m"
+    echo -e "$DESCRIPTION"
+
+    echo -e "
+  Usage:
+    $(basename "$0") OPTION
+
+  Options:
+    ${UNDERLINE}General${END}
     -h, --help                  Print this help message.
       [--interactive]           Print help information for interactive mode.
     --update                    Update KGSM to the latest version.
@@ -357,7 +357,9 @@ function _install() {
   "$module_deploy" -i "$instance" $debug || return $?
   "$module_version" -i "$instance" --save "$version" $debug || return $?
 
-  __print_success "Instance $instance has been created in $install_dir" && return 0
+  __print_success "Instance $instance has been created in $install_dir"
+
+  return 0
 }
 
 function _uninstall() {
@@ -370,6 +372,10 @@ function _uninstall() {
   "$module_directories" -i "$instance" --remove $debug || return $?
   "$module_files" -i "$instance" --remove $debug || return $?
   "$module_instance" --remove "$instance" $debug || return $?
+
+  __print_success "Instance ${instance} uninstalled"
+
+  return 0
 }
 
 function _interactive() {
@@ -641,7 +647,20 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@"; exit $?
     ;;
   --instances)
-    "$module_instance" --list --detailed $debug; exit $?
+    shift
+    if [[ -z "$1" ]]; then
+      "$module_instance" --list $debug
+      exit $?
+    else
+      case "$1" in
+        --detailed)
+          "$module_instance" --list --detailed $debug; exit $?
+          ;;
+        *)
+          __print_error "Invalid argument $1" && exit 1
+          ;;
+      esac
+    fi
     ;;
   -i | --instance)
     shift
