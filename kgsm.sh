@@ -1,146 +1,146 @@
-  #!/bin/bash
+#!/bin/bash
 
-  debug=
-  # shellcheck disable=SC2199
-  if [[ $@ =~ "--debug" ]]; then
-    debug=" --debug"
-    export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-    set -x
-    for a; do
-      shift
-      case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
-      esac
-    done
-  fi
+debug=
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  debug=" --debug"
+  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+  for a; do
+    shift
+    case $a in
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
+fi
 
-  # Absolute path to this script file
-  SELF_PATH="$(dirname "$(readlink -f "$0")")"
+# Absolute path to this script file
+SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
-  # Read configuration file
-  CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini -print -quit)"
-  if [ -f "$CONFIG_FILE" ]; then
-    while IFS= read -r line || [ -n "$line" ]; do
-      # Ignore comment lines and empty lines
-      if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-      # Export each key-value pair
-      export "${line?}"
-    done <"$CONFIG_FILE"
-    # shellcheck disable=SC2155
-    [[ -z "$KGSM_ROOT" ]] && KGSM_ROOT="$SELF_PATH"
-    export KGSM_ROOT
-    export KGSM_CONFIG_LOADED=1
+# Read configuration file
+CONFIG_FILE="$(find "$SELF_PATH" -type f -name config.ini -print -quit)"
+if [ -f "$CONFIG_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    # Export each key-value pair
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  # shellcheck disable=SC2155
+  [[ -z "$KGSM_ROOT" ]] && KGSM_ROOT="$SELF_PATH"
+  export KGSM_ROOT
+  export KGSM_CONFIG_LOADED=1
+else
+  CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini -print -quit)"
+  if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
+    cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
+    echo "${0##*/} WARNING: config.ini not found, created new file" >&2
+    echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
+    exit 0
   else
-    CONFIG_FILE_EXAMPLE="$(find "$SELF_PATH" -type f -name config.default.ini -print -quit)"
-    if [ -f "$CONFIG_FILE_EXAMPLE" ]; then
-      cp "$CONFIG_FILE_EXAMPLE" "$SELF_PATH/config.ini"
-      echo "${0##*/} WARNING: config.ini not found, created new file" >&2
-      echo "${0##*/} INFO: Please ensure configuration is correct before running the script again" >&2
-      exit 0
-    else
-      echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
-      exit 1
-    fi
+    echo "${0##*/} ERROR: Could not find config.default.ini, install might be broken" >&2
+    exit 1
   fi
+fi
 
-  set -eo pipefail
+set -eo pipefail
 
-  # Trap CTRL-C
-  trap "echo "" && exit" INT
+# Trap CTRL-C
+trap "echo "" && exit" INT
 
-  module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
+# shellcheck disable=SC1090
+source "$module_common" || exit 1
 
-  function get_version() {
-    [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
-  }
+function get_version() {
+  [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
+}
 
-  DESCRIPTION="Krystal Game Server Manager - $(get_version)
+DESCRIPTION="Krystal Game Server Manager - $(get_version)
 
-  Create, install, and manage game servers on Linux.
+Create, install, and manage game servers on Linux.
 
-  If you have any problems while using KGSM, please don't hesitate to create an
-  issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
+If you have any problems while using KGSM, please don't hesitate to create an
+issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
-  function usage() {
-    local UNDERLINE="\e[4m"
-    local END="\e[0m"
-    echo -e "$DESCRIPTION"
+function usage() {
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  echo -e "$DESCRIPTION"
 
-    echo -e "
-  Usage:
-    $(basename "$0") OPTION
+  echo -e "
+Usage:
+  $(basename "$0") OPTION
 
-  Options:
-    ${UNDERLINE}General${END}
-    -h, --help                  Print this help message.
-      [--interactive]           Print help information for interactive mode.
-    --update                    Update KGSM to the latest version.
-      [--force]                 Ignore version check and download the latest
-                                version available.
-    --ip                        Print the external server IP address.
-    -v, --version               Print the KGSM version.
+Options:
+  ${UNDERLINE}General${END}
+  -h, --help                  Print this help message.
+    [--interactive]           Print help information for interactive mode.
+  --update                    Update KGSM to the latest version.
+    [--force]                 Ignore version check and download the latest
+                              version available.
+  --ip                        Print the external server IP address.
+  -v, --version               Print the KGSM version.
 
-  ${UNDERLINE}Blueprints${END}
-    --create-blueprint          Create a new blueprints file.
-      [-h, --help]              Print help information about the blueprint
-                                creation process.
-    --blueprints                List all available blueprints.
-    --install BLUEPRINT         Run the installation process for an existing
-                                blueprint.
-                                BLUEPRINT must be the name of a blueprint.
-                                Run --blueprints to see available options.
-      [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
-                                set.
-      [--version <version>]     WARNING: Not used by game servers that come from
-                                steamcmd, only used by custom game servers.
-                                Specific version to install.
-      [--id <id>]               Identifier for the instance as an alternative
-                                from letting KGSM generate one.
+${UNDERLINE}Blueprints${END}
+  --create-blueprint          Create a new blueprints file.
+    [-h, --help]              Print help information about the blueprint
+                              creation process.
+  --blueprints                List all available blueprints.
+  --install BLUEPRINT         Run the installation process for an existing
+                              blueprint.
+                              BLUEPRINT must be the name of a blueprint.
+                              Run --blueprints to see available options.
+    [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
+                              set.
+    [--version <version>]     WARNING: Not used by game servers that come from
+                              steamcmd, only used by custom game servers.
+                              Specific version to install.
+    [--id <id>]               Identifier for the instance as an alternative
+                              from letting KGSM generate one.
 
-  ${UNDERLINE}Instances${END}
-    --uninstall <instance>      Run the uninstall process for an instance.
-    --instances [blueprint]     List all installed instances.
-                                Optionally a blueprint name can be specified in
-                                order to only list instances of that blueprint
+${UNDERLINE}Instances${END}
+  --uninstall <instance>      Run the uninstall process for an instance.
+  --instances [blueprint]     List all installed instances.
+                              Optionally a blueprint name can be specified in
+                              order to only list instances of that blueprint
 
-    -i, --instance <x> OPTION   Interact with an instance.
-                                OPTION represents one of the following:
+  -i, --instance <x> OPTION   Interact with an instance.
+                              OPTION represents one of the following:
 
-      --logs                    Return the last 10 lines of the instance log.
-        [-f, --follow]            --follow will read in realtime.
-      --status                  Return a detailed running status.
-      --info                    Print information about the instance.
-      --is-active               Check if the instance is active.
-      --start                   Start the instance.
-      --stop                    Stop the instance.
-      --restart                 Restart the instance.
-      --save                    Issues the save command to the instance.
-      --input <command>         Send a command to the instance's interactive
-                                console, if the instance accepts commands.
-                                Will display the last 10 lines of the instance
-                                log.
-      -v, --version             Provide version information.
-                                Running this with no other argument has the same
-                                outcome as adding the --installed argument.
-        [--installed]           Print the currently installed version.
-        [--latest]              Print the latest available version.
-      --backups                 Print a list of created backups.
-      --check-update            Check if a new version is available.
-      --update                  Run the update process.
-      --create-backup           Create a backup of the currently installed
-                                version, if any.
-      --restore-backup NAME     Restore a backup.
-                                NAME is the backup name.
-      --modify                  Modify and existing instance.
-        --add OPTION            Add additional functionality. Possible options:
-                                  ufw, systemd
-        --remove OPTION         Remove functionality. Possible options:
-                                  ufw, systemd
+    --logs                    Return the last 10 lines of the instance log.
+      [-f, --follow]            --follow will read in realtime.
+    --status                  Return a detailed running status.
+    --info                    Print information about the instance.
+    --is-active               Check if the instance is active.
+    --start                   Start the instance.
+    --stop                    Stop the instance.
+    --restart                 Restart the instance.
+    --save                    Issues the save command to the instance.
+    --input <command>         Send a command to the instance's interactive
+                              console, if the instance accepts commands.
+                              Will display the last 10 lines of the instance
+                              log.
+    -v, --version             Provide version information.
+                              Running this with no other argument has the same
+                              outcome as adding the --installed argument.
+      [--installed]           Print the currently installed version.
+      [--latest]              Print the latest available version.
+    --backups                 Print a list of created backups.
+    --check-update            Check if a new version is available.
+    --update                  Run the update process.
+    --create-backup           Create a backup of the currently installed
+                              version, if any.
+    --restore-backup NAME     Restore a backup.
+                              NAME is the backup name.
+    --modify                  Modify and existing instance.
+      --add OPTION            Add additional functionality. Possible options:
+                                ufw, systemd
+      --remove OPTION         Remove functionality. Possible options:
+                                ufw, systemd
 "
 }
 

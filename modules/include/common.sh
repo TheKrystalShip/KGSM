@@ -34,12 +34,27 @@ export MODULES_INCLUDE_SOURCE_DIR=$MODULES_SOURCE_DIR/include
 # Directory where instances and their config is stored
 export INSTANCES_SOURCE_DIR=$KGSM_ROOT/instances
 
-# Colored console output functions
-export COLOR_RED="\033[0;31m"
-export COLOR_GREEN="\033[0;32m"
-export COLOR_ORANGE="\033[0;33m"
-export COLOR_BLUE="\033[0;34m"
-export COLOR_END="\033[0m"
+## Colored output
+# Check if stdout is tty
+if test -t 1; then
+  ncolors=0
+
+  # Check for availability of tput
+  if command -v tput >/dev/null 2>&1; then
+    ncolors="$(tput colors)"
+  fi
+
+  # More than 8 means it supports colors
+  if [[ $ncolors ]] && [[ "$ncolors" -gt 8 ]]; then
+
+    export COLOR_RED="\033[0;31m"
+    export COLOR_GREEN="\033[0;32m"
+    export COLOR_ORANGE="\033[0;33m"
+    export COLOR_BLUE="\033[0;34m"
+    export COLOR_END="\033[0m"
+
+  fi
+fi
 
 function __print_error() {
   echo -e "[${0##*/} - ${COLOR_RED}ERROR${COLOR_END}] $1" >&2
