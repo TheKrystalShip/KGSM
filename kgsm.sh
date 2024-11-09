@@ -373,7 +373,7 @@ function _uninstall() {
   "$module_files" -i "$instance" --remove $debug || return $?
   "$module_instance" --remove "$instance" $debug || return $?
 
-  __print_success "Instance ${instance} uninstalled"
+  __print_success "Instance ${instance%.ini} uninstalled"
 
   return 0
 }
