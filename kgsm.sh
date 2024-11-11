@@ -111,8 +111,7 @@ ${UNDERLINE}Instances${END}
   -i, --instance <x> OPTION   Interact with an instance.
                               OPTION represents one of the following:
 
-    --logs                    Return the last 10 lines of the instance log.
-      [-f, --follow]            --follow will read in realtime.
+    --logs                    Print a constant output of an instance's log.
     --status                  Return a detailed running status.
     --info                    Print information about the instance.
     --is-active               Check if the instance is active.
@@ -670,16 +669,7 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit 1
     case "$1" in
     --logs)
-      shift
-      if [[ -z "$1" ]]; then "$module_instance" --logs "$instance" $debug; exit $?; fi
-      case "$1" in
-        -f | --follow)
-          "$module_instance" --logs "$instance" --follow $debug; exit $?
-          ;;
-        *)
-          __print_error "Invalid argument $1" && exit 1
-          ;;
-      esac
+      "$module_instance" --logs "$instance" $debug; exit $?
       ;;
     --status)
       "$module_instance" --status "$instance" $debug; exit $?

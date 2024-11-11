@@ -13,8 +13,7 @@ Options:
   --list [blueprint]              Prints a list of all instances.
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
-  --logs <instance>               Return the last 10 lines of the instance log.
-    [-f, --follow]                  --follow will read in realtime.
+  --logs <instance>               Prints a constant output of an instance's logs
   --status <instance>             Return a detailed running status.
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
@@ -466,7 +465,6 @@ function __manage_instance() {
 
 function _get_logs() {
   local instance=$1
-  local follow=${2:-}
 
   # shellcheck disable=SC1090
   source "$(__load_instance "$instance")" || return 1
@@ -532,16 +530,7 @@ while [[ $# -gt 0 ]]; do
   --logs)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    instance=$1
-    shift
-    if [[ -z "$1" ]]; then _get_logs "$instance"; exit $?; fi
-    case "$1" in
-      -f | --follow)
-        _get_logs "$instance" "$1"; exit $?
-        ;;
-      *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
-        ;;
-    esac
+    _get_logs "$instance" "$1"; exit $?
     ;;
   --status)
     shift
