@@ -482,12 +482,28 @@ function _get_logs() {
     return $?
   fi
 
-  # shellcheck disable=SC2012
-  # shellcheck disable=SC2155
-  local latest_log_file=$(ls "$INSTANCE_LOGS_DIR" -t | head -1)
-  [[ -z "$latest_log_file" ]] && echo "${0##*/} INFO: No logs found for $instance" >&2 && return 0
+  while true; do
+    local latest_log_file
+    latest_log_file="$(ls "$INSTANCE_LOGS_DIR" -t | head -1)"
 
-  tail "$INSTANCE_LOGS_DIR/$latest_log_file" ${follow:+-f}
+    if [[ -z "$latest_log_file" ]]; then
+      sleep 2
+      continue
+    fi
+
+    echo "${0##*/} INFO: Following logs from $latest_log_file" >&2
+
+    tail -F "$INSTANCE_LOGS_DIR/$latest_log_file" &
+    tail_pid=$!
+
+    # Wait for tail process to finish or the log file to be replaced
+    inotifywait -e create -e moved_to "$INSTANCE_LOGS_DIR" >/dev/null 2>&1
+
+    # New log file detected; kill current tail and loop back to follow the new file
+    kill "$tail_pid"
+    echo "${0##*/} INFO: Detected new log file. Switching to the latest log..." >&2
+    sleep 1
+  done
 }
 
 while [[ $# -gt 0 ]]; do
