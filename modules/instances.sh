@@ -471,13 +471,7 @@ function _get_logs() {
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     [[ "$instance" == *.ini ]] && instance=${instance//.ini}
-
-    if [[ -z "$follow" ]]; then
-      journalctl -n 10 -u "$instance" --no-pager
-    else
-      journalctl -fu "$instance"
-    fi
-    return $?
+    journalctl -fu "$instance"
   fi
 
   while true; do
