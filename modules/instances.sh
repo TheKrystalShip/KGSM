@@ -530,7 +530,7 @@ while [[ $# -gt 0 ]]; do
   --logs)
     shift
     [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    _get_logs "$instance" "$1"; exit $?
+    _get_logs "$1"; exit $?
     ;;
   --status)
     shift
