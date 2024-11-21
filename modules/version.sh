@@ -161,6 +161,8 @@ function _save_version() {
 
   echo "$version" >"${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version"
 
+  __emit_instance_version_updated "${instance%.ini}" "$INSTANCE_INSTALLED_VERSION" "$version"
+
   return 0
 }
 

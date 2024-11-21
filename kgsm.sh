@@ -345,6 +345,8 @@ function _install() {
     instance="$("$module_instance" --create "$blueprint" --install-dir "$install_dir" --id "$identifier")"
   fi
 
+  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
+
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
 
@@ -356,7 +358,11 @@ function _install() {
   "$module_deploy" -i "$instance" $debug || return $?
   "$module_version" -i "$instance" --save "$version" $debug || return $?
 
+  __emit_instance_installation_finished "${instance%.ini}" "${blueprint}"
+
   __print_success "Instance $instance has been created in $install_dir"
+
+  __emit_instance_installed "${instance%.ini}" "${blueprint}"
 
   return 0
 }
@@ -368,11 +374,17 @@ function _uninstall() {
     instance="${instance}.ini"
   fi
 
+  __emit_instance_uninstall_started "${instance%.ini}"
+
   "$module_directories" -i "$instance" --remove $debug || return $?
   "$module_files" -i "$instance" --remove $debug || return $?
   "$module_instance" --remove "$instance" $debug || return $?
 
+  __emit_instance_uninstall_finished "${instance%.ini}"
+
   __print_success "Instance ${instance%.ini} uninstalled"
+
+  __emit_instance_uninstalled "${instance%.ini}"
 
   return 0
 }

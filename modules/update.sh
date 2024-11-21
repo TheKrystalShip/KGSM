@@ -246,4 +246,12 @@ function func_main() {
   return 0
 }
 
-func_main "$@" && exit $?
+__emit_instance_update_started "${instance%.ini}"
+
+func_main "$@"
+
+__emit_instance_update_finished "${instance%.ini}"
+
+__emit_instance_updated "${instance%.ini}"
+
+exit 0

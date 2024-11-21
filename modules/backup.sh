@@ -138,6 +138,7 @@ function _create() {
     fi
   fi
 
+  __emit_instance_backup_created "${instance%.ini}" "$output" "$INSTANCE_INSTALLED_VERSION"
   return 0
 }
 
@@ -187,6 +188,7 @@ function _restore() {
     fi
   fi
 
+  __emit_instance_backup_restored "${instance%.ini}" "$source" "$backup_version"
   return 0
 }
 

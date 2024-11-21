@@ -138,7 +138,7 @@ function _create_instance() {
     export instance_id=${instance_full_name##*-}
   else
     if [[ -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
-      echo "${0##*/} ERROR: Instance with id \"$identifier\" already exists" >&2 && return 1
+      __print_error "Instance with id \"$identifier\" already exists" && return 1
     fi
 
     instance_full_name="${identifier}"
@@ -179,13 +179,13 @@ function _create_instance() {
   export instance_install_datetime=\"$(date +"%Y-%m-%dT%H:%M:%S")\"
   export instance_manage_file=$install_dir/$instance_full_name/$instance_full_name.manage.sh
   if [ -n "$USE_SYSTEMD" ] && [ "$USE_SYSTEMD" -eq 1 ]; then
-    [[ -z "$SYSTEMD_DIR" ]] && echo "${0##*/} ERROR: USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" >&2 && return 1
+    [[ -z "$SYSTEMD_DIR" ]] && __print_error "USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" && return 1
 
     export instance_systemd_service_file=$SYSTEMD_DIR/$instance_full_name.service
     export instance_systemd_socket_file=$SYSTEMD_DIR/$instance_full_name.socket
   fi
   if [ -n "$USE_UFW" ] && [ "$USE_UFW" -eq 1 ]; then
-    [[ -z "$UFW_RULES_DIR" ]] && echo "${0##*/} ERROR: USE_UFW is enabled but UFW_RULES_DIR is not set" >&2 && return 1
+    [[ -z "$UFW_RULES_DIR" ]] && __print_error "USE_UFW is enabled but UFW_RULES_DIR is not set" && return 1
 
     export instance_ufw_file=$UFW_RULES_DIR/kgsm-$instance_full_name
   fi
@@ -196,7 +196,7 @@ function _create_instance() {
   local instance_dir_path=$INSTANCES_SOURCE_DIR/$service_name
   if [ ! -d "$instance_dir_path" ]; then
     if ! mkdir -p "$instance_dir_path"; then
-      echo "${0##*/} ERROR: Failed to create $instance_dir_path" >&2 && return 1
+      __print_error "Failed to create $instance_dir_path" && return 1
     fi
   fi
 
@@ -206,7 +206,7 @@ function _create_instance() {
 $(<"$instance_template_file")
 EOF
 " >"$instance_config_file" 2>/dev/null; then
-    echo "${0##*/} ERROR: Could not create instance file $instance_config_file" >&2 && return 1
+    __print_error "Could not create instance file $instance_config_file" && return 1
   fi
 
   # shellcheck disable=SC2155
@@ -269,6 +269,7 @@ EOF
     fi
   fi
 
+  __emit_instance_created "$instance_full_name" "$blueprint"
   echo "$instance_full_name" >&1
 }
 
@@ -282,7 +283,7 @@ function _remove() {
 
   # Remove instance config file
   if ! rm "$instance_abs_path"; then
-    echo "${0##*/} ERROR: Failed to remove $instance_abs_path" >&2 && return 1
+    __print_error "Failed to remove $instance_abs_path" && return 1
   fi
 
   # Remove directory if no other instances are found
@@ -290,6 +291,7 @@ function _remove() {
     rmdir "$INSTANCES_SOURCE_DIR/$instance_name"
   fi
 
+  __emit_instance_removed "${instance%.ini}"
   return 0
 }
 
@@ -405,6 +407,8 @@ function __manage_instance() {
       else
         "$instance_manage_file" --start --background
       fi
+
+      __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
     ;;
     stop)
       if [[ "$instance_is_managed_by_systemd" ]]; then
@@ -412,23 +416,28 @@ function __manage_instance() {
       else
         "$instance_manage_file" --stop
       fi
+
+      __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
     ;;
     restart)
       if [[ "$instance_is_managed_by_systemd" ]]; then
-        $SUDO systemctl restart "$instance_copy" --no-pager
+        $SUDO systemctl stop "$instance_copy" --no-pager
+        __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
+        $SUDO systemctl start "$instance_copy" --no-pager
+        __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
       else
         "$instance_manage_file" --stop
+        __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
         "$instance_manage_file" --start --background
+        __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
       fi
     ;;
     save)
       "$instance_manage_file" --save
     ;;
     input)
-      [[ -z "$command" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && return 1
+      [[ -z "$command" ]] && __print_error "Missing argument <command>" && return 1
       "$instance_manage_file" --input "$command"
-      sleep 1
-      _get_logs "$instance"
     ;;
     status)
       if [[ "$instance_is_managed_by_systemd" ]]; then
@@ -459,7 +468,7 @@ function __manage_instance() {
         return 1
       fi
     ;;
-    *) echo "${0##*/} ERROR: Unknown action $action" >&2 && return 1
+    *) __print_error "Unknown action $action" && return 1
   esac
 }
 
@@ -483,7 +492,7 @@ function _get_logs() {
       continue
     fi
 
-    echo "${0##*/} INFO: Following logs from $latest_log_file" >&2
+    __print_info "Following logs from $latest_log_file"
 
     tail -F "$INSTANCE_LOGS_DIR/$latest_log_file" &
     tail_pid=$!
@@ -493,7 +502,7 @@ function _get_logs() {
 
     # New log file detected; kill current tail and loop back to follow the new file
     kill "$tail_pid"
-    echo "${0##*/} INFO: Detected new log file. Switching to the latest log..." >&2
+    __print_info "Detected new log file. Switching to the latest log..."
     sleep 1
   done
 }
@@ -518,50 +527,50 @@ while [[ $# -gt 0 ]]; do
     ;;
   --generate-id)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
     _generate_unique_instance_name "$1"; exit $?
     ;;
   --logs)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     _get_logs "$1"; exit $?
     ;;
   --status)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "status"; exit $?
     ;;
   --is-active)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "is-active"; exit $?
     ;;
   --start)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "start"; exit $?
     ;;
   --stop)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "stop"; exit $?
     ;;
   --restart)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "restart"; exit $?
     ;;
   --save)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     __manage_instance "$1" "save"; exit $?
     ;;
   --input)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     instance=$1
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <command>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit 1
     command=$1
     __manage_instance "$instance" "input" "$command"; exit $?
     ;;
@@ -570,7 +579,7 @@ while [[ $# -gt 0 ]]; do
     install_dir=
     identifier=
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <blueprint>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
     blueprint=$1
     shift
     if [[ -n "$1" ]]; then
@@ -578,15 +587,15 @@ while [[ $# -gt 0 ]]; do
         case "$1" in
         --install-dir)
           shift
-          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <install_dir>" >&2 && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit 1
           install_dir=$1
           ;;
         --id)
           shift
-          [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <id>" >&2 && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit 1
           identifier=$1
           ;;
-        *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+        *) __print_error "Invalid argument $1" && exit 1 ;;
         esac
         shift
       done
@@ -595,15 +604,15 @@ while [[ $# -gt 0 ]]; do
     ;;
   --remove)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     _remove "$1"; exit $?
     ;;
   --info)
     shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
     _print_info "$1"; exit $?
     ;;
-  *) echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1 ;;
+  *) __print_error "Invalid argument $1" && exit 1 ;;
   esac
   shift
 done

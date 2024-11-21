@@ -57,25 +57,25 @@ if test -t 1; then
 fi
 
 function __print_error() {
-  echo -e "[${0##*/} - ${COLOR_RED}ERROR${COLOR_END}] $1" >&2
+  echo -e "[${BASH_SOURCE[-1]##*/}:${BASH_LINENO[0]} - ${COLOR_RED}ERROR${COLOR_END}] $1" >&2
 }
 
 export -f __print_error
 
 function __print_success() {
-  echo -e "[${0##*/} - ${COLOR_GREEN}SUCCESS${COLOR_END}] $1" >&2
+  echo -e "[${BASH_SOURCE[-1]##*/}:${BASH_LINENO[0]} - ${COLOR_GREEN}SUCCESS${COLOR_END}] $1"
 }
 
 export -f __print_success
 
 function __print_warning() {
-  echo -e "[${0##*/} - ${COLOR_ORANGE}WARNING${COLOR_END}] $1" >&2
+  echo -e "[${BASH_SOURCE[-1]##*/}:${BASH_LINENO[0]} - ${COLOR_ORANGE}WARNING${COLOR_END}] $1" >&2
 }
 
 export -f __print_warning
 
 function __print_info() {
-  echo -e "[${0##*/} - ${COLOR_BLUE}INFO${COLOR_END}] $1" >&2
+  echo -e "[${BASH_SOURCE[-1]##*/}:${BASH_LINENO[0]} - ${COLOR_BLUE}INFO${COLOR_END}] $1"
 }
 
 export -f __print_info
@@ -124,3 +124,14 @@ function __load_template() {
 }
 
 export -f __load_template
+
+# Events
+source "$(__load_module events.sh)" || exit 1
+
+if [[ "$USE_EVENTS" == 0 ]]; then
+    # List all functions defined in the current environment (from events.sh) and extract function names
+    declare -F | grep -E '^declare -f __emit_' | sed 's/^declare -f //g' | while read func; do
+        # For each function name, create a no-op function definition
+        eval "$func() { return; }"
+    done
+fi

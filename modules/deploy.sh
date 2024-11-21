@@ -113,6 +113,12 @@ function func_deploy() {
 # shellcheck disable=SC1090
 source "$module_overrides" "$instance" || exit 1
 
+__emit_instance_deploy_started "${instance%.ini}"
+
 func_deploy "$INSTANCE_TEMP_DIR" "$INSTANCE_INSTALL_DIR" || exit $?
+
+__emit_instance_deploy_finished "${instance%.ini}"
+
+__emit_instance_deployed "${instance%.ini}"
 
 exit 0

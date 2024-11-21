@@ -130,6 +130,12 @@ function func_download() {
 # shellcheck disable=SC1090
 source "$module_overrides" "$instance" || exit 1
 
+__emit_instance_download_started "${instance%.ini}"
+
 func_download "$version" "$INSTANCE_TEMP_DIR" || exit $?
+
+__emit_instance_download_finished "${instance%.ini}"
+
+__emit_instance_downloaded "${instance%.ini}"
 
 exit 0

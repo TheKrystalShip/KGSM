@@ -113,6 +113,7 @@ function _create() {
     fi
   done
 
+  __emit_instance_directories_created "${instance%.ini}"
   return 0
 }
 
@@ -122,6 +123,7 @@ function _remove() {
     __print_error "Failed to remove $INSTANCE_WORKING_DIR" && return 1
   fi
 
+  __emit_instance_directories_removed "${instance%.ini}"
   return 0
 }
 

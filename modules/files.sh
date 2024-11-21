@@ -237,7 +237,7 @@ function _systemd_uninstall() {
 
   if systemctl is-enabled "$INSTANCE_FULL_NAME" &>/dev/null; then
     if ! $SUDO systemctl disable "$INSTANCE_FULL_NAME"; then
-      echo "WARNING: Failed to disable $INSTANCE_FULL_NAME" >&2
+      __print_warning "Failed to disable $INSTANCE_FULL_NAME"
     fi
   fi
 
@@ -275,7 +275,7 @@ function _systemd_uninstall() {
 
   # Change the INSTANCE_LIFECYCLE_MANAGER to standalone
   if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=standalone" "$instance_config_file" >/dev/null; then
-    echo "${0##} ERROR: Failed to update the INSTANCE_LIFECYCLE_MANAGER to standalone" >&2 && return 1
+    __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to standalone" && return 1
   fi
 
   return 0
@@ -389,7 +389,7 @@ EOF
 
   # Change the INSTANCE_LIFECYCLE_MANAGER to systemd
   if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=systemd" "$instance_config_file" >/dev/null; then
-    echo "${0##} ERROR: Failed to update the INSTANCE_LIFECYCLE_MANAGER to systemd" >&2 && return 1
+     __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to systemd" && return 1
   fi
 
   return 0
@@ -481,6 +481,7 @@ function _create() {
     _ufw_install || return 1
   fi
 
+  __emit_instance_files_created "${instance%.ini}"
   return 0
 }
 
@@ -493,6 +494,7 @@ function _remove() {
     _ufw_uninstall || return 1
   fi
 
+  __emit_instance_files_removed "${instance%.ini}"
   return 0
 }
 
