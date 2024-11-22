@@ -16,14 +16,6 @@ As much as I'd like for KGSM to work on every system, unfortunately I don't have
 that much free time to test everywhere and fix all the potential differences
 between distributions.
 
-I've developed and tested on the following:
-
-- Manjaro 25.0.2 Wydnesdey
-- Kernel v6.5.13-7-MANJARO
-- Bash 5.2.26
-- Systemd 256
-- Ufw 0.36.2
-
 In _theory_ it should work on most GNU/Linux systems as long as the dependencies
 are met.
 
@@ -31,9 +23,24 @@ are met.
 
 Before diving in, make sure your system has the following packages:
 
+### Required dependencies:
+
+These are used throughout KGSM, without them it won't function.
+
 ```sh
 grep jq wget unzip tar sed coreutils findutils steamcmd
 ```
+
+### Optional dependencies:
+
+These are not required unless you want to enable some features through configuration.
+
+```sh
+ufw socat
+```
+
+- `ufw` is used only if `USE_UFW` is enabled in the `config.ini` file.
+- `socat` is used only if `USE_EVENTS` is enabled in the `config.ini` file.
 
 > [!NOTE]
 >
