@@ -199,7 +199,7 @@ function usage_interactive() {
 function check_for_update() {
   # shellcheck disable=SC2155
   local script_version=$(get_version)
-  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
+  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/refs/heads/${KGSM_BRANCH}/version.txt"
 
   # Fetch the latest version number
   if command -v wget >/dev/null 2>&1; then
@@ -220,11 +220,11 @@ function update_script() {
   # Define the raw URL of the script and version file
   local script_version
   script_version=$(get_version)
-  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/version.txt"
-  local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/main.tar.gz"
+  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/refs/heads/${KGSM_BRANCH}/version.txt"
+  local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/${KGSM_BRANCH}.tar.gz"
   local repo_compare_url="https://api.github.com/repos/TheKrystalShip/KGSM/compare"
   local local_temp_file="kgsm.tar.gz"
-  local local_temp_dir="KGSM-main"
+  local local_temp_dir="KGSM-${KGSM_BRANCH}"
 
   local force=0
   for arg in "$@"; do
