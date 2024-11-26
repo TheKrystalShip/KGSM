@@ -90,6 +90,10 @@ ${UNDERLINE}Blueprints${END}
     [-h, --help]              Print help information about the blueprint
                               creation process.
   --blueprints                List all available blueprints.
+  --blueprints --json         Print a JSON array with all blueprints.
+  --blueprints --json --detailed
+                              Print a detailed JSON formatted Map with
+                              information on all blueprints.
   --install BLUEPRINT         Run the installation process for an existing
                               blueprint.
                               BLUEPRINT must be the name of a blueprint.
@@ -105,6 +109,10 @@ ${UNDERLINE}Blueprints${END}
 ${UNDERLINE}Instances${END}
   --uninstall <instance>      Run the uninstall process for an instance.
   --instances [blueprint]     List all installed instances.
+  --instances --json          Print a JSON formatted array with all instances.
+  --instances --json --detailed
+                              Print a detailed JSON Map with all instances
+                              and their information.
                               Optionally a blueprint name can be specified in
                               order to only list instances of that blueprint
 
@@ -645,7 +653,27 @@ while [[ "$#" -gt 0 ]]; do
     _uninstall "$1"; exit $?
     ;;
   --blueprints)
-    "$module_blueprints" --list $debug; exit $?
+    shift
+    if [[ -z "$1" ]]; then
+      "$module_blueprints" --list $debug; exit $?
+    else
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+          --detailed)
+            detailed=1
+            ;;
+          --json)
+            json_format=1
+            ;;
+          *)
+            __print_error "Invalid argument $1" && exit 1
+            ;;
+        esac
+        shift
+      done
+
+      "$module_blueprints" --list ${detailed:+--detailed} ${json_format:+--json} $debug; exit $?
+    fi
     ;;
   --ip)
     if command -v wget >/dev/null 2>&1; then
@@ -660,17 +688,24 @@ while [[ "$#" -gt 0 ]]; do
   --instances)
     shift
     if [[ -z "$1" ]]; then
-      "$module_instance" --list $debug
-      exit $?
+      "$module_instance" --list $debug; exit $?
     else
-      case "$1" in
-        --detailed)
-          "$module_instance" --list --detailed $debug; exit $?
-          ;;
-        *)
-          __print_error "Invalid argument $1" && exit 1
-          ;;
-      esac
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+          --detailed)
+            detailed=1
+            ;;
+          --json)
+            json_format=1
+            ;;
+          *)
+            blueprint=$1
+            ;;
+        esac
+        shift
+      done
+
+      "$module_instance" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug; exit $?
     fi
     ;;
   -i | --instance)
