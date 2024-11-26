@@ -11,6 +11,11 @@ Options:
 
   --generate-id <blueprint>       Create a unique instance identifier
   --list [blueprint]              Prints a list of all instances.
+  --list --detailed [blueprint]   Print a list with detailed information about
+                                  instances.
+  --list --json [blueprint]       Prints a JSON formatted list of instances
+  --list --json --detailed        Print a list with detailed information of
+      [blueprint]                 instances.
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
   --logs <instance>               Prints a constant output of an instance's logs
@@ -36,6 +41,8 @@ Options:
                                   instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
   --info <instance>               Print a detailed description of an instance
+  --info <instance> --json        Print a detailed description of an instance in
+                                  JSON format.
 
 Examples:
   $(basename "$0") --create test.bp --install-dir /opt
@@ -302,7 +309,7 @@ function _print_info() {
   source "$(__load_instance "$instance")" || return 1
 
   {
-    echo "Instance:            $INSTANCE_FULL_NAME"
+    echo "Name:                $INSTANCE_FULL_NAME"
     echo "Lifecycle manager:   $INSTANCE_LIFECYCLE_MANAGER"
 
     local status=""
@@ -347,6 +354,61 @@ function _print_info() {
   } >&1
 }
 
+function _print_info_json() {
+  local instance=$1
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  local status=""
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    set +eo pipefail
+    status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
+    set -eo pipefail
+  else
+    status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
+  fi
+
+  local pid
+  pid=$( [[ -f "$INSTANCE_PID_FILE" ]] && cat "$INSTANCE_PID_FILE" || echo "None" )
+  local logs_dir
+  logs_dir=$( [[ "$INSTANCE_LIFECYCLE_MANAGER" == "standalone" ]] && echo "$INSTANCE_LOGS_DIR" || echo "None" )
+  local service_file
+  service_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" && -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "$INSTANCE_SYSTEMD_SERVICE_FILE" || echo "")
+  local socket_file
+  socket_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" && -n "$INSTANCE_SOCKET_FILE" ]] && echo "$INSTANCE_SOCKET_FILE" || echo "")
+  local firewall_rule
+  firewall_rule=$([[ "$USE_UFW" -eq 1 && -f "$INSTANCE_UFW_FILE" ]] && echo "$INSTANCE_UFW_FILE" || echo "")
+
+  jq -n \
+    --arg instance "$INSTANCE_FULL_NAME" \
+    --arg lifecycleManager "$INSTANCE_LIFECYCLE_MANAGER" \
+    --arg status "$status" \
+    --arg pid "$pid" \
+    --arg logsDir "$logs_dir" \
+    --arg directory "$INSTANCE_WORKING_DIR" \
+    --arg installDate "$INSTANCE_INSTALL_DATETIME" \
+    --arg version "$INSTANCE_INSTALLED_VERSION" \
+    --arg blueprint "$INSTANCE_BLUEPRINT_FILE" \
+    --arg serviceFile "$service_file" \
+    --arg socketFile "$socket_file" \
+    --arg firewallRule "$firewall_rule" \
+    '{
+      Name: $instance,
+      LifecycleManager: $lifecycleManager,
+      Status: $status,
+      PID: $pid,
+      LogsDirectory: $logsDir,
+      Directory: $directory,
+      InstallationDate: $installDate,
+      Version: $version,
+      Blueprint: $blueprint,
+      ServiceFile: $serviceFile,
+      SocketFile: $socketFile,
+      FirewallRule: $firewallRule
+    }'
+}
+
 function _list_instances() {
   local blueprint=${1:-}
   local detailed=${2:-}
@@ -373,6 +435,41 @@ function _list_instances() {
       _print_info "$(basename "${instances[$i]}")"
     fi
   done
+}
+
+function _list_instances_json() {
+  local blueprint=${1:-}
+  local detailed=${2:-}
+
+  shopt -s extglob nullglob
+
+  local -a instances=()
+  if [[ -z "$blueprint" ]]; then
+    instances=("$INSTANCES_SOURCE_DIR"/**/*.ini)
+  else
+    # shellcheck disable=SC2034
+    instances=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
+  fi
+
+  filenames=("${instances[@]##*/}") # Remove paths
+  filenames=("${filenames[@]%.ini}") # Remove extensions
+
+  if [[ -z "$detailed" ]]; then
+    jq -n --argjson instances_list "$(printf '%s\n' "${filenames[@]}" | jq -R . | jq -s .)" '$instances_list'
+  else
+    # Build a JSON object with instance contents
+    jq -n --argjson instances_list \
+      "$(for instance in "${filenames[@]}"; do
+        # Get the content of an instance as JSON
+        local content
+        content=$(_print_info_json "${instance##*/}")
+        # Skip instances with invalid content
+        if [[ $? -ne 0 || -z "$content" ]]; then
+          continue
+        fi
+        jq -n --arg key "${instance##*/}" --argjson value "$content" '{"key": $key, "value": $value}'
+      done | jq -s 'from_entries')" '$instances_list'
+  fi
 }
 
 function __manage_instance() {
@@ -507,11 +604,22 @@ function _get_logs() {
   done
 }
 
+# shellcheck disable=SC2199
+if [[ $@ =~ "--json" ]]; then
+  json_format=1
+  for a; do
+    shift
+    case $a in
+    --json) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
   --list)
     shift
-    if [[ -z "$1" ]]; then _list_instances; exit $?; fi
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --detailed)
@@ -523,7 +631,11 @@ while [[ $# -gt 0 ]]; do
       esac
     shift
     done
-    _list_instances "$blueprint" "$detailed"; exit $?
+    if [[ -z "$json_format" ]]; then
+      _list_instances "$blueprint" "$detailed"; exit $?
+    else
+      _list_instances_json "$blueprint" "$detailed"; exit $?
+    fi
     ;;
   --generate-id)
     shift
@@ -610,7 +722,11 @@ while [[ $# -gt 0 ]]; do
   --info)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    _print_info "$1"; exit $?
+    if [[ -z "$json_format" ]]; then
+      _print_info "$1"; exit $?
+    else
+      _print_info_json "$1"; exit $?
+    fi
     ;;
   *) __print_error "Invalid argument $1" && exit 1 ;;
   esac
