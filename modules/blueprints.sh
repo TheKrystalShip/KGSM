@@ -206,7 +206,7 @@ function _print_blueprint() {
     --arg name "$BP_NAME" \
     --arg port "$BP_PORT" \
     --arg app_id "$BP_APP_ID" \
-    --arg steam_auth_level "$BP_STEAM_AUTH_LEVEL" \
+    --arg steam_auth_level $BP_STEAM_AUTH_LEVEL \
     --arg launch_bin "$BP_LAUNCH_BIN" \
     --arg level_name "$BP_LEVEL_NAME" \
     --arg install_subdirectory "$BP_INSTALL_SUBDIRECTORY" \
@@ -219,6 +219,7 @@ function _print_blueprint() {
       AppId: $app_id,
       SteamAccountRequired: $steam_auth_level,
       LaunchBin: $launch_bin,
+      LevelName: $level_name,
       InstallSubdirectory: $install_subdirectory,
       LaunchArgs: $launch_args,
       StopCommand: $stop_command,
