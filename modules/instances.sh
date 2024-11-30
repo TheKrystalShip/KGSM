@@ -117,7 +117,7 @@ function _generate_unique_instance_name() {
   local instance_full_name
 
   while :; do
-    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-4}")
+    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-2}")
     instance_full_name="${service_name}-${instance_id}"
 
     if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
