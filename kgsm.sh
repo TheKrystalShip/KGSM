@@ -82,6 +82,8 @@ Options:
   --update                    Update KGSM to the latest version.
     [--force]                 Ignore version check and download the latest
                               version available.
+  --update-config             Update config.ini with the latest options added
+                              or modified in config.default.ini
   --ip                        Print the external server IP address.
   -v, --version               Print the KGSM version.
 
@@ -204,6 +206,87 @@ function usage_interactive() {
 "
 }
 
+function update_config() {
+  set +eo pipefail
+
+  config_file="config.ini"
+  default_file="config.default.ini"
+  merged_file="config.merged.ini"
+  backup_file="${config_file}.$(get_version).bak"
+
+  __print_info "Updating ${config_file} ..."
+
+  # Back up existing config
+  cp "$config_file" "${backup_file}"
+
+  # Start with an empty merged file
+  touch "$merged_file"
+
+  # Temporary variables for holding block content
+  block=""
+  varname=""
+
+  # Read the default config line by line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$line" ]]; then
+      # Process the block when we reach an empty line
+      varname=$(echo "$block" | grep -oP '^[^#=\n]+(?==)')
+
+      if [[ -n "$varname" ]]; then
+        # Check if the variable exists in user config
+        user_value=$(grep -m 1 "^$varname=" "$config_file")
+
+        if [[ -n "$user_value" ]]; then
+          # Output the commented block only if it's not already commented
+          echo "$block" | sed '/^#/! s/^/# /' >> "$merged_file"
+          echo "$user_value" >> "$merged_file"
+        else
+          # Use the block as is
+          echo "$block" >> "$merged_file"
+        fi
+      else
+        # No variable in the block, just copy it
+        echo "$block" >> "$merged_file"
+      fi
+
+      # Append a newline after processing each block
+      echo >> "$merged_file"
+
+      # Reset the block
+      block=""
+    else
+      # Accumulate lines into the block
+      block+="$line"$'\n'
+    fi
+  done < "$default_file"
+
+  # Handle the last block (if file does not end with a newline)
+  if [[ -n "$block" ]]; then
+    varname=$(echo "$block" | grep -oP '^[^#=\n]+(?==)')
+
+    if [[ -n "$varname" ]]; then
+      user_value=$(grep -m 1 "^$varname=" "$config_file")
+
+      if [[ -n "$user_value" ]]; then
+        echo "$block" | sed '/^#/! s/^/# /' >> "$merged_file"
+        echo "$user_value" >> "$merged_file"
+      else
+        echo "$block" >> "$merged_file"
+      fi
+    else
+      echo "$block" >> "$merged_file"
+    fi
+  fi
+
+  mv "$merged_file" "$config_file"
+
+  __print_success "Configuration update completed. Backup saved as ${backup_file}."
+
+  __print_info "Please check ${config_file} for modified/new options"
+
+  set -eo pipefail
+}
+
 function check_for_update() {
   # shellcheck disable=SC2155
   local script_version=$(get_version)
@@ -289,6 +372,8 @@ function update_script() {
     rm -rf "$local_temp_dir" "$local_temp_file"
 
     __print_success "KGSM updated to version ${bold}$LATEST_VERSION${bold_end}"
+
+    update_config
   else
     __print_info "You are already using the latest version: $script_version."
   fi
@@ -686,6 +771,9 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --update)
     update_script "$@"; exit $?
+    ;;
+  --update-config)
+    update_config; exit $?
     ;;
   --instances)
     shift
