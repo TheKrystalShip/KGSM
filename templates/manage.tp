@@ -8,9 +8,14 @@ Usage:
 Options:
   -h, --help            Display this help message
   --start               Start the server in the current terminal
-  --start --background  Start the server in the background
+  --start
+    --background        Start the server in the background
   --stop                Stop the server
+    --no-save           Do not save on shutdown
+    --no-graceful       Kill the server process without sending it the stop
+                        command.
   --save                Save the current game state
+  --is-active           Prints if the server is active
   --input <command>     Send an ad-hoc command to the server
 
 Examples:
@@ -23,6 +28,19 @@ Examples:
 set -eo pipefail
 
 [[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
+
+# shellcheck disable=SC2199
+if [[ \$@ =~ "--debug" ]]; then
+  export PS4='+(\033[0;33m\${BASH_SOURCE}:\${LINENO}\033[0m): \${FUNCNAME[0]:+\${FUNCNAME[0]}(): }'
+  set -x
+  for a; do
+    shift
+    case \$a in
+    --debug) continue ;;
+    *) set -- "\$@" "\$a" ;;
+    esac
+  done
+fi
 
 INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
 INSTANCE_PID_FILE=$INSTANCE_PID_FILE
@@ -52,12 +70,25 @@ function start_background() {
 }
 
 function stop_server() {
-  save_game
+  for a; do
+    shift
+    case "\$a" in
+    --no-save) no_save=1 ;;
+    --no-graceful) no_graceful=1 ;;
+    *) continue ;;
+    esac
+  done
 
-  # Send stop command to socket
-  if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
-    echo "$INSTANCE_STOP_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
-    rm -f "\$INSTANCE_SOCKET_FILE"
+  if [[ ! "\$no_save" ]]; then
+    save_game
+  fi
+
+  if [[ ! "\$no_graceful" ]]; then
+    # Send stop command to socket
+    if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
+      echo "$INSTANCE_STOP_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
+      rm -f "\$INSTANCE_SOCKET_FILE"
+    fi
   fi
 
   # Kill the tail process
@@ -88,7 +119,7 @@ function save_game() {
     echo "$INSTANCE_SAVE_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
     sleep 5
   else
-    echo "\${0##*/} ERROR: Save failed: No active server found." >&2 && return 1
+    echo "\$(basename "\$0") ERROR: Save failed: No active server found." >&2 && return 1
   fi
 }
 
@@ -96,8 +127,24 @@ function send_input() {
   if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
     echo "\$1" >>"\$INSTANCE_SOCKET_FILE"
   else
-    echo "\${0##*/} ERROR: Input failed: No active server found." >&2 && return 1
+    echo "\$(basename "\$0") ERROR: Input failed: No active server found." >&2 && return 1
   fi
+}
+
+function is_active() {
+  if [[ -f "\$INSTANCE_PID_FILE" ]]; then
+    local server_pid
+    server_pid=\$(<"\$INSTANCE_PID_FILE")
+    if kill -0 "\$server_pid" 2>/dev/null; then
+      # kill "\$server_pid"
+      echo "\$(basename "\$0") INFO: Active" && return 0
+    fi
+
+    echo "\$(basename "\$0") WARNING: Inactive, but PID file exists, removing" && return 1
+    stop_server --no-save --no-graceful
+  fi
+
+  echo "\$(basename "\$0") INFO: Inactive" && return 1
 }
 
 while [[ \$# -gt 0 ]]; do
@@ -114,18 +161,41 @@ while [[ \$# -gt 0 ]]; do
     fi
     ;;
   --stop)
-    stop_server
+    shift
+    if [[ -z "\$1" ]]; then
+      stop_server "\@";
+      exit \$?
+    else
+      while [[ \$# -gt 0 ]]; do
+        case "\$1" in
+          --no-save)
+            no_save=1
+            ;;
+          --no-graceful)
+            no_graceful=1
+            ;;
+          *)
+            echo "\$(basename "\$0") ERROR: Invalid argument \$1" >&2 && exit 1
+            ;;
+        esac
+        shift
+      done
+    fi
+    stop_server \${no_save:+--no-save} \${no_graceful:+--no-graceful}
     ;;
   --save)
     save_game
     ;;
+  --is-active)
+    is_active
+    ;;
   --input)
     shift
-    [[ -z "\$1" ]] && { echo "ERROR: Missing argument <command>" >&2; exit 1; }
+    [[ -z "\$1" ]] && echo "\$(basename "\$0") ERROR: Missing argument <command>" >&2 && exit 1
     send_input "\$1"
     ;;
   *)
-    echo "ERROR: Unknown argument \$1" >&2 && exit 1
+    echo "\$(basename "\$0") ERROR: Unknown argument \$1" >&2 && exit 1
     ;;
   esac
   shift

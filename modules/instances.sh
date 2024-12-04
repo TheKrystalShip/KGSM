@@ -53,8 +53,10 @@ Examples:
 
 set -eo pipefail
 
+debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
+  debug="--debug"
   export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
   set -x
   for a; do
@@ -502,7 +504,7 @@ function __manage_instance() {
       if [[ "$instance_is_managed_by_systemd" ]]; then
         $SUDO systemctl start "$instance_copy" --no-pager
       else
-        "$instance_manage_file" --start --background
+        "$instance_manage_file" --start --background $debug
       fi
 
       __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
@@ -511,7 +513,9 @@ function __manage_instance() {
       if [[ "$instance_is_managed_by_systemd" ]]; then
         $SUDO systemctl stop "$instance_copy" --no-pager
       else
-        "$instance_manage_file" --stop
+        if ! timeout -k 6 6 "$instance_manage_file" --stop $debug; then
+          "$instance_manage_file" --stop --no-save --no-graceful $debug
+        fi
       fi
 
       __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
@@ -530,11 +534,11 @@ function __manage_instance() {
       fi
     ;;
     save)
-      "$instance_manage_file" --save
+      "$instance_manage_file" --save $debug
     ;;
     input)
       [[ -z "$command" ]] && __print_error "Missing argument <command>" && return 1
-      "$instance_manage_file" --input "$command"
+      "$instance_manage_file" --input "$command" $debug
     ;;
     status)
       if [[ "$instance_is_managed_by_systemd" ]]; then

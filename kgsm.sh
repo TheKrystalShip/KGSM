@@ -685,6 +685,18 @@ KGSM - Interactive menu
 # If it's started with no args, default to interactive mode
 [[ "$#" -eq 0 ]] && _interactive && exit $?
 
+# shellcheck disable=SC2199
+if [[ $@ =~ "--json" ]]; then
+  json_format=1
+  for a; do
+    shift
+    case $a in
+    --json) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
+fi
+
 while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
@@ -812,7 +824,7 @@ while [[ "$#" -gt 0 ]]; do
       "$module_instance" --status "$instance" $debug; exit $?
       ;;
     --info)
-      "$module_instance" --info "$instance" $debug; exit $?
+      "$module_instance" --info "$instance" ${json_format:+--json} $debug; exit $?
       ;;
     --is-active)
       "$module_instance" --is-active "$instance" $debug; exit $?
