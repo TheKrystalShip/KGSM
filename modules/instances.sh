@@ -513,9 +513,22 @@ function __manage_instance() {
       if [[ "$instance_is_managed_by_systemd" ]]; then
         $SUDO systemctl stop "$instance_copy" --no-pager
       else
-        if ! timeout -k 6 6 "$instance_manage_file" --stop $debug; then
-          "$instance_manage_file" --stop --no-save --no-graceful $debug
-        fi
+        # timeout will exit with code != 0 if it the script call fails.
+        # set +eo pipefail is intentional for this section.
+        set +eo pipefail
+          # Factorio seems to hang indefinitely when trying to send "/save" to
+          # its socket, for now this will nuke the process if that happens
+          # until I figure out exactly why that is and fix it.
+
+          # Saving has a "sleep 5" after, allowing the server some time to
+          # finish whatever it needs before shutting down, so timeout should
+          # account for those 5 seconds + 1 extra second before nuking
+          local timeout_seconds=6
+          if ! timeout -k $timeout_seconds $timeout_seconds "$instance_manage_file" --stop $debug; then
+            # --kill bypsses all the socket commands
+            "$instance_manage_file" --kill $debug
+          fi
+        set -eo pipefail
       fi
 
       __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
@@ -558,15 +571,7 @@ function __manage_instance() {
         [[ "$is_active" == "active" ]] && return 0
         return 1
       else
-        set +eo pipefail
-        local instance_pid_file
-        instance_pid_file=$(grep "INSTANCE_PID_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-        set -eo pipefail
-        [[ -z "$instance_pid_file" ]] && return 1
-        [[ ! -f "$instance_pid_file" ]] && return 1
-        [[ -n $(cat "$instance_pid_file") ]] && return 0
-
-        return 1
+        "$instance_manage_file" --is-active
       fi
     ;;
     *) __print_error "Unknown action $action" && return 1
