@@ -14,6 +14,9 @@ Options:
     --no-save           Do not save on shutdown
     --no-graceful       Kill the server process without sending it the stop
                         command.
+  --kill                Same as '--stop --no-save --no-graceful'. It will NOT
+                        issue a 'save' command (if applicable), and will kill
+                        the server process
   --save                Save the current game state
   --is-active           Prints if the server is active
   --input <command>     Send an ad-hoc command to the server
@@ -182,6 +185,9 @@ while [[ \$# -gt 0 ]]; do
       done
     fi
     stop_server \${no_save:+--no-save} \${no_graceful:+--no-graceful}
+    ;;
+  --kill)
+    stop_server --no-save --no-graceful
     ;;
   --save)
     save_game
