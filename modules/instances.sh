@@ -474,108 +474,108 @@ function _list_instances_json() {
   fi
 }
 
-function __manage_instance() {
+function _start_instance() {
   local instance=$1
-  local action=$2
-  local command=${3:-}
 
-  instance_config_file=$(__load_instance "$instance")
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
 
-  local instance_lifecycle_manager
-  instance_lifecycle_manager=$(grep "INSTANCE_LIFECYCLE_MANAGER=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-
-  local instance_manage_file
-  instance_manage_file=$(grep "INSTANCE_MANAGE_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_manage_file" ]] && echo "${0##*/} ERROR: Could not find INSTANCE_MANAGE_FILE for $instance" >&2 && return 1
-
-  local instance_copy
-  instance_copy=$instance
-  if [[ "$instance" == *.ini ]]; then
-    instance_copy=${instance//.ini}
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    $SUDO systemctl start "${instance%.ini}" --no-pager
+  else
+    "$INSTANCE_MANAGE_FILE" --start --background $debug
   fi
 
-  local instance_is_managed_by_systemd
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    instance_is_managed_by_systemd=1
+  __emit_instance_started "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+}
+
+function _stop_instance() {
+  local instance=$1
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    $SUDO systemctl stop "${instance%.ini}" --no-pager
+  else
+    # timeout will exit with code != 0 if it the script call fails.
+    # set +eo pipefail is intentional for this section.
+    set +eo pipefail
+      # Factorio seems to hang indefinitely when trying to send "/save" to
+      # its socket, for now this will nuke the process if that happens
+      # until I figure out exactly why that is and fix it.
+
+      # Saving has a "sleep 5" after, allowing the server some time to
+      # finish whatever it needs before shutting down, so timeout should
+      # account for those 5 seconds + 1 extra second before nuking
+      local timeout_seconds=6
+      if ! timeout -k $timeout_seconds $timeout_seconds "$instance_manage_file" --stop $debug; then
+        # --kill bypsses all the socket commands
+        "$instance_manage_file" --kill $debug
+      fi
+    set -eo pipefail
   fi
 
-  case "$action" in
-    start)
-      if [[ "$instance_is_managed_by_systemd" ]]; then
-        $SUDO systemctl start "$instance_copy" --no-pager
-      else
-        "$instance_manage_file" --start --background $debug
-      fi
+  __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+}
 
-      __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
-    ;;
-    stop)
-      if [[ "$instance_is_managed_by_systemd" ]]; then
-        $SUDO systemctl stop "$instance_copy" --no-pager
-      else
-        # timeout will exit with code != 0 if it the script call fails.
-        # set +eo pipefail is intentional for this section.
-        set +eo pipefail
-          # Factorio seems to hang indefinitely when trying to send "/save" to
-          # its socket, for now this will nuke the process if that happens
-          # until I figure out exactly why that is and fix it.
+function _restart_instance() {
+  local instance=$1
 
-          # Saving has a "sleep 5" after, allowing the server some time to
-          # finish whatever it needs before shutting down, so timeout should
-          # account for those 5 seconds + 1 extra second before nuking
-          local timeout_seconds=6
-          if ! timeout -k $timeout_seconds $timeout_seconds "$instance_manage_file" --stop $debug; then
-            # --kill bypsses all the socket commands
-            "$instance_manage_file" --kill $debug
-          fi
-        set -eo pipefail
-      fi
+  __stop_instance "$instance"
+  __start_instance "$instance"
+}
 
-      __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
-    ;;
-    restart)
-      if [[ "$instance_is_managed_by_systemd" ]]; then
-        $SUDO systemctl stop "$instance_copy" --no-pager
-        __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
-        $SUDO systemctl start "$instance_copy" --no-pager
-        __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
-      else
-        "$instance_manage_file" --stop
-        __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
-        "$instance_manage_file" --start --background
-        __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
-      fi
-    ;;
-    save)
-      "$instance_manage_file" --save $debug
-    ;;
-    input)
-      [[ -z "$command" ]] && __print_error "Missing argument <command>" && return 1
-      "$instance_manage_file" --input "$command" $debug
-    ;;
-    status)
-      if [[ "$instance_is_managed_by_systemd" ]]; then
-        # systemctl status doesn't require sudo
-        systemctl status "$instance_copy" --no-pager
-        # systemctl status returns exit code 3, but it prints everything we need
-        # so just return 0 afterwords to exit the function
-        return 0
-      else
-        _print_info "$instance"
-      fi
-    ;;
-    is-active)
-      if [[ "$instance_is_managed_by_systemd" ]]; then
-        local is_active
-        is_active=$(systemctl "$action" "$instance_copy" --no-pager)
-        [[ "$is_active" == "active" ]] && return 0
-        return 1
-      else
-        "$instance_manage_file" --is-active
-      fi
-    ;;
-    *) __print_error "Unknown action $action" && return 1
-  esac
+function _get_instance_status() {
+  local instance=$1
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    # systemctl status doesn't require sudo
+    systemctl status "${instance%.ini}" --no-pager
+    # systemctl status returns exit code 3, but it prints everything we need
+    # so just return 0 afterwords to exit the function
+    return 0
+  else
+    _print_info "$instance"
+  fi
+}
+
+function _send_save_to_instance() {
+  local instance=$1
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  "$INSTANCE_MANAGE_FILE" --save $debug
+}
+
+function _send_input_to_instance() {
+  local instance=$1
+  local command=$2
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  "$INSTANCE_MANAGE_FILE" --input "$command" $debug
+}
+
+function _is_instance_active() {
+  local instance=$1
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return 1
+
+  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    local is_active
+    is_active=$(systemctl is-active "${instance%.ini}" --no-pager)
+    [[ "$is_active" == "active" ]] && return 0
+    return 1
+  else
+    "$INSTANCE_MANAGE_FILE" --is-active
+  fi
 }
 
 function _get_logs() {
@@ -659,32 +659,32 @@ while [[ $# -gt 0 ]]; do
   --status)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "status"; exit $?
+    _get_instance_status "$1"; exit $?
     ;;
   --is-active)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "is-active"; exit $?
+    _is_instance_active "$1"; exit $?
     ;;
   --start)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "start"; exit $?
+    _start_instance "$1"; exit $?
     ;;
   --stop)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "stop"; exit $?
+    _stop_instance "$1"; exit $?
     ;;
   --restart)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "restart"; exit $?
+    _restart_instance "$1"; exit $?
     ;;
   --save)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
-    __manage_instance "$1" "save"; exit $?
+    _send_save_to_instance "$1"; exit $?
     ;;
   --input)
     shift
@@ -693,7 +693,7 @@ while [[ $# -gt 0 ]]; do
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit 1
     command=$1
-    __manage_instance "$instance" "input" "$command"; exit $?
+    _send_input_to_instance "$instance" "$command"; exit $?
     ;;
   --create)
     blueprint=
