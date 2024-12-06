@@ -215,3 +215,5 @@ if [[ "$USE_EVENTS" == 0 ]]; then
       eval "$func() { return; }"
     done
 fi
+
+export KGSM_COMMON_LOADED=1

@@ -80,21 +80,24 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
 # Check for KGSM_ROOT
 if [ -z "$KGSM_ROOT" ]; then
-  # Search for the kgsm.sh file to dynamically set KGSM_ROOT
-  KGSM_ROOT=$(find "$SCRIPT_DIR" -maxdepth 2 -name 'kgsm.sh' -exec dirname {} \;)
+  while [[ "$SELF_PATH" != "/" ]]; do
+    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
+    SELF_PATH="$(dirname "$SELF_PATH")"
+  done
   [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
   export KGSM_ROOT
 fi
 
-module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-
-# shellcheck disable=SC1090
-source "$module_common" || exit 1
+if [[ ! "$KGSM_COMMON_LOADED" ]]; then
+  module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
+  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
+  # shellcheck disable=SC1090
+  source "$module_common" || exit 1
+fi
 
 function _generate_unique_instance_name() {
   local service_name="$1"
@@ -500,9 +503,9 @@ function _stop_instance() {
       # finish whatever it needs before shutting down, so timeout should
       # account for those 5 seconds + 1 extra second before nuking
       local timeout_seconds=6
-      if ! timeout -k $timeout_seconds $timeout_seconds "$instance_manage_file" --stop $debug; then
+      if ! timeout -k $timeout_seconds $timeout_seconds "$INSTANCE_MANAGE_FILE" --stop $debug; then
         # --kill bypsses all the socket commands
-        "$instance_manage_file" --kill $debug
+        "$INSTANCE_MANAGE_FILE" --kill $debug
       fi
     __enable_error_checking
   fi
