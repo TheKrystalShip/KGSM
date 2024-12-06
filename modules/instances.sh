@@ -51,8 +51,6 @@ Examples:
 "
 }
 
-set -eo pipefail
-
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -82,30 +80,15 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-# Check for KGSM_ROOT env variable
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check for KGSM_ROOT
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
-  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+  # Search for the kgsm.sh file to dynamically set KGSM_ROOT
+  KGSM_ROOT=$(find "$SCRIPT_DIR" -maxdepth 2 -name 'kgsm.sh' -exec dirname {} \;)
+  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
+  export KGSM_ROOT
 fi
-
-# Read configuration file
-if [ -z "$KGSM_CONFIG_LOADED" ]; then
-  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini -print -quit)"
-  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    export "${line?}"
-  done <"$CONFIG_FILE"
-  export KGSM_CONFIG_LOADED=1
-fi
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
 
 module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
 [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
@@ -147,7 +130,7 @@ function _create_instance() {
     export instance_id=${instance_full_name##*-}
   else
     if [[ -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
-      __print_error "Instance with id \"$identifier\" already exists" && return 1
+      __print_error "Instance with id \"$identifier\" already exists" && return "$EC_GENERAL"
     fi
 
     instance_full_name="${identifier}"
@@ -188,13 +171,13 @@ function _create_instance() {
   export instance_install_datetime=\"$(date +"%Y-%m-%dT%H:%M:%S")\"
   export instance_manage_file=$install_dir/$instance_full_name/$instance_full_name.manage.sh
   if [ -n "$USE_SYSTEMD" ] && [ "$USE_SYSTEMD" -eq 1 ]; then
-    [[ -z "$SYSTEMD_DIR" ]] && __print_error "USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" && return 1
+    [[ -z "$SYSTEMD_DIR" ]] && __print_error "USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" && return "$EC_INVALID_CONFIG"
 
     export instance_systemd_service_file=$SYSTEMD_DIR/$instance_full_name.service
     export instance_systemd_socket_file=$SYSTEMD_DIR/$instance_full_name.socket
   fi
   if [ -n "$USE_UFW" ] && [ "$USE_UFW" -eq 1 ]; then
-    [[ -z "$UFW_RULES_DIR" ]] && __print_error "USE_UFW is enabled but UFW_RULES_DIR is not set" && return 1
+    [[ -z "$UFW_RULES_DIR" ]] && __print_error "USE_UFW is enabled but UFW_RULES_DIR is not set" && return "$EC_INVALID_CONFIG"
 
     export instance_ufw_file=$UFW_RULES_DIR/kgsm-$instance_full_name
   fi
@@ -205,7 +188,7 @@ function _create_instance() {
   local instance_dir_path=$INSTANCES_SOURCE_DIR/$service_name
   if [ ! -d "$instance_dir_path" ]; then
     if ! mkdir -p "$instance_dir_path"; then
-      __print_error "Failed to create $instance_dir_path" && return 1
+      __print_error "Failed to create $instance_dir_path" && return "$EC_FAILED_MKDIR"
     fi
   fi
 
@@ -215,7 +198,7 @@ function _create_instance() {
 $(<"$instance_template_file")
 EOF
 " >"$instance_config_file" 2>/dev/null; then
-    __print_error "Could not create instance file $instance_config_file" && return 1
+    __print_error "Could not create instance file $instance_config_file" && return "$EC_FAILED_TEMPLATE"
   fi
 
   # shellcheck disable=SC2155
@@ -225,7 +208,9 @@ EOF
 
   if [[ $service_app_id -ne 0 ]]; then
     if grep -q "INSTANCE_APP_ID=" <"$instance_config_file"; then
-      sed -i "/INSTANCE_APP_ID=*/c\INSTANCE_APP_ID=$service_app_id" "$instance_config_file" >/dev/null
+      if ! sed -i "/INSTANCE_APP_ID=*/c\INSTANCE_APP_ID=$service_app_id" "$instance_config_file" >/dev/null; then
+        return "$EC_FAILED_SED"
+      fi
     else
       {
         echo ""
@@ -236,7 +221,9 @@ EOF
 
     if [[ -n "$is_steam_account_needed" ]]; then
       if grep -q "INSTANCE_STEAM_ACCOUNT_NEEDED=" <"$instance_config_file"; then
-        sed -i "/INSTANCE_STEAM_ACCOUNT_NEEDED=*/c\INSTANCE_STEAM_ACCOUNT_NEEDED=$is_steam_account_needed" "$instance_config_file" >/dev/null
+        if ! sed -i "/INSTANCE_STEAM_ACCOUNT_NEEDED=*/c\INSTANCE_STEAM_ACCOUNT_NEEDED=$is_steam_account_needed" "$instance_config_file" >/dev/null; then
+          return "$EC_FAILED_SED"
+        fi
       else
         {
           echo ""
@@ -254,7 +241,9 @@ EOF
   export instance_stop_command=$(grep "BP_STOP_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   if [[ -n "$instance_stop_command" ]]; then
     if grep -q "INSTANCE_STOP_COMMAND=" <"$instance_config_file"; then
-      sed -i "/INSTANCE_STOP_COMMAND=*/c\INSTANCE_STOP_COMMAND=$instance_stop_command" "$instance_config_file" >/dev/null
+      if ! sed -i "/INSTANCE_STOP_COMMAND=*/c\INSTANCE_STOP_COMMAND=$instance_stop_command" "$instance_config_file" >/dev/null; then
+        return "$EC_FAILED_SED"
+      fi
     else
       {
         echo ""
@@ -268,7 +257,9 @@ EOF
   export instance_save_command=$(grep "BP_SAVE_COMMAND=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
   if [[ -n "$instance_save_command" ]]; then
     if grep -q "INSTANCE_SAVE_COMMAND=" <"$instance_config_file"; then
-      sed -i "/INSTANCE_SAVE_COMMAND=*/c\INSTANCE_SAVE_COMMAND=$instance_save_command" "$instance_config_file" >/dev/null
+      if ! sed -i "/INSTANCE_SAVE_COMMAND=*/c\INSTANCE_SAVE_COMMAND=$instance_save_command" "$instance_config_file" >/dev/null; then
+        return "$EC_FAILED_SED"
+      fi
     else
       {
         echo ""
@@ -279,7 +270,7 @@ EOF
   fi
 
   __emit_instance_created "$instance_full_name" "$blueprint"
-  echo "$instance_full_name" >&1
+  echo "$instance_full_name"
 }
 
 function _remove() {
@@ -292,7 +283,7 @@ function _remove() {
 
   # Remove instance config file
   if ! rm "$instance_abs_path"; then
-    __print_error "Failed to remove $instance_abs_path" && return 1
+    __print_error "Failed to remove $instance_abs_path" && return "$EC_FAILED_RM"
   fi
 
   # Remove directory if no other instances are found
@@ -308,7 +299,7 @@ function _print_info() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   {
     echo "Name:                $INSTANCE_FULL_NAME"
@@ -317,9 +308,9 @@ function _print_info() {
     local status=""
     if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
       # systemctl return exit code 3 but it gives correct response
-      set +eo pipefail
+      __disable_error_checking
       status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
-      set -eo pipefail
+      __enable_error_checking
     else
       status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
     fi
@@ -360,13 +351,13 @@ function _print_info_json() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   local status=""
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    set +eo pipefail
+    __disable_error_checking
     status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
-    set -eo pipefail
+    __enable_error_checking
   else
     status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
   fi
@@ -478,7 +469,7 @@ function _start_instance() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     $SUDO systemctl start "${instance%.ini}" --no-pager
@@ -493,14 +484,14 @@ function _stop_instance() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     $SUDO systemctl stop "${instance%.ini}" --no-pager
   else
     # timeout will exit with code != 0 if it the script call fails.
     # set +eo pipefail is intentional for this section.
-    set +eo pipefail
+    __disable_error_checking
       # Factorio seems to hang indefinitely when trying to send "/save" to
       # its socket, for now this will nuke the process if that happens
       # until I figure out exactly why that is and fix it.
@@ -513,7 +504,7 @@ function _stop_instance() {
         # --kill bypsses all the socket commands
         "$instance_manage_file" --kill $debug
       fi
-    set -eo pipefail
+    __enable_error_checking
   fi
 
   __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
@@ -530,7 +521,7 @@ function _get_instance_status() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     # systemctl status doesn't require sudo
@@ -547,7 +538,7 @@ function _send_save_to_instance() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   "$INSTANCE_MANAGE_FILE" --save $debug
 }
@@ -557,7 +548,7 @@ function _send_input_to_instance() {
   local command=$2
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   "$INSTANCE_MANAGE_FILE" --input "$command" $debug
 }
@@ -566,13 +557,13 @@ function _is_instance_active() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     local is_active
     is_active=$(systemctl is-active "${instance%.ini}" --no-pager)
     [[ "$is_active" == "active" ]] && return 0
-    return 1
+    return "$EC_GENERAL"
   else
     "$INSTANCE_MANAGE_FILE" --is-active
   fi
@@ -582,7 +573,7 @@ function _get_logs() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return 1
+  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     [[ "$instance" == *.ini ]] && instance=${instance//.ini}
@@ -648,50 +639,50 @@ while [[ $# -gt 0 ]]; do
     ;;
   --generate-id)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
     _generate_unique_instance_name "$1"; exit $?
     ;;
   --logs)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _get_logs "$1"; exit $?
     ;;
   --status)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _get_instance_status "$1"; exit $?
     ;;
   --is-active)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _is_instance_active "$1"; exit $?
     ;;
   --start)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _start_instance "$1"; exit $?
     ;;
   --stop)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _stop_instance "$1"; exit $?
     ;;
   --restart)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _restart_instance "$1"; exit $?
     ;;
   --save)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _send_save_to_instance "$1"; exit $?
     ;;
   --input)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     instance=$1
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
     command=$1
     _send_input_to_instance "$instance" "$command"; exit $?
     ;;
@@ -700,7 +691,7 @@ while [[ $# -gt 0 ]]; do
     install_dir=
     identifier=
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
     blueprint=$1
     shift
     if [[ -n "$1" ]]; then
@@ -708,15 +699,17 @@ while [[ $# -gt 0 ]]; do
         case "$1" in
         --install-dir)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
           install_dir=$1
           ;;
         --id)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
           identifier=$1
           ;;
-        *) __print_error "Invalid argument $1" && exit 1 ;;
+        *)
+          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          ;;
         esac
         shift
       done
@@ -725,19 +718,21 @@ while [[ $# -gt 0 ]]; do
     ;;
   --remove)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _remove "$1"; exit $?
     ;;
   --info)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     if [[ -z "$json_format" ]]; then
       _print_info "$1"; exit $?
     else
       _print_info_json "$1"; exit $?
     fi
     ;;
-  *) __print_error "Invalid argument $1" && exit 1 ;;
+  *)
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+    ;;
   esac
   shift
 done

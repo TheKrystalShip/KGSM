@@ -18,8 +18,6 @@ Examples:
 "
 }
 
-set -eo pipefail
-
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
   export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -52,39 +50,24 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Check for KGSM_ROOT env variable
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check for KGSM_ROOT
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
-  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+  # Search for the kgsm.sh file to dynamically set KGSM_ROOT
+  KGSM_ROOT=$(find "$SCRIPT_DIR" -maxdepth 2 -name 'kgsm.sh' -exec dirname {} \;)
+  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
+  export KGSM_ROOT
 fi
-
-# Read configuration file
-if [ -z "$KGSM_CONFIG_LOADED" ]; then
-  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini -print -quit)"
-  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    export "${line?}"
-  done <"$CONFIG_FILE"
-  export KGSM_CONFIG_LOADED=1
-fi
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
 
 module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$module_common" || exit 1
 
 # shellcheck disable=SC1090
-source "$(__load_instance "$instance")" || exit 1
+source "$(__load_instance "$instance")" || exit "$EC_FAILED_SOURCE"
 
 module_overrides=$(__load_module overrides.sh)
 
@@ -94,24 +77,23 @@ function func_deploy() {
 
   # Check if $source is empty
   if [ -z "$(ls -A -I .gitignore "$source")" ]; then
-    echo "${0##*/} WARNING: $source is empty, nothing to deploy. Exiting" >&2
-    return 1
+    __print_warning "$source is empty, nothing to deploy. Exiting" && return "$EC_FAILED_DEPLOY"
   fi
 
   # Copy everything from $source into $dest
   if ! cp -rf "$source"/* "$dest"; then
-    __print_error "Failed to copy contents from $source into $dest" && return 1
+    __print_error "Failed to copy contents from $source into $dest" && return "$EC_FAILED_CP"
   fi
 
   if ! rm -rf "${source:?}"/*; then
-    __print_error "Failed to clear $source" && return 1
+    __print_error "Failed to clear $source" && return "$EC_FAILED_RM"
   fi
 
   return 0
 }
 
 # shellcheck disable=SC1090
-source "$module_overrides" "$instance" || exit 1
+source "$module_overrides" "$instance" || exit "$EC_FAILED_SOURCE"
 
 __emit_instance_deploy_started "${instance%.ini}"
 

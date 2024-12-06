@@ -4,7 +4,7 @@ function usage() {
   echo "Creates or restores backups.
 
 Usage:
-  $(basename "$0") [-i | --instance <instance>] OPTION
+  $(basename "$0") [-i | --instance] <instance> OPTION
 
 Options:
   -h, --help                  Prints this message
@@ -21,8 +21,6 @@ Examples:
   $(basename "$0") --instance valheim-9d52mZ --restore valheim-14349389-2024-05-17T12:40:24.backup
 "
 }
-
-set -eo pipefail
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -56,40 +54,24 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Check for KGSM_ROOT env variable
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check for KGSM_ROOT
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
-  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+  # Search for the kgsm.sh file to dynamically set KGSM_ROOT
+  KGSM_ROOT=$(find "$SCRIPT_DIR" -maxdepth 2 -name 'kgsm.sh' -exec dirname {} \;)
+  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
+  export KGSM_ROOT
 fi
-
-# Read configuration file
-if [ -z "$KGSM_CONFIG_LOADED" ]; then
-  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini)"
-  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Could not find config.ini file" >&2 && exit 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    export "${line?}"
-  done <"$CONFIG_FILE"
-  export KGSM_CONFIG_LOADED=1
-fi
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
 
 module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
-
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 # shellcheck disable=SC1090
 source "$module_common" || exit 1
 
 instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
-source "$instance_config_file" || exit 1
+source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
 
 module_instances=$(__load_module instances.sh)
 
@@ -103,7 +85,7 @@ function _create() {
 
   # Check instance running state before attempting to create backup
   if "$module_instances" --is-active "$instance" >/dev/null; then
-    __print_error "Instance $instance is currently running, please shut down before attempting to create a backup" && return 1
+    __print_error "Instance $instance is currently running, please shut down before attempting to create a backup" && return "$EC_GENERAL"
   fi
 
   #shellcheck disable=SC2155
@@ -114,19 +96,19 @@ function _create() {
     output="${output}.tar.gz"
 
     if ! touch "$output"; then
-      __print_error "Failed to create $output" && return 1
+      __print_error "Failed to create $output" && return "$EC_GENERAL"
     fi
 
-    cd "$INSTANCE_INSTALL_DIR"
+    cd "$INSTANCE_INSTALL_DIR" || return "$EC_FAILED_CD"
 
     if ! tar -czf "$output" .; then
-      __print_error "Failed to compress $output" && return 1
+      __print_error "Failed to compress $output" && return "$EC_GENERAL"
     fi
   else
     # Create backup folder if it doesn't exit
     if [ ! -d "$output" ]; then
       if ! mkdir -p "$output"; then
-        __print_error "Error creating backup folder $output" && return 1
+        __print_error "Error creating backup folder $output" && return "$EC_GENERAL"
       fi
     fi
 
@@ -134,7 +116,7 @@ function _create() {
     if ! cp -r "$INSTANCE_INSTALL_DIR"/* "$output"/; then
       __print_error "Failed to create backup $output"
       rm -rf "${output:?}"
-      return 1
+      return "$EC_FAILED_CP"
     fi
   fi
 
@@ -147,7 +129,7 @@ function _restore() {
   local backup_version
 
   if [[ ! -f "$source" ]] && [[ ! -d "$source" ]]; then
-    __print_error "Could not find backup $source" && return 1
+    __print_error "Could not find backup $source" && return "$EC_FILE_NOT_FOUND"
   fi
 
   # Get version number from $source
@@ -157,34 +139,34 @@ function _restore() {
 
   if [ -n "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
     # $INSTANCE_INSTALL_DIR is not empty, create new backup before proceeding
-    _create || __print_error "Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}" && return 1
+    _create || __print_error "Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}" && return $?
     if ! rm -rf "${INSTANCE_INSTALL_DIR:?}"/*; then
-      __print_error "Failed to clear $INSTANCE_INSTALL_DIR, exiting" && return 1
+      __print_error "Failed to clear $INSTANCE_INSTALL_DIR, exiting" && return "$EC_FAILED_RM"
     fi
   fi
 
   if [[ "$source" == *.gz ]]; then
-    cd "$INSTANCE_INSTALL_DIR"
+    cd "$INSTANCE_INSTALL_DIR" || return "$EC_FAILED_CD"
     if ! tar -xzf "$source" .; then
-      __print_error "Failed to restore $source" && return 1
+      __print_error "Failed to restore $source" && return "$EC_GENERAL"
     fi
   else
     # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
     if ! cp -r "$source"/* "$INSTANCE_INSTALL_DIR"/; then
-      __print_error "Failed to restore backup $source" && return 1
+      __print_error "Failed to restore backup $source" && return "$EC_FAILED_CP"
     fi
   fi
 
   # Updated $INSTANCE_INSTALLED_VERSION with $backup_version
   if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/cINSTANCE_INSTALLED_VERSION=$backup_version" "$instance_config_file" >/dev/null; then
-    __print_error "Failed to update version in $instance_config_file" && return 1
+    __print_error "Failed to update version in $instance_config_file" && return "$EC_GENERAL"
   fi
 
   # Update instance version file with $backup_version
   instance_version_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version
   if [[ -f "$instance_version_file" ]]; then
     if ! echo "$backup_version" >"$instance_version_file"; then
-      __print_error "Failed to restore version in $instance_version_file" && return 1
+      __print_error "Failed to restore version in $instance_version_file" && return "$EC_GENERAL"
     fi
   fi
 
@@ -195,7 +177,7 @@ function _restore() {
 function _list_backups() {
   local instance_backups_dir
   instance_backups_dir=$(grep "INSTANCE_BACKUPS_DIR=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-  [[ -z "$instance_backups_dir" ]] && __print_error "Malformed instance config file $instance_config_file, missing INSTANCE_BACKUPS_DIR" && return 1
+  [[ -z "$instance_backups_dir" ]] && __print_error "Malformed instance config file $instance_config_file, missing INSTANCE_BACKUPS_DIR" && return "$EC_GENERAL"
 
   shopt -s extglob nullglob
 
@@ -215,14 +197,14 @@ while [ $# -gt 0 ]; do
     ;;
   --restore)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <source>"
+    [[ -z "$1" ]] && __print_error "Missing argument <source>" && exit "$EC_MISSING_ARG"
     _restore "$1"; exit $?
     ;;
   --list)
     _list_backups; exit $?
     ;;
   *)
-    __print_error "Invalid argument $1" && exit 1
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
     ;;
   esac
   shift

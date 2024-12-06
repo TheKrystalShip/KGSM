@@ -32,8 +32,6 @@ Examples:
 "
 }
 
-set -eo pipefail
-
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
   export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -67,33 +65,18 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Check for KGSM_ROOT env variable
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check for KGSM_ROOT
 if [ -z "$KGSM_ROOT" ]; then
-  echo "WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
-  echo "INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-  if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
+  # Search for the kgsm.sh file to dynamically set KGSM_ROOT
+  KGSM_ROOT=$(find "$SCRIPT_DIR" -maxdepth 2 -name 'kgsm.sh' -exec dirname {} \;)
+  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
+  export KGSM_ROOT
 fi
-
-# Read configuration file
-if [ -z "$KGSM_CONFIG_LOADED" ]; then
-  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini -print -quit)"
-  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit 1
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Ignore comment lines and empty lines
-    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    export "${line?}"
-  done <"$CONFIG_FILE"
-  export KGSM_CONFIG_LOADED=1
-fi
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
 
 module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
-[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+[[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
 
 # shellcheck disable=SC1090
 source "$module_common" || exit 1
@@ -102,7 +85,7 @@ module_overrides=$(__load_module overrides.sh)
 
 instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
-source "$instance_config_file" || exit 1
+source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
 
 # https://github.com/ValveSoftware/steam-for-linux/issues/10975
 function func_get_latest_version() {
@@ -110,13 +93,13 @@ function func_get_latest_version() {
   app_id="$(grep "BP_APP_ID=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   {
     [[ -z "$app_id" ]] || [[ "$app_id" -eq 0 ]];
-  } && __print_error "APP_ID is expected but it's not set" && return 1
+  } && __print_error "APP_ID is expected but it's not set" && return "$EC_MALFORMED_INSTANCE"
 
   username=anonymous
   auth_level="$(grep "BP_STEAM_AUTH_LEVEL=" <"$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
   if [[ $auth_level -ne 0 ]]; then
-    [[ -z "$STEAM_USERNAME" ]] && __print_error "STEAM_USERNAME is expected but it's not set" && return 1
-    [[ -z "$STEAM_PASSWORD" ]] && __print_error "STEAM_PASSWORD is expected but it's not set" && return 1
+    [[ -z "$STEAM_USERNAME" ]] && __print_error "STEAM_USERNAME is expected but it's not set" && return "$EC_MISSING_ARG"
+    [[ -z "$STEAM_PASSWORD" ]] && __print_error "STEAM_PASSWORD is expected but it's not set" && return "$EC_MISSING_ARG"
 
     username="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
@@ -130,18 +113,18 @@ function func_get_latest_version() {
     --color=NEVER \
     -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
 
-  [[ -z "$latest_version" ]] && return 1
+  [[ -z "$latest_version" ]] && return "$EC_GENERAL"
   echo "$latest_version"
 }
 
 function _compare() {
-  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && __print_error "$instance is missing INSTANCE_INSTALLED_VERSION varible" && return 1
+  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && __print_error "$instance is missing INSTANCE_INSTALLED_VERSION varible" && return "$EC_MALFORMED_INSTANCE"
 
   local latest_version
   latest_version=$(func_get_latest_version)
 
-  [[ -z "$latest_version" ]] && return 1
-  [[ "$latest_version" == "$INSTANCE_INSTALLED_VERSION" ]] && return 1
+  [[ -z "$latest_version" ]] && return "$EC_GENERAL"
+  [[ "$latest_version" == "$INSTANCE_INSTALLED_VERSION" ]] && return "$EC_GENERAL"
 
   echo "$latest_version"
 }
@@ -150,7 +133,9 @@ function _save_version() {
   local version=$1
 
   if grep -q "INSTANCE_INSTALLED_VERSION=" <"$instance_config_file"; then
-    sed -i "/INSTANCE_INSTALLED_VERSION=*/c\INSTANCE_INSTALLED_VERSION=$version" "$instance_config_file" >/dev/null
+    if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/c\INSTANCE_INSTALLED_VERSION=$version" "$instance_config_file" >/dev/null; then
+      return "$EC_FAILED_SED"
+    fi
   else
     {
       echo ""
@@ -183,11 +168,11 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --save)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit "$EC_MISSING_ARG"
     _save_version "$1"; exit $?
     ;;
   *)
-    __print_error "Invalid argument $1" && exit 1
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
     ;;
   esac
   shift

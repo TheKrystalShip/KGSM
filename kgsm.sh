@@ -44,11 +44,6 @@ else
   fi
 fi
 
-set -eo pipefail
-
-# Trap CTRL-C
-trap "echo "" && exit" INT
-
 module_common=$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)
 [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
 
@@ -207,7 +202,7 @@ function usage_interactive() {
 }
 
 function update_config() {
-  set +eo pipefail
+  __disable_error_checking
 
   config_file="config.ini"
   default_file="config.default.ini"
@@ -284,7 +279,7 @@ function update_config() {
 
   __print_info "Please check ${config_file} for modified/new options"
 
-  set -eo pipefail
+  __enable_error_checking
 }
 
 function check_for_update() {
@@ -297,13 +292,13 @@ function check_for_update() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -q -O - "$version_url")
   else
-    __print_error "wget is required but not installed" && return 1
+    __print_error "wget is required but not installed" && return "$EC_MISSING_DEPENDENCY"
   fi
 
   # Compare the versions
   if [ "$script_version" != "$LATEST_VERSION" ]; then
     __print_info "New version available: $LATEST_VERSION"
-    __print_info "Please run './${0##*/} --update' to get the latest version"
+    __print_info "Please run '$(basename "$0") --update' to get the latest version"
   fi
 }
 
@@ -331,7 +326,7 @@ function update_script() {
   if command -v wget >/dev/null 2>&1; then
     LATEST_VERSION=$(wget -qO - "$version_url")
   else
-    __print_error "wget is required to check for updates." && return 1
+    __print_error "wget is required to check for updates." && return "$EC_MISSING_DEPENDENCY"
   fi
 
   # Compare the versions
@@ -345,13 +340,14 @@ function update_script() {
 
     # Download the repository tarball
     if ! wget -qO "$local_temp_file" "$repo_archive_url" 2>/dev/null; then
-      __print_error "Failed to download new version from $repo_archive_url" && return 1
+      __print_error "Failed to download new version from $repo_archive_url" && return "$EC_GENERAL"
     fi
 
     # Extract the tarball
     if ! tar -xzf "$local_temp_file"; then
       __print_error "Failed to extract the update. Reverting to the previous version."
       mv "${0}.${script_version:-0}.bak" "$0"
+      return "$EC_GENERAL"
     fi
 
     # Overwrite the existing files with the new ones
@@ -393,7 +389,7 @@ while [[ "$#" -gt 0 ]]; do
       usage_interactive && exit 0
       ;;
     *)
-      __print_error "Unknown argument $1" && exit 1
+      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
       ;;
     esac
     ;;
@@ -601,7 +597,7 @@ KGSM - Interactive menu
     install_directory=${INSTANCE_DEFAULT_INSTALL_DIR:-}
     if [ -z "$install_directory" ]; then
       echo "INSTANCE_DEFAULT_INSTALL_DIR is not set in the configuration file, please specify an installation directory" >&2
-      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit 1
+      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit "$EC_INVALID_ARG"
     fi
 
     read -r -p "Version to install (leave empty for latest): " version
@@ -622,7 +618,7 @@ KGSM - Interactive menu
   --restore-backup)
     # shellcheck disable=SC2207
     backups_array=($("$module_backup" -i "$blueprint_or_instance" --list))
-    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return 1
+    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
 
     PS3="Choose a backup to restore: "
     select backup in "${backups_array[@]}"; do
@@ -701,7 +697,7 @@ while [[ "$#" -gt 0 ]]; do
   case $1 in
   --create-blueprint)
     shift
-    [[ -z "$1" ]] && __print_error "Missing arguments" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing arguments" && exit "$EC_MISSING_ARG"
     case "$1" in
     -h | --help) "$module_blueprints" --help $debug; exit $? ;;
     *)
@@ -712,7 +708,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --install)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
     bp_to_install="$1"
     bp_install_dir=$INSTANCE_DEFAULT_INSTALL_DIR
     bp_install_version=0
@@ -723,32 +719,32 @@ while [[ "$#" -gt 0 ]]; do
         case "$1" in
         --install-dir)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
           bp_install_dir="$1"
           ;;
         --version)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit "$EC_MISSING_ARG"
           bp_install_version=$1
           ;;
         --id)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit 1
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
           bp_id=$1
           ;;
         *)
-          __print_error "Unknown argument $1" && exit 1
+          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
           ;;
         esac
         shift
       done
     fi
-    [[ -z "$bp_install_dir" ]] && __print_error "Missing argument <dir>" && exit 1
+    [[ -z "$bp_install_dir" ]] && __print_error "Missing argument <dir>" && exit "$EC_MISSING_ARG"
     _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id; exit $?
     ;;
   --uninstall)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _uninstall "$1"; exit $?
     ;;
   --blueprints)
@@ -765,7 +761,7 @@ while [[ "$#" -gt 0 ]]; do
             json_format=1
             ;;
           *)
-            __print_error "Invalid argument $1" && exit 1
+            __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
             ;;
         esac
         shift
@@ -778,7 +774,7 @@ while [[ "$#" -gt 0 ]]; do
     if command -v wget >/dev/null 2>&1; then
       wget -qO- https://icanhazip.com; exit $?
     else
-      __print_error "wget is required but not installed" && exit 1
+      __print_error "wget is required but not installed" && exit "$EC_MISSING_DEPENDENCY"
     fi
     ;;
   --update)
@@ -812,10 +808,10 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   -i | --instance)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     instance=$1
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit 1
+    [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
     case "$1" in
     --logs)
       "$module_instance" --logs "$instance" $debug; exit $?
@@ -843,7 +839,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --input)
       shift
-      [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
       "$module_instance" --input "$instance" "$1" $debug; exit $?
       ;;
     -v | --version)
@@ -852,7 +848,7 @@ while [[ "$#" -gt 0 ]]; do
       case "$1" in
       --installed) "$module_version" -i "$instance" --installed $debug; exit $? ;;
       --latest) "$module_version" -i "$instance" --latest $debug; exit $? ;;
-      *) __print_error "Invalid argument $1" && exit 1 ;;
+      *) __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG" ;;
       esac
       ;;
     --check-update)
@@ -876,39 +872,59 @@ while [[ "$#" -gt 0 ]]; do
       esac
       ;;
     --restore-backup)
-      [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit "$EC_MISSING_ARG"
       shift
       case "$1" in
-      -h | --help) "$module_backup" --help; exit $? ;;
-      *) "$module_backup" -i "$instance" --restore "$1" $debug; exit $? ;;
+      -h | --help)
+        "$module_backup" --help; exit $?
+        ;;
+      *)
+        "$module_backup" -i "$instance" --restore "$1" $debug; exit $?
+        ;;
       esac
       ;;
     --modify)
       shift
-      [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
+      [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
       case "$1" in
       --add)
         shift
-        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
         case "$1" in
-        ufw) "$module_files" -i "$instance" --create --ufw $debug; exit $? ;;
-        systemd) "$module_files" -i "$instance" --create --systemd $debug; exit $? ;;
-        *) __print_error "Invalid argument $1"; exit 1 ;;
+          ufw)
+            "$module_files" -i "$instance" --create --ufw $debug; exit $?
+            ;;
+          systemd)
+            "$module_files" -i "$instance" --create --systemd $debug; exit $?
+            ;;
+          *)
+            __print_error "Invalid argument $1"; exit "$EC_INVALID_ARG"
+            ;;
         esac
         ;;
       --remove)
         shift
-        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit 1
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
         case "$1" in
-        ufw) "$module_files" -i "$instance" --remove --ufw $debug; exit $? ;;
-        systemd) "$module_files" -i "$instance" --remove --systemd $debug; exit $? ;;
-        *) __print_error "Invalid argument $1" && exit 1 ;;
+          ufw)
+            "$module_files" -i "$instance" --remove --ufw $debug; exit $?
+            ;;
+          systemd)
+            "$module_files" -i "$instance" --remove --systemd $debug; exit $?
+            ;;
+          *)
+            __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+            ;;
         esac
         ;;
-      *) __print_error "Invalid argument $1" && exit 1 ;;
+      *)
+        __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+        ;;
       esac
       ;;
-    *) __print_error "Invalid argument $1" && exit 1 ;;
+    *)
+      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+      ;;
     esac
     ;;
   -v | --version)
@@ -920,7 +936,7 @@ This is free software; you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law." && exit 0
     ;;
   *)
-    __print_error "Invalid argument $1" && exit 1
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
     ;;
   esac
   shift

@@ -1,16 +1,92 @@
 #!/bin/bash
 
-# Check for KGSM_ROOT env variable
+function __enable_error_checking() {
+  set -o pipefail
+}
+
+function __disable_error_checking() {
+  set +o pipefail
+}
+
+# Exit codes
+EC_OKAY=0
+EC_GENERAL=1
+EC_KGSM_ROOT=2
+EC_FAILED_CONFIG=3
+EC_INVALID_CONFIG=4
+EC_FILE_NOT_FOUND=5
+EC_FAILED_SOURCE=6
+EC_MISSING_ARG=7
+EC_INVALID_ARG=8
+EC_FAILED_CD=9
+EC_FAILED_CP=10
+EC_FAILED_RM=11
+EC_FAILED_TEMPLATE=12
+EC_FAILED_DOWNLOAD=13
+EC_FAILED_DEPLOY=14
+EC_FAILED_MKDIR=15
+EC_PERMISSION=16
+EC_FAILED_SED=17
+EC_SYSTEMD=18
+EC_UFW=19
+EC_MALFORMED_INSTANCE=20
+EC_MISSING_DEPENDENCY=21
+
+declare -A EXIT_CODES=(
+  [$EC_OKAY]="No error"
+  [$EC_GENERAL]="General error"
+  [$EC_KGSM_ROOT]="KGSM_ROOT not set"
+  [$EC_FAILED_CONFIG]="Failed to load config.ini file"
+  [$EC_INVALID_CONFIG]="Invalid configuration"
+  [$EC_FILE_NOT_FOUND]="File not found"
+  [$EC_FAILED_SOURCE]="Failed to source file"
+  [$EC_MISSING_ARG]="Missing argument"
+  [$EC_INVALID_ARG]="Invalid argument"
+  [$EC_FAILED_CD]="Failed to move into directory"
+  [$EC_FAILED_CP]="Failed to copy"
+  [$EC_FAILED_RM]="Failed to remove"
+  [$EC_FAILED_TEMPLATE]="Failed to generate template"
+  [$EC_FAILED_DOWNLOAD]="Failed to download"
+  [$EC_FAILED_DEPLOY]="Failed to deploy"
+  [$EC_FAILED_MKDIR]="Failed mkdir"
+  [$EC_PERMISSION]="Permission issue"
+  [$EC_FAILED_SED]="Error with 'sed' command"
+  [$EC_SYSTEMD]="Error with 'systemctl' command"
+  [$EC_UFW]="Error with 'ufw' command"
+  [$EC_MALFORMED_INSTANCE]="Malformed instance config file"
+  [$EC_MISSING_DEPENDENCY]="Missing required dependency"
+)
+
+function __print_error_code() {
+  local code=$1
+  local script="${BASH_SOURCE[1]}"  # The script where the error occurred
+  local func="${FUNCNAME[1]}"       # The function where the error occurred
+  local line="${BASH_LINENO[0]}"    # The line number where the error occurred
+
+  echo "Error $code: ${EXIT_CODES[$code]:-Unknown error}" >&2
+  echo "Occurred in script: $script, function: $func, line: $line" >&2
+}
+
+trap '__print_error_code $?; exit $?' ERR
+
+__enable_error_checking
+
+# Check for KGSM_ROOT
+# Its must be set by any script that sources this one
 if [ -z "$KGSM_ROOT" ]; then
-  echo "${0##*/} WARNING: KGSM_ROOT not found, sourcing /etc/environment." >&2
-  # shellcheck disable=SC1091
-  source /etc/environment
-  if [ -z "$KGSM_ROOT" ]; then
-    echo "${0##*/} ERROR: KGSM_ROOT not found, exiting." >&2 && exit 1
-  else
-    echo "${0##*/} INFO: KGSM_ROOT found in /etc/environment, consider rebooting the system" >&2
-    if ! declare -p KGSM_ROOT | grep -q 'declare -x'; then export KGSM_ROOT; fi
-  fi
+  echo "Error: KGSM_ROOT is not set" && exit "$EC_KGSM_ROOT"
+fi
+
+# Read configuration file
+if [ -z "$KGSM_CONFIG_LOADED" ]; then
+  CONFIG_FILE="$(find "$KGSM_ROOT" -type f -name config.ini -print -quit)"
+  [[ -z "$CONFIG_FILE" ]] && echo "${0##*/} ERROR: Failed to load config.ini file" >&2 && exit "$EC_FAILED_CONFIG"
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Ignore comment lines and empty lines
+    if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
+    export "${line?}"
+  done <"$CONFIG_FILE"
+  export KGSM_CONFIG_LOADED=1
 fi
 
 # Blueprints (*.bp) are stored here
@@ -86,7 +162,7 @@ function __find_or_fail() {
 
   local file_path
   file_path="$(find "$source" -type f -name "$file_name" -print -quit)"
-  [[ -z "$file_path" ]] && __print_error "Could not find $file_name" && return 1
+  [[ -z "$file_path" ]] && __print_error "Could not find $file_name" && return $EC_FILE_NOT_FOUND
 
   echo "$file_path"
 }
@@ -126,12 +202,16 @@ function __load_template() {
 export -f __load_template
 
 # Events
-source "$(__load_module events.sh)" || exit 1
+# shellcheck disable=SC1090
+source "$(__load_module events.sh)" || exit $EC_FAILED_SOURCE
 
 if [[ "$USE_EVENTS" == 0 ]]; then
-    # List all functions defined in the current environment (from events.sh) and extract function names
-    declare -F | grep -E '^declare -f __emit_' | sed 's/^declare -f //g' | while read func; do
-        # For each function name, create a no-op function definition
-        eval "$func() { return; }"
+  # List all functions defined in the current environment (from events.sh) and extract function names
+  declare -F | \
+    grep -E '^declare -f __emit_' | \
+    sed 's/^declare -f //g' | \
+    while read -r func; do
+      # For each function name, create a no-op function definition
+      eval "$func() { return; }"
     done
 fi
