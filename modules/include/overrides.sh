@@ -43,3 +43,5 @@ if [[ -n "$instance_overrides_file" ]] && [[ -f "$instance_overrides_file" ]]; t
   # shellcheck disable=SC1090
   source "$instance_overrides_file" || exit "$EC_FAILED_SOURCE"
 fi
+
+export KGSM_OVERRIDES_LOADED=1

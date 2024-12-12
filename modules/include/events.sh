@@ -427,3 +427,16 @@ function __emit_instance_uninstalled() {
 
 export -f __emit_instance_uninstalled
 
+# Replace all event functions with dummy ones in order to not break the calls
+if [[ "$USE_EVENTS" == 0 ]]; then
+  # List all functions defined and extract function names
+  declare -F | \
+    grep -E '^declare -f __emit_' | \
+    sed 's/^declare -f //g' | \
+    while read -r func; do
+      # For each function name, create a no-op function definition
+      eval "$func() { return; }"
+    done
+fi
+
+export KGSM_EVENTS_LOADED=1
