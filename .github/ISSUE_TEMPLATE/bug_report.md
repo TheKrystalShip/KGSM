@@ -26,6 +26,8 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
 
  - OS: [e.g. Manjaro]
+ - KGSM version [e.g. 1.6.1]
+    - `kgsm.sh --version` output
  - Bash version [e.g. 5.2.26]
     - `bash --version` output
 - Systemd version [e.g. 256]
