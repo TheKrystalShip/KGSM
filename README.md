@@ -59,7 +59,7 @@ There are a few ways to grab KGSM:
 3. Use this handy install script:
 
 ```sh
-wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/install.sh | bash
+wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/installer.sh | bash
 ```
 
 Everything will be contained in a subdirectory KGSM creates, keeping your

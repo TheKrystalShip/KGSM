@@ -45,8 +45,11 @@ if [[ -z "$KGSM_CONFIG_LOADED" ]]; then
   export KGSM_CONFIG_LOADED=1
 fi
 
-function update_config() {
-  # __disable_error_checking
+function __merge_user_config_with_default() {
+  if [[ $(type -t __disable_error_checking) == function ]]; then
+    __disable_error_checking
+  fi
+
   backup_file="${CONFIG_FILE}.$(get_version).bak"
 
   __print_info "Updating ${CONFIG_FILE} ..."
@@ -119,5 +122,7 @@ function update_config() {
 
   __print_info "Please check ${CONFIG_FILE} for modified/new options"
 
-  __enable_error_checking
+  if [[ $(type -t __enable_error_checking) == function ]]; then
+    __enable_error_checking
+  fi
 }

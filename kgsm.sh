@@ -21,13 +21,26 @@ export KGSM_ROOT
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit 1
+  if [[ -z "$module_common" ]]; then
+    echo "${0##*/} ERROR: Could not find module common.sh" >&2
+    echo "${0##*/} ERROR: Install compromised, please reinstall KGSM" >&2
+    exit 1
+  fi
+
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
 fi
 
 function get_version() {
-  [[ -f "$KGSM_ROOT/version.txt" ]] && cat "$KGSM_ROOT/version.txt"
+  local version_file="${KGSM_ROOT}/version.txt"
+
+  if [[ ! -f "$version_file" ]]; then
+    __print_error "Version file missing, assume KGSM is outdated"
+    __print_error "Install compromised, please reinstall KGSM"
+    exit "$EC_GENERAL"
+  fi
+
+  echo "$(< "$version_file")"
 }
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
@@ -177,183 +190,25 @@ function usage_interactive() {
 "
 }
 
-function update_config() {
-  __disable_error_checking
-
-  config_file="config.ini"
-  default_file="config.default.ini"
-  merged_file="config.merged.ini"
-  backup_file="${config_file}.$(get_version).bak"
-
-  __print_info "Updating ${config_file} ..."
-
-  # Back up existing config
-  cp "$config_file" "${backup_file}"
-
-  # Start with an empty merged file
-  touch "$merged_file"
-
-  # Temporary variables for holding block content
-  block=""
-  varname=""
-
-  # Read the default config line by line
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    if [[ -z "$line" ]]; then
-      # Process the block when we reach an empty line
-      varname=$(echo "$block" | grep -oP '^[^#=\n]+(?==)')
-
-      if [[ -n "$varname" ]]; then
-        # Check if the variable exists in user config
-        user_value=$(grep -m 1 "^$varname=" "$config_file")
-
-        if [[ -n "$user_value" ]]; then
-          # Output the commented block only if it's not already commented
-          echo "$block" | sed '/^#/! s/^/# /' >> "$merged_file"
-          echo "$user_value" >> "$merged_file"
-        else
-          # Use the block as is
-          echo "$block" >> "$merged_file"
-        fi
-      else
-        # No variable in the block, just copy it
-        echo "$block" >> "$merged_file"
-      fi
-
-      # Append a newline after processing each block
-      echo >> "$merged_file"
-
-      # Reset the block
-      block=""
-    else
-      # Accumulate lines into the block
-      block+="$line"$'\n'
-    fi
-  done < "$default_file"
-
-  # Handle the last block (if file does not end with a newline)
-  if [[ -n "$block" ]]; then
-    varname=$(echo "$block" | grep -oP '^[^#=\n]+(?==)')
-
-    if [[ -n "$varname" ]]; then
-      user_value=$(grep -m 1 "^$varname=" "$config_file")
-
-      if [[ -n "$user_value" ]]; then
-        echo "$block" | sed '/^#/! s/^/# /' >> "$merged_file"
-        echo "$user_value" >> "$merged_file"
-      else
-        echo "$block" >> "$merged_file"
-      fi
-    else
-      echo "$block" >> "$merged_file"
-    fi
-  fi
-
-  mv "$merged_file" "$config_file"
-
-  __print_success "Configuration update completed. Backup saved as ${backup_file}."
-
-  __print_info "Please check ${config_file} for modified/new options"
-
-  __enable_error_checking
-}
+installer_script="$KGSM_ROOT"/installer.sh
 
 function check_for_update() {
-  # shellcheck disable=SC2155
-  local script_version=$(get_version)
-  local branch=${KGSM_BRANCH:-main}
-  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/refs/heads/${branch}/version.txt"
-
-  # Fetch the latest version number
-  if command -v wget >/dev/null 2>&1; then
-    LATEST_VERSION=$(wget -q -O - "$version_url")
-  else
-    __print_error "wget is required but not installed" && return "$EC_MISSING_DEPENDENCY"
-  fi
-
-  # Compare the versions
-  if [ "$script_version" != "$LATEST_VERSION" ]; then
-    __print_info "New version available: $LATEST_VERSION"
-    __print_info "Please run '$(basename "$0") --update' to get the latest version"
-  fi
+  "$installer_script" --check-update $debug
 }
 
-# Define a function to update the script and other files
 function update_script() {
-  # Define the raw URL of the script and version file
-  local script_version
-  script_version=$(get_version)
-  local branch=${KGSM_BRANCH:-main}
-  local version_url="https://raw.githubusercontent.com/TheKrystalShip/KGSM/refs/heads/${branch}/version.txt"
-  local repo_archive_url="https://github.com/TheKrystalShip/KGSM/archive/refs/heads/${branch}.tar.gz"
-  local repo_compare_url="https://api.github.com/repos/TheKrystalShip/KGSM/compare"
-  local local_temp_file="kgsm.tar.gz"
-  local local_temp_dir="KGSM-${branch}"
-
-  local force=0
-  for arg in "$@"; do
-    shift
-    [ "$arg" = "--force" ] && force=1
-  done
-
-  __print_info "Checking for updates..."
-
-  # Fetch the latest version number
-  if command -v wget >/dev/null 2>&1; then
-    LATEST_VERSION=$(wget -qO - "$version_url")
-  else
-    __print_error "wget is required to check for updates." && return "$EC_MISSING_DEPENDENCY"
-  fi
-
-  # Compare the versions
-  if [ "$script_version" != "$LATEST_VERSION" ] || [ "$force" -eq 1 ]; then
-    __print_info "New version available: $LATEST_VERSION. Updating..."
-
-    # Backup the current script
-    local backup_file="${0}.${script_version:-0}.bak"
-    cp "$0" "$backup_file"
-    __print_info "Backup of the current script created at $backup_file"
-
-    # Download the repository tarball
-    if ! wget -qO "$local_temp_file" "$repo_archive_url" 2>/dev/null; then
-      __print_error "Failed to download new version from $repo_archive_url" && return "$EC_GENERAL"
-    fi
-
-    # Extract the tarball
-    if ! tar -xzf "$local_temp_file"; then
-      __print_error "Failed to extract the update. Reverting to the previous version."
-      mv "${0}.${script_version:-0}.bak" "$0"
-      return "$EC_GENERAL"
-    fi
-
-    # Overwrite the existing files with the new ones
-    cp -r "$local_temp_dir"/* .
-    chmod +x kgsm.sh modules/*.sh
-
-    # Print changelog
-    local commits_url="${repo_compare_url}/${script_version}...${LATEST_VERSION}"
-    local bold="\033[1m"
-    local bold_end="\033[0m"
-    __print_info "Changes between ${bold}${script_version}${bold_end} and ${bold}$LATEST_VERSION${bold_end}:"
-    wget -qO- "$commits_url" | jq -r \
-      '.commits[]
-      | select(.commit.message | test("^Bumped version to [0-9]+\\.[0-9]+\\.[0-9]+") | not)
-      | "\(.sha[0:7]): \(.commit.message)"'
-
-    # Cleanup
-    rm -rf "$local_temp_dir" "$local_temp_file"
-
-    __print_success "KGSM updated to version ${bold}$LATEST_VERSION${bold_end}"
-
-    update_config
-  else
-    __print_info "You are already using the latest version: $script_version."
-  fi
-
-  return 0
+  "$installer_script" --update $debug
+  __merge_user_config_with_default
 }
 
-[[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]] && check_for_update
+if [[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]]; then
+  if [[ ! -f "$installer_script" ]]; then
+    __print_error "installer.sh missing, won't be able to check for updates"
+    __print_error "Installation might be corrupt, please reinstall KGSM"
+  else
+    check_for_update
+  fi
+fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
@@ -369,8 +224,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     esac
     ;;
+  --check-update)
+    check_for_update; exit $?
+    ;;
   --update)
-    update_script "$@"; exit $?
+    update_script; exit $?
     ;;
   *)
     break
