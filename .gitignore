@@ -15,3 +15,6 @@ instances/**/*.ini
 
 # KGSM Log files
 logs/*
+
+# KGSM version file
+.kgsm.version
