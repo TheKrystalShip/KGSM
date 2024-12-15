@@ -608,7 +608,7 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@"; exit $?
     ;;
   --update-config)
-    update_config; exit $?
+    __merge_user_config_with_default; exit $?
     ;;
   --instances)
     shift
