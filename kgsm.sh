@@ -31,16 +31,25 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
+installer_script="$(__find_or_fail installer.sh)"
+
+if [[ ! -f "$installer_script" ]]; then
+  __print_error "installer.sh missing, won't be able to check for updates"
+  __print_error "Installation might be compromised, please reinstall KGSM"
+  exit "$EC_GENERAL"
+fi
+
+function check_for_update() {
+  "$installer_script" --check-update $debug
+}
+
+function update_script() {
+  "$installer_script" --update $debug
+  __merge_user_config_with_default
+}
+
 function get_version() {
-  local version_file="${KGSM_ROOT}/version.txt"
-
-  if [[ ! -f "$version_file" ]]; then
-    __print_error "Version file missing, assume KGSM is outdated"
-    __print_error "Install compromised, please reinstall KGSM"
-    exit "$EC_GENERAL"
-  fi
-
-  echo "$(< "$version_file")"
+  "$installer_script" --version $debug
 }
 
 DESCRIPTION="Krystal Game Server Manager - $(get_version)
@@ -190,24 +199,8 @@ function usage_interactive() {
 "
 }
 
-installer_script="$KGSM_ROOT"/installer.sh
-
-function check_for_update() {
-  "$installer_script" --check-update $debug
-}
-
-function update_script() {
-  "$installer_script" --update $debug
-  __merge_user_config_with_default
-}
-
 if [[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]]; then
-  if [[ ! -f "$installer_script" ]]; then
-    __print_error "installer.sh missing, won't be able to check for updates"
-    __print_error "Installation might be corrupt, please reinstall KGSM"
-  else
-    check_for_update
-  fi
+  check_for_update
 fi
 
 while [[ "$#" -gt 0 ]]; do
