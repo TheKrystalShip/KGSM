@@ -492,22 +492,7 @@ function _stop_instance() {
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     $SUDO systemctl stop "${instance%.ini}" --no-pager
   else
-    # timeout will exit with code != 0 if it the script call fails.
-    # set +eo pipefail is intentional for this section.
-    __disable_error_checking
-      # Factorio seems to hang indefinitely when trying to send "/save" to
-      # its socket, for now this will nuke the process if that happens
-      # until I figure out exactly why that is and fix it.
-
-      # Saving has a "sleep 5" after, allowing the server some time to
-      # finish whatever it needs before shutting down, so timeout should
-      # account for those 5 seconds + 1 extra second before nuking
-      local timeout_seconds=6
-      if ! timeout -k $timeout_seconds $timeout_seconds "$INSTANCE_MANAGE_FILE" --stop $debug; then
-        # --kill bypsses all the socket commands
-        "$INSTANCE_MANAGE_FILE" --kill $debug
-      fi
-    __enable_error_checking
+    "$INSTANCE_MANAGE_FILE" --stop $debug
   fi
 
   __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"

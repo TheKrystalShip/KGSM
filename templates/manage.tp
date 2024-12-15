@@ -28,7 +28,7 @@ Examples:
 "
 }
 
-set -eo pipefail
+set -o pipefail
 
 [[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
 
@@ -48,6 +48,7 @@ fi
 INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
 INSTANCE_PID_FILE=$INSTANCE_PID_FILE
 TAIL_PID_FILE=$TAIL_PID_FILE
+SAVE_WAIT_TIME_S=5
 
 function start_foreground() {
   cd "$INSTANCE_LAUNCH_DIR"
@@ -120,7 +121,7 @@ function stop_server() {
 function save_game() {
   if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
     echo "$INSTANCE_SAVE_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
-    sleep 5
+    sleep "\$SAVE_WAIT_TIME_S"
   else
     echo "\$(basename "\$0") ERROR: Save failed: No active server found." >&2 && return 1
   fi
@@ -165,6 +166,27 @@ while [[ \$# -gt 0 ]]; do
     ;;
   --stop)
     shift
+    while [[ \$# -gt 0 ]]; do
+      case "\$1" in
+        --no-save)
+          no_save=1
+          ;;
+        --no-graceful)
+          no_graceful=1
+          ;;
+        *)
+          echo "\$(basename "\$0") ERROR: Invalid argument \$1" >&2 && exit 1
+          ;;
+      esac
+      shift
+    done
+    if ! timeout "\$((\$SAVE_WAIT_TIME_S+1))" "\$0" --internal-stop \${no_save:+--no-save} \${no_graceful:+--no-graceful} \$debug; then
+      echo "\$(basename "\$0") ERROR: Timeout reached, killing instance" >&2
+      "\$0" --kill \$debug
+    fi
+    ;;
+  --internal-stop)
+    shift
     if [[ -z "\$1" ]]; then
       stop_server "\@";
       exit \$?
@@ -206,3 +228,5 @@ while [[ \$# -gt 0 ]]; do
   esac
   shift
 done
+
+exit 0
