@@ -24,6 +24,7 @@ stable_release_api_url="https://api.github.com/repos/${owner}/${package^^}/relea
 compare_api_url="https://api.github.com/repos/${owner}/${package^^}/compare"
 local_version_file=".${package}.version"
 deprecated_version_file="version.txt"
+deprecated_install_file="install.sh"
 
 SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
@@ -82,9 +83,18 @@ check_command tar tar
 
 # Handle deprecated version file
 if [[ -f "${SELF_PATH}/${deprecated_version_file}" ]]; then
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_version_file' found. Moved to '$local_version_file'."
+  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_version_file' found"
+  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file has been moved to '$local_version_file'"
   mv "${SELF_PATH}/${deprecated_version_file}" "${SELF_PATH}/${local_version_file}"
 fi
+
+# Handle deprecated install file
+if [[ -f "${SELF_PATH}/${deprecated_install_file}" ]]; then
+  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_install_file' found"
+  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file is no longer used and is safe to delete"
+  # rm "$deprecated_install_file"
+fi
+
 
 # Read version from the local file
 function get_current_version() {
