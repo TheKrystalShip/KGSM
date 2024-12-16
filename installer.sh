@@ -83,16 +83,20 @@ check_command tar tar
 
 # Handle deprecated version file
 if [[ -f "${SELF_PATH}/${deprecated_version_file}" ]]; then
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_version_file' found"
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file has been moved to '$local_version_file'"
-  mv "${SELF_PATH}/${deprecated_version_file}" "${SELF_PATH}/${local_version_file}"
+  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_version_file' found"
+  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file has been moved to '$local_version_file'"
+  if [[ -f "${SELF_PATH}/${local_version_file}" ]]; then
+    rm -rf "${SELF_PATH:?}/${deprecated_version_file:?}"
+  else
+    mv "${SELF_PATH}/${deprecated_version_file}" "${SELF_PATH}/${local_version_file}"
+  fi
 fi
 
 # Handle deprecated install file
 if [[ -f "${SELF_PATH}/${deprecated_install_file}" ]]; then
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_install_file' found"
-  echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file is no longer used and is safe to delete"
-  # rm "$deprecated_install_file"
+  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_install_file' found"
+  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file is no longer used and is safe to delete"
+  rm "$deprecated_install_file"
 fi
 
 
