@@ -188,8 +188,8 @@ function install_kgsm() {
   echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Installing KGSM version $version..."
 
   download_kgsm "$version"
-
-  echo "$version" >"${SELF_PATH}/${package^^}-${version}/${local_version_file}"
+  local local_version_file_abs_path="${SELF_PATH}/${package^^}-${version}/${local_version_file}"
+  echo "$version" >"$local_version_file_abs_path"
 
   echo -e "${0##*/} ${COLOR_GREEN}SUCCESS${COLOR_END} KGSM version $version installed."
 }
@@ -230,7 +230,7 @@ function update_kgsm() {
 
   install_kgsm "$latest_version"
 
-  cp -r "${SELF_PATH}/${package^^}-${latest_version}"/* "$SELF_PATH"
+  cp -rT "${SELF_PATH}/${package^^}-${latest_version}"/. "$SELF_PATH"
   rm -rf "${SELF_PATH}/${package^^}-${latest_version}"
 
   echo -e "${0##*/} ${COLOR_GREEN}SUCCESS${COLOR_END} KGSM updated to version $latest_version."
