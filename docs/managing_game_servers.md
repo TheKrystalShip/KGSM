@@ -1,33 +1,34 @@
-# Managing game servers
+# Managing Game Servers
 
-This document servers to explain how to manage a game server post-installation.
+This document explains how to manage a game server post-installation using KGSM.
 
 > [!NOTE]
->
-> \<instance> represents the generated name of an instance config file
-> post-installation
+> `<instance>` represents the generated name of an instance configuration file post-installation.
+
+---
 
 ## Startup
 
-Now in order to start up the instance there's a few different options:
+To start a game server instance, you can choose from several methods:
 
 ### Option 1: Using KGSM
 
-There's built-in functionality into KGSM to manage instances, it's not
-_required_ to use KGSM to do it, it just provides the option.
+KGSM provides built-in functionality for managing instances. While not mandatory, it simplifies the process.
 
-Using the interactive mode, select the `Start` option in the menu.
-You will be prompted to select an instance to start up.
+#### Interactive Mode
 
-Alternatively the named arguments option:
+Run KGSM in interactive mode, then select the `Start` option in the menu. You will be prompted to select an instance to start.
+
+#### Named Arguments
+
+Use the following command:
 
 ```sh
-./kgsm --instance <instance> --start
+./kgsm.sh --instance <instance> --start
 ```
 
 > [!NOTE]
-> You can see all created instances by either selecting `List instances` from
-> the interactive mode menu, or by running:
+> To list all created instances, either select `List instances` in interactive mode or run:
 >
 > ```sh
 > ./kgsm.sh --instances
@@ -35,10 +36,9 @@ Alternatively the named arguments option:
 
 ### Option 2: Systemctl
 
-If `USE_SYSTEMD` is enabled in the `config.ini` file, then the instance will
-have been configured to run using `systemctl`.
+If `USE_SYSTEMD` is enabled in `config.ini`, the instance will be configured to run as a `systemctl` service.
 
-Example commands:
+Example command:
 
 ```sh
 sudo systemctl start <instance>
@@ -46,14 +46,7 @@ sudo systemctl start <instance>
 
 ### Option 3: Manually
 
-Alternatively if `USE_SYSTEMD` is not enabled in `config.ini`, then it's up to
-the user to manage the instance manually.
-Each instance provides a `<instance>.manage.sh` entrypoint that will start/stop
-the game server and serve as a command input for the interactive console if the
-game server has one.
-
-The `<instance>.manage.sh` file will be located in the instance's installation
-directory.
+If `USE_SYSTEMD` is not enabled, you can manage the instance manually using the `<instance>.manage.sh` script in the instance’s installation directory.
 
 To start the instance in the current terminal, run:
 
@@ -61,8 +54,7 @@ To start the instance in the current terminal, run:
 ./<instance>.manage.sh --start
 ```
 
-To start the instance as a background process and detach it from the current
-terminal, run:
+To start the instance as a background process, run:
 
 ```sh
 ./<instance>.manage.sh --start --background
@@ -74,32 +66,98 @@ To see all options, run:
 ./<instance>.manage.sh --help
 ```
 
-### Automatic start on boot
+---
 
-#### Systemctl
+## Restart
 
-For instances created with `USE_SYSTEMD` enabled in `config.ini`, you can enable
-automatic startup on system boot through `systemctl` with the following command:
+To restart a game server instance:
+
+### Using KGSM
+
+```sh
+./kgsm.sh --instance <instance> --restart
+```
+
+### Using Systemctl
+
+```sh
+sudo systemctl restart <instance>
+```
+
+### Manually
+
+Navigate to the instance’s installation directory and run:
+
+```sh
+./<instance>.manage.sh --restart
+```
+
+---
+
+## Status Checks
+
+To check the status of a game server instance:
+
+### Using KGSM
+
+```sh
+./kgsm.sh --instance <instance> --status
+```
+
+### Using Systemctl
+
+```sh
+sudo systemctl status <instance>
+```
+
+---
+
+## Logs
+
+To view logs for a game server instance, KGSM provides a dedicated command:
+
+```sh
+./kgsm.sh --instance <instance> --logs
+```
+
+This command automatically retrieves logs from:
+
+- `journalctl` if the instance is managed by `systemctl`.
+- The instance’s log file if `systemctl` integration is not enabled.
+
+---
+
+## Automatic Start on Boot
+
+### Systemctl
+
+For instances created with `USE_SYSTEMD` enabled, enable automatic startup on boot using:
 
 ```sh
 sudo systemctl enable <instance>
 ```
 
-#### Manually
+### Manually
 
-The user will have to manually handle automatic startup on boot by adding the
-following to their startup script:
+If `USE_SYSTEMD` is not enabled, add the following line to your system’s startup script:
 
 ```sh
 /full/path/to/instance/<instance>.manage.sh --start --background
 ```
 
+---
+
 ## Shutdown
+
+To shut down a game server instance:
 
 ### Option 1: Using KGSM
 
-From the interactive mode menu, select the `Stop` option and choose an instance
-when prompted. This will shut down the instance.
+From the interactive mode menu, select the `Stop` option and choose an instance when prompted. Alternatively, use:
+
+```sh
+./kgsm.sh --instance <instance> --stop
+```
 
 ### Option 2: Systemctl
 
@@ -109,12 +167,29 @@ sudo systemctl stop <instance>
 
 ### Option 3: Manually
 
-> [!Note]
-> Applicable when the instance has been started with the `--start --background`
-> arguments
-
-Navigate to the instance's installation directory and run:
+Navigate to the instance’s installation directory and run:
 
 ```sh
 ./<instance>.manage.sh --stop
 ```
+
+> [!NOTE]
+> This will stop the instance if it's running as a background process.
+
+---
+
+## Decommissioning Game Servers
+
+To completely remove a game server instance, use KGSM’s uninstall command:
+
+```sh
+./kgsm.sh --uninstall <instance>
+```
+
+This will:
+
+- Stop the instance.
+- Remove all files and directories associated with the instance.
+- Delete `systemd` and `ufw` integrations, if applicable.
+
+

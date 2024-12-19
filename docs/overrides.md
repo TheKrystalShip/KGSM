@@ -1,31 +1,31 @@
 # Overrides 101
 
-This document contains everything related to script overrides: why they exist,
-how they work and how they are used internally to keep KGSM simple.
+This document provides a detailed explanation of script overrides in KGSM: why they exist, how they function, and how to create and use them effectively to keep the KGSM codebase clean and extensible.
 
-## What's an overrides?
+## What is an override?
 
-Game servers can be created from multiple places, some of them have dedicated
-server options that can be obtaied directly from Steam and others require a bit
-more work in order to download and set up.
+Overrides are custom script files used to support game servers that do **not** originate from Steam or require special handling during their installation and deployment processes. This "special handling" may involve tasks such as downloading files from non-standard sources, unpacking and arranging custom file structures, or applying patches to prepare the server for deployment. They allow for custom behavior without altering the core KGSM codebase.
 
-Overrides are used for game server that **don't** come from Steam.
+By implementing overrides, KGSM can accommodate a wide range of game servers while maintaining a clean, modular, and game-server-agnostic structure. For example, Minecraft servers often require overrides due to their unique download and setup requirements, which differ significantly from Steam-based installations.
 
 ## Why do overrides exist?
 
-An override file contains functions for different steps of the installation
-process that can be modified to work for a game server without the need to add
-modifications to the core KGSM codebase.
+Override files enable:
 
-They allow for the codebase to stay clean and game-server-agnostic as much as
-possible, externalizing any custom code needed for non-steam game servers.
+- Support for non-Steam game servers that require unique installation or setup steps.
+- Externalizing custom code to keep KGSM’s core functionality simple and maintainable.
+- Easy adaptability for adding new game servers without modifying KGSM’s core scripts.
 
-## How are they used internally?
+## How are overrides used internally?
 
-The overrides script file will be sourced internally by KGSM and called
-whenever it's needed.
+Override script files are sourced by KGSM at runtime and invoked during specific steps in the game server installation and deployment processes. These scripts are mandatory only for non-standard game servers that require custom handling; they are not needed for most Steam-based servers that follow standard installation and deployment procedures. These scripts contain functions that handle custom behavior for:
 
-Snippet from the override template file:
+1. Retrieving the latest version of the server software.
+2. Downloading and preparing the server files.
+3. Deploying the files to the appropriate directory structure.
+
+### Function Definitions
+Below is an explanation of the main functions found in an override file, as defined in the template:
 
 ```sh
 # INPUT:
@@ -34,9 +34,8 @@ Snippet from the override template file:
 # OUTPUT:
 # - echo "$version": Success
 # - exit 1: Error
-# func_get_latest_version       Should always return the latest available
-#                               version, or exit 1 in case there's any problem.
-#
+func_get_latest_version       # Retrieves the latest available version. Exits with 1 on error.
+
 # INPUT:
 # - $1: Version
 # - $2: Destination directory, absolute path
@@ -44,12 +43,8 @@ Snippet from the override template file:
 # OUTPUT:
 # - exit 0: Success
 # - exit 1: Error
-# func_download                 In charge of downloading all the required files
-#                               for the service, extract any zips, move, copy,
-#                               rename, remove, etc. It should leave the $2
-#                               with a fully working setup that can be called
-#                               and executed as if it was a full install.
-#
+func_download                 # Downloads all required files, extracts zips, and prepares a working setup.
+
 # INPUT:
 # - $1: Source directory, absolute path
 # - $2: Destination directory, absolute path
@@ -57,64 +52,68 @@ Snippet from the override template file:
 # OUTPUT:
 # - exit 0: Success
 # - exit 1: Error
-# func_deploy                   Will move everything from $1 into $2 and do any
-#                               cleanup that couldn't be done by func_download.
+func_deploy                   # Moves files from the source to the destination and performs final cleanup.
 ```
 
-Each of those functions can be implemented in a override script file for a
-blueprint.
+Each function can be implemented in the override script if needed. By default, KGSM provides implementations for these functions, designed to support standard Steam-based installations. If a function is not implemented in the override, KGSM will fall back to its default behavior. This ensures that non-Steam game servers or those requiring custom behavior can still function seamlessly while relying on defaults where appropriate.
 
-Blueprints are linked to overrides by the `BP_NAME` field inside the
-blueprint file.
+### Linking Blueprints and Overrides
+Blueprints specify which override script to use through the `BP_NAME` field. The `BP_NAME` value links a blueprint to its corresponding override file.
 
-**Example 1 (default bp, default override):**
+#### Examples
 
-Blueprint file: `blueprints/default/factorio.bp`
+**Default Blueprint and Override:**
 
-> \# Unique name, lowercase with no spaces
->
-> BP_NAME=factorio
->
-> [...]
+- **Blueprint File:** `blueprints/default/factorio.bp`
+  ```sh
+  # Unique name, lowercase with no spaces
+  BP_NAME=factorio
+  ```
+- **Override File:** `overrides/factorio.overrides.sh`
 
-Overrides file: `overrides/factorio.overrides.sh`
+**Custom Blueprint with Default Override:**
 
-**Example 2 (custom bp, default override):**
+- **Blueprint File:** `blueprints/my-factorio-server.bp`
+  ```sh
+  # Unique name, lowercase with no spaces
+  BP_NAME=factorio
+  ```
+- **Override File:** `overrides/factorio.overrides.sh`
 
-Blueprint file: `blueprints/my-factorio-server.bp`
+**Custom Blueprint with Custom Override:**
 
-> \# Unique name, lowercase with no spaces
->
-> BP_NAME=factorio
->
-> [...]
+- **Blueprint File:** `blueprints/7dtd-custom03.bp`
+  ```sh
+  # Unique name, lowercase with no spaces
+  BP_NAME=7dtd-custom03
+  ```
+- **Override File:** `overrides/7dtd-custom03.overrides.sh`
 
-Overrides file: `overrides/factorio.overrides.sh`
+## Creating New Overrides
 
-**Example 3 (custom bp, custom override):**
+To create a new override script:
 
-Blueprint file: `blueprints/7dtd-custom03.bp`
+1. Copy the contents of `templates/overrides.tp` into a new file.
+2. Uncomment and implement only the required functions.
+3. Save the file using the following naming convention:
+```
+BP_NAME.overrides.sh
+```
+For example, for a blueprint `valheim.bp`, the override file should be named `valheim.overrides.sh`.
 
-> \# Unique name, lowercase with no spaces
->
-> BP_NAME=7dtd-custom03
->
-> [...]
+> [!IMPORTANT]
+> If the naming convention is not followed, KGSM will not recognize the override script.
 
-Overrides file: `overrides/7dtd-custom03.overrides.sh`
+## File Permissions
 
-## Creating new overrides
+Override files are sourced by KGSM and do not require execution permissions. Ensure the file has read permissions, such as with `chmod 644`, to allow KGSM to source it correctly.
 
-To create new overrides, simply copy the contents from `templates/overrides.tp`
-into a new file and uncomment whatever parts are needed.
+## Best Practices
 
-The new file should strictly follow the naming convention:
+- **Keep it Simple:** Only implement the necessary functions for the game server’s unique requirements.
+- **Test Thoroughly:** Ensure the override functions work as intended by testing installation, updates, and deployments.
+- **Document Changes:** Add comments in the override file to explain any custom behavior for future reference.
 
-`BLUEPRINT_NAME_WITHOUT_EXTENSION.overrides.sh`
+---
+By using overrides effectively, you can extend KGSM’s functionality to support a wide variety of game servers while maintaining the integrity of its core scripts.
 
-Otherwise it won't be picked up correctly.
-
-## File permissions
-
-Override files are always sourced into existing scripts and are never called
-directly, they don't need execution permissions.
