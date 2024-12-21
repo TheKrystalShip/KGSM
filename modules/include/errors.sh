@@ -65,6 +65,7 @@ function __print_error_code() {
 
   echo "Error $code: ${EXIT_CODES[$code]:-Unknown error}" >&2
   echo "Occurred in script: $script, function: $func, line: $line" >&2
+  exit $code
 }
 
 trap '__print_error_code $?; exit $?' ERR
