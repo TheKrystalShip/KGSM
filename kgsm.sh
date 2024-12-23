@@ -623,6 +623,8 @@ while [[ "$#" -gt 0 ]]; do
           --json)
             json_format=1
             ;;
+          --list)
+            ;;
           *)
             blueprint=$1
             ;;
