@@ -239,6 +239,7 @@ module_deploy=$(__load_module deploy.sh)
 module_update=$(__load_module update.sh)
 module_backup=$(__load_module backup.sh)
 module_instance=$(__load_module instances.sh)
+module_lifecycle=$(__load_module lifecycle.sh)
 
 function _install() {
   local blueprint=$1
@@ -643,7 +644,7 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
     case "$1" in
     --logs)
-      "$module_instance" --logs "$instance" $debug; exit $?
+      "$module_lifecycle" --logs "$instance" $debug; exit $?
       ;;
     --status)
       "$module_instance" --status "$instance" $debug; exit $?
@@ -652,16 +653,18 @@ while [[ "$#" -gt 0 ]]; do
       "$module_instance" --info "$instance" ${json_format:+--json} $debug; exit $?
       ;;
     --is-active)
-      "$module_instance" --is-active "$instance" $debug; exit $?
+      # Inactive instances return exit code 1.
+      __disable_error_checking
+      "$module_lifecycle" --is-active "$instance" $debug; exit $?
       ;;
     --start)
-      "$module_instance" --start "$instance" $debug; exit $?
+      "$module_lifecycle" --start "$instance" $debug; exit $?
       ;;
     --stop)
-      "$module_instance" --stop "$instance" $debug; exit $?
+      "$module_lifecycle" --stop "$instance" $debug; exit $?
       ;;
     --restart)
-      "$module_instance" --restart "$instance" $debug; exit $?
+      "$module_lifecycle" --restart "$instance" $debug; exit $?
       ;;
     --save)
       "$module_instance" --save "$instance" $debug; exit $?
