@@ -231,7 +231,7 @@ while [ $# -gt 0 ]; do
     ;;
   --list)
     shift
-    [[ -z "$1" ]] && (_list_blueprints; exit $?)
+    [[ -z "$1" ]] && _list_blueprints && exit $?
     case "$1" in
       --default)
         _list_default_blueprints; exit $?
