@@ -215,7 +215,7 @@ while [[ \$# -gt 0 ]]; do
     save_game
     ;;
   --is-active)
-    is_active
+    is_active; exit \$?
     ;;
   --input)
     shift
