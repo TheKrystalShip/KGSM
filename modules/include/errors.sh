@@ -1,13 +1,5 @@
 #!/bin/bash
 
-function __enable_error_checking() {
-  set -o pipefail
-}
-
-function __disable_error_checking() {
-  set +o pipefail
-}
-
 # Exit codes
 EC_OKAY=0
 EC_GENERAL=1
@@ -68,7 +60,15 @@ function __print_error_code() {
   exit $code
 }
 
-trap '__print_error_code $?; exit $?' ERR
+function __enable_error_checking() {
+  set -o pipefail
+  trap '__print_error_code $?; exit $?' ERR
+}
+
+function __disable_error_checking() {
+  set +o pipefail
+  trap '' ERR
+}
 
 __enable_error_checking
 
