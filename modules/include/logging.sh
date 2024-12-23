@@ -42,7 +42,7 @@ function __log_message() {
   local timestamp
   timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
-  local printable_log_entry="[$timestamp] [${LOG_LEVEL_COLOR_MAP[$log_level]}$log_level${COLOR_END}] $message"
+  local printable_log_entry="[${LOG_LEVEL_COLOR_MAP[$log_level]}$log_level${COLOR_END}] $message"
   local log_entry="[$timestamp] [$log_level] $message"
 
   if [[ ! -d "$LOGS_SOURCE_DIR" ]]; then
