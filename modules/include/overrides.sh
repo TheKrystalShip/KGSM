@@ -29,9 +29,9 @@ source "$module_common" || exit "$EC_FAILED_SOURCE"
 instance_config_file=$(__load_instance "$instance")
 
 # for when grep fails to find INSTANCE_OVERRIDES_FILE
-__disable_error_checking
+[[ $(type -t __disable_error_checking) == function ]] && __disable_error_checking
 instance_overrides_file=$(grep "INSTANCE_OVERRIDES_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-__enable_error_checking
+[[ $(type -t __enable_error_checking) == function ]] && __enable_error_checking
 
 # Import custom scripts if the game has any
 if [[ -n "$instance_overrides_file" ]] && [[ -f "$instance_overrides_file" ]]; then
