@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eo pipefail
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
