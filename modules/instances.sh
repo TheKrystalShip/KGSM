@@ -18,13 +18,8 @@ Options:
       [blueprint]                 instances.
                                   Optionally a blueprint name can be provided
                                   to show only instances of that blueprint.
-  --logs <instance>               Prints a constant output of an instance's logs
   --status <instance>             Return a detailed running status.
-  --is-active <instance>          Check if the instance is active.
-  --start <instance>              Start the instance.
-  --stop <instance>               Stop the instance.
   --save <instance>               Issue the save command to the instance.
-  --restart <instance>            Restart the instance.
   --input <command>               Issue a command to the instance if it has an
                                   interactive console. Displays the last 10
                                   lines of the instance log after issuing the
@@ -45,9 +40,9 @@ Options:
                                   JSON format.
 
 Examples:
-  $(basename "$0") --create test.bp --install-dir /opt
-  $(basename "$0") --logs test-0001
-  $(basename "$0") --list test.bp
+  $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
+  $(basename "$0") --status factorio-01
+  $(basename "$0") --list --detailed factorio.bp
 "
 }
 
@@ -100,15 +95,15 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function _generate_unique_instance_name() {
-  local service_name="$1"
+  local blueprint_name="$1"
   local instance_id
   local instance_full_name
 
   while :; do
     instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-2}")
-    instance_full_name="${service_name}-${instance_id}"
+    instance_full_name="${blueprint_name}-${instance_id}"
 
-    if [[ ! -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
+    if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_full_name}.ini" ]]; then
       echo "$instance_full_name" && return
     fi
   done
@@ -121,19 +116,19 @@ function _create_instance() {
 
   local blueprint_abs_path
   blueprint_abs_path=$(__load_blueprint "$blueprint")
-  local service_name
-  service_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local blueprint_name
+  blueprint_name=$(grep "BP_NAME=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
-  export instance_name=$service_name
+  export instance_name=$blueprint_name
 
   instance_full_name=$identifier
   if [[ -z "$instance_full_name" ]]; then
-    instance_full_name=$(_generate_unique_instance_name "$service_name")
+    instance_full_name=$(_generate_unique_instance_name "$blueprint_name")
 
     export instance_id=${instance_full_name##*-}
   else
-    if [[ -f "$INSTANCES_SOURCE_DIR/$service_name/${instance_full_name}.ini" ]]; then
-      __print_error "Instance with id \"$identifier\" already exists" && return "$EC_GENERAL"
+    if [[ -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_full_name}.ini" ]]; then
+      __print_error "Instance with id \"$identifier\" already exists" && return $EC_GENERAL
     fi
 
     instance_full_name="${identifier}"
@@ -148,7 +143,7 @@ function _create_instance() {
   local instance_launch_bin=$(grep "BP_LAUNCH_BIN=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   # Servers launching using java
-  if [[ "$instance_launch_bin" != "java" ]]; then
+  if [[ "$instance_launch_bin" != "java" ]] && [[ "$instance_launch_bin" != "docker" ]]; then
     instance_launch_bin="./${instance_launch_bin}"
   fi
 
@@ -168,6 +163,11 @@ function _create_instance() {
   if [[ "$USE_SYSTEMD" -eq 1 ]]; then
     instance_lifecycle_manager="systemd"
   fi
+
+  if [[ "$instance_launch_bin" == "docker" ]]; then
+    instance_lifecycle_manager="docker"
+  fi
+
   export instance_lifecycle_manager
 
   # shellcheck disable=SC2155
@@ -188,14 +188,14 @@ function _create_instance() {
   local instance_template_file
   instance_template_file=$(__load_template instance.tp)
 
-  local instance_dir_path=$INSTANCES_SOURCE_DIR/$service_name
+  local instance_dir_path=$INSTANCES_SOURCE_DIR/$blueprint_name
   if [ ! -d "$instance_dir_path" ]; then
     if ! mkdir -p "$instance_dir_path"; then
       __print_error "Failed to create $instance_dir_path" && return "$EC_FAILED_MKDIR"
     fi
   fi
 
-  local instance_config_file=$INSTANCES_SOURCE_DIR/$service_name/$instance_full_name.ini
+  local instance_config_file="${INSTANCES_SOURCE_DIR}/${blueprint_name}/${instance_full_name}.ini"
 
   if ! eval "cat <<EOF
 $(<"$instance_template_file")
@@ -468,43 +468,6 @@ function _list_instances_json() {
   fi
 }
 
-function _start_instance() {
-  local instance=$1
-
-  # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
-
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    $SUDO systemctl start "${instance%.ini}" --no-pager
-  else
-    "$INSTANCE_MANAGE_FILE" --start --background $debug
-  fi
-
-  __emit_instance_started "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
-}
-
-function _stop_instance() {
-  local instance=$1
-
-  # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
-
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    $SUDO systemctl stop "${instance%.ini}" --no-pager
-  else
-    "$INSTANCE_MANAGE_FILE" --stop $debug
-  fi
-
-  __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
-}
-
-function _restart_instance() {
-  local instance=$1
-
-  __stop_instance "$instance"
-  __start_instance "$instance"
-}
-
 function _get_instance_status() {
   local instance=$1
 
@@ -539,57 +502,6 @@ function _send_input_to_instance() {
   source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
 
   "$INSTANCE_MANAGE_FILE" --input "$command" $debug
-}
-
-function _is_instance_active() {
-  local instance=$1
-
-  # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
-
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    local is_active
-    is_active=$(systemctl is-active "${instance%.ini}" --no-pager)
-    [[ "$is_active" == "active" ]] && return 0
-    return "$EC_GENERAL"
-  else
-    "$INSTANCE_MANAGE_FILE" --is-active
-  fi
-}
-
-function _get_logs() {
-  local instance=$1
-
-  # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
-
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-    [[ "$instance" == *.ini ]] && instance=${instance//.ini}
-    journalctl -fu "$instance"
-  fi
-
-  while true; do
-    local latest_log_file
-    latest_log_file="$(ls "$INSTANCE_LOGS_DIR" -t | head -1)"
-
-    if [[ -z "$latest_log_file" ]]; then
-      sleep 2
-      continue
-    fi
-
-    __print_info "Following logs from $latest_log_file"
-
-    tail -F "$INSTANCE_LOGS_DIR/$latest_log_file" &
-    tail_pid=$!
-
-    # Wait for tail process to finish or the log file to be replaced
-    inotifywait -e create -e moved_to "$INSTANCE_LOGS_DIR" >/dev/null 2>&1
-
-    # New log file detected; kill current tail and loop back to follow the new file
-    kill "$tail_pid"
-    __print_info "Detected new log file. Switching to the latest log..."
-    sleep 1
-  done
 }
 
 # shellcheck disable=SC2199
@@ -630,41 +542,6 @@ while [[ $# -gt 0 ]]; do
     [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
     _generate_unique_instance_name "$1"; exit $?
     ;;
-  --logs)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _get_logs "$1"; exit $?
-    ;;
-  --status)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _get_instance_status "$1"; exit $?
-    ;;
-  --is-active)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _is_instance_active "$1"; exit $?
-    ;;
-  --start)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _start_instance "$1"; exit $?
-    ;;
-  --stop)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _stop_instance "$1"; exit $?
-    ;;
-  --restart)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _restart_instance "$1"; exit $?
-    ;;
-  --save)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _send_save_to_instance "$1"; exit $?
-    ;;
   --input)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
@@ -704,6 +581,16 @@ while [[ $# -gt 0 ]]; do
     fi
     _create_instance "$blueprint" "$install_dir" $identifier; exit $?
     ;;
+  --status)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _get_instance_status "$1"; exit $?
+    ;;
+  --save)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _send_save_to_instance "$1"; exit $?
+    ;;
   --remove)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
@@ -712,11 +599,13 @@ while [[ $# -gt 0 ]]; do
   --info)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    if [[ -z "$json_format" ]]; then
-      _print_info "$1"; exit $?
-    else
-      _print_info_json "$1"; exit $?
-    fi
+    instance=$1
+      if [[ -z "$json_format" ]]; then
+        _print_info "$instance"
+      else
+        _print_info_json "$instance"
+      fi
+    exit $?
     ;;
   *)
     __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
