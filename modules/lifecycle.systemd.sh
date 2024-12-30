@@ -90,8 +90,8 @@ function _stop_instance() {
 function _restart_instance() {
   local instance=$1
 
-  __stop_instance "$instance"
-  __start_instance "$instance"
+  _stop_instance "$instance"
+  _start_instance "$instance"
 }
 
 function _is_instance_active() {
