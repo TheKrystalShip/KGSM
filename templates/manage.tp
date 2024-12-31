@@ -1,9 +1,45 @@
 #!/bin/bash
 
+# Modifications done to this file will only affect this game server instance.
+# Any changes made to this file will be overwritten if the file is regenerated.
+# KGSM will not regenerated this file on its own, but there is a command that
+# can be manually used to regenerate the file in case something breaks:
+# > \$KGSM_ROOT/modules/files.sh --instance <instance> --create --manage
+
+# Sets if the instance should enable/disable UPnP ports on startup/shutdown
+# Values: 0 (disabled), 1 (enabled)
+USE_UPNP=$USE_UPNP
+
+# Time in seconds to wait after the save commands has been sent to the instance
+SAVE_TIMEOUT_S=5
+
+# Time in seconds to wait for the instance to shutdown before it being killed
+STOP_TIMEOUT_S=30
+
+# -----------------------------------------------------------------------------
+# Do not edit past this point unless you absolutely know what you're doing.
+# -----------------------------------------------------------------------------
+
+# The ports to open and their protocols
+INSTANCE_UPNP_PORTS=(${INSTANCE_UPNP_PORTS[@]})
+
+# Full name of the instance
+INSTANCE_FULL_NAME=$INSTANCE_FULL_NAME
+
+# Input socker file where the instance will listen to commands from
+INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
+
+# Process ID file for the server
+INSTANCE_PID_FILE=$INSTANCE_PID_FILE
+
+# Process ID file for the dummy socket listener. Used to keep the socket open
+# while the instance is running.
+TAIL_PID_FILE=$TAIL_PID_FILE
+
 function usage() {
   echo "
 Usage:
-  \$(basename "\$0") [option]
+  \$(basename "\$0") OPTION
 
 Options:
   -h, --help            Display this help message
@@ -14,23 +50,19 @@ Options:
     --no-save           Do not save on shutdown
     --no-graceful       Kill the server process without sending it the stop
                         command.
-  --kill                Same as '--stop --no-save --no-graceful'. It will NOT
-                        issue a 'save' command (if applicable), and will kill
-                        the server process
+  --kill                It will kill the server process
   --save                Save the current game state
   --is-active           Prints if the server is active
   --input <command>     Send an ad-hoc command to the server
+  --enable-upnp         Enable UPnP ports
+  --disable-upnp        Disable UPnP ports
 
 Examples:
   \$(basename "\$0") --start --background
-  \$(basename "\$0") --input /save
+  \$(basename "\$0") --input '/save'
   \$(basename "\$0") --stop
 "
 }
-
-set -o pipefail
-
-[[ \$# -eq 0 ]] && echo "\${0##*/} ERROR: Missing arguments" >&2 && exit 1
 
 # shellcheck disable=SC2199
 if [[ \$@ =~ "--debug" ]]; then
@@ -45,28 +77,67 @@ if [[ \$@ =~ "--debug" ]]; then
   done
 fi
 
-INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE
-INSTANCE_PID_FILE=$INSTANCE_PID_FILE
-TAIL_PID_FILE=$TAIL_PID_FILE
-SAVE_WAIT_TIME_S=5
+set -o pipefail
+
+[[ \$# -eq 0 ]] && echo "\$(basename "\$0") ERROR: Missing arguments" >&2 && exit 1
+
+function enable_upnp() {
+  local output
+  if ! output=\$(upnpc -e "\$INSTANCE_FULL_NAME" -r "\${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+    echo "\$(basename "\$0") ERROR: Failed to enable UPnP ports" >&2
+    echo "\$(basename "\$0") INFO: To stop these message, set USE_UPNP to 0 in \$0"
+    echo "\$(basename "\$0") ERROR: \${output}" >&2
+  fi
+}
+
+function disable_upnp() {
+  local output
+  if ! output=\$(upnpc -f "\${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+    echo "\$(basename "\$0") ERROR: Failed to disable UPnP ports" >&2
+    echo "\$(basename "\$0") INFO: To stop these message, set USE_UPNP to 0 in \$0"
+    echo "\$(basename "\$0") ERROR: \${output}" >&2
+  fi
+}
+
+trap '[[ "\$USE_UPNP" -eq 1 ]] && disable_upnp' INT
 
 function start_foreground() {
-  cd "$INSTANCE_LAUNCH_DIR"
-  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
+  if [[ "\$USE_UPNP" -eq 1 ]]; then
+    enable_upnp
+  fi
+
+  cd "$INSTANCE_LAUNCH_DIR" || {
+    echo "\$(basename "\$0") ERROR: Failed to move into \$INSTANCE_LAUNCH_DIR, exiting" >&2
+    return 1
+  }
+
+  $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
 }
 
 function start_background() {
-  cd "$INSTANCE_LAUNCH_DIR"
+  if [[ "\$USE_UPNP" -eq 1 ]]; then
+    enable_upnp
+  fi
+
+  cd "$INSTANCE_LAUNCH_DIR" || {
+    echo "\$(basename "\$0") ERROR: Failed to move into \$INSTANCE_LAUNCH_DIR, exiting" >&2
+    return 1
+  }
 
   [[ -p "\$INSTANCE_SOCKET_FILE" ]] && rm "\$INSTANCE_SOCKET_FILE"
 
   mkfifo "\$INSTANCE_SOCKET_FILE"
 
-  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS $INSTANCE_LOGS_REDIRECT <"\$INSTANCE_SOCKET_FILE" &
+  $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS $INSTANCE_LOGS_REDIRECT <"\$INSTANCE_SOCKET_FILE" &
 
   local server_pid=\$!
   echo "\$server_pid" >\$INSTANCE_PID_FILE
-  echo "$INSTANCE_FULL_NAME started with PID \$server_pid, saved to \$INSTANCE_PID_FILE"
+  echo "\$(basename "\$0") SUCCESS: Instance \$INSTANCE_FULL_NAME started with PID \$server_pid, saved to \$INSTANCE_PID_FILE"
+
+  # Set the process group ID of the parent process
+  # This is done because some servers spawn detached child processes which are
+  # impossible to keep track of.
+  setpgid "\$server_pid" "\$server_pid"
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
   tail -f /dev/null > "\$INSTANCE_SOCKET_FILE" &
@@ -74,6 +145,12 @@ function start_background() {
 }
 
 function stop_server() {
+
+  # if ! \$(is_active &>/dev/null); then
+  #   echo "\$(basename "\$0") WARNING: Instance \$INSTANCE_FULL_NAME is not running"
+  #   return 0
+  # fi
+
   for a; do
     shift
     case "\$a" in
@@ -90,8 +167,7 @@ function stop_server() {
   if [[ ! "\$no_graceful" ]]; then
     # Send stop command to socket
     if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
-      echo "$INSTANCE_STOP_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
-      rm -f "\$INSTANCE_SOCKET_FILE"
+      echo "$INSTANCE_STOP_COMMAND" > "\$INSTANCE_SOCKET_FILE"
     fi
   fi
 
@@ -100,28 +176,76 @@ function stop_server() {
     local tail_pid
     tail_pid=\$(<"\$TAIL_PID_FILE")
     if kill -0 "\$tail_pid" 2>/dev/null; then
-      kill "\$tail_pid"
+      kill -TERM "\$tail_pid"
     fi
-
-    rm -f "\$TAIL_PID_FILE"
   fi
 
   # Kill the game server
   if [[ -f "\$INSTANCE_PID_FILE" ]]; then
     local server_pid
     server_pid=\$(<"\$INSTANCE_PID_FILE")
+    local output
     if kill -0 "\$server_pid" 2>/dev/null; then
-      kill "\$server_pid"
+      if ! output=\$(kill -TERM "-\$server_pid" 2>&1); then
+        echo "\$(basename "\$0") ERROR: Failed to kill process group for PID \$server_pid." >&2
+        echo "\$(basename "\$0") ERROR: Output: \${output}" >&2
+        return 1
+      fi
     fi
-
-    rm -f "\$INSTANCE_PID_FILE"
   fi
+
+  [[ -f "\$INSTANCE_PID_FILE" ]] && rm -f "\$INSTANCE_PID_FILE"
+  [[ -p "\$INSTANCE_SOCKET_FILE" ]] && rm -f "\$INSTANCE_SOCKET_FILE"
+  [[ -f "\$TAIL_PID_FILE" ]] && rm -f "\$TAIL_PID_FILE"
+
+  if [[ "\$USE_UPNP" -eq 1 ]]; then
+    disable_upnp
+  fi
+
+  echo "\$(basename "\$0") SUCCESS: Instance \$INSTANCE_FULL_NAME stopped"
+}
+
+function timed_stop() {
+  local no_save=\$1
+  local no_graceful=\$2
+
+  # UPnP can take a few seconds, so to avoid preemptive timeout we wait longer
+  if ! timeout "\$STOP_TIMEOUT_S" "\$0" --internal-stop \${no_save:+--no-save} \${no_graceful:+--no-graceful} \$debug; then
+    echo "\$(basename "\$0") ERROR: Timeout reached, killing instance" >&2
+    exec "\$0" --kill \$debug
+  fi
+}
+
+function kill_server() {
+  if [[ ! -f "\$INSTANCE_PID_FILE" ]]; then
+    echo "\$(basename "\$0") ERROR: No PID file found for \$INSTANCE_FULL_NAME, possible detached process." >&2
+    return 1
+  fi
+
+  local server_pid
+  server_pid=\$(<"\$INSTANCE_PID_FILE")
+
+  if [[ -z "\$server_pid" ]]; then
+    echo "\$(basename "\$0") ERROR: Instance PID file present but empty, removing" >&2
+    rm -rf "\$INSTANCE_PID_FILE"
+    echo "\$(basename "\$0") ERROR: No PID found, manually check for runnaway process for \$INSTANCE_FULL_NAME" >&2
+    return 1
+  fi
+
+  local output
+  if ! output=\$(kill -9 "\$server_pid" 2>&1); then
+    echo "\$(basename "\$0") ERROR: Failed to kill \$server_pid, possible runnaway process." >&2
+    echo "\$(basename "\$0") ERROR: Output: \${output}" >&2
+    return 1
+  fi
+
+  return 0
 }
 
 function save_game() {
   if [[ -p "\$INSTANCE_SOCKET_FILE" ]]; then
     echo "$INSTANCE_SAVE_COMMAND" >>"\$INSTANCE_SOCKET_FILE"
-    sleep "\$SAVE_WAIT_TIME_S"
+    sleep "\$SAVE_TIMEOUT_S"
   else
     echo "\$(basename "\$0") ERROR: Save failed: No active server found." >&2 && return 1
   fi
@@ -136,16 +260,23 @@ function send_input() {
 }
 
 function is_active() {
-  if [[ -f "\$INSTANCE_PID_FILE" ]]; then
-    local server_pid
-    server_pid=\$(<"\$INSTANCE_PID_FILE")
-    if kill -0 "\$server_pid" 2>/dev/null; then
-      # kill "\$server_pid"
-      echo "\$(basename "\$0") INFO: Active" && return 0
-    fi
+  if [[ ! -f "\$INSTANCE_PID_FILE" ]]; then
+    echo "\$(basename "\$0") INFO: Inactive" && return 1
+  fi
 
-    echo "\$(basename "\$0") WARNING: Inactive, but PID file exists, removing" && return 1
-    stop_server --no-save --no-graceful
+  local server_pid
+  server_pid=\$(<"\$INSTANCE_PID_FILE")
+
+  if [[ -z "\$server_pid" ]]; then
+    echo "\$(basename "\$0") ERROR: Instance PID file present but empty, removing" >&2
+    rm -rf "\$INSTANCE_PID_FILE"
+
+    echo "\$(basename "\$0") INFO: Inactive" && return 1
+  fi
+
+  # Just test if a process with that PID exists
+  if kill -0 "\$server_pid" 2>/dev/null; then
+    echo "\$(basename "\$0") INFO: Active" && return 0
   fi
 
   echo "\$(basename "\$0") INFO: Inactive" && return 1
@@ -158,11 +289,18 @@ while [[ \$# -gt 0 ]]; do
     ;;
   --start)
     shift
-    if [[ "\$1" == "--background" ]]; then
-      start_background
-    else
+    if [[ -z "\$1" ]]; then
       start_foreground
+      exit \$?
     fi
+    case "\$1" in
+      --background)
+        start_background
+        ;;
+      *)
+        echo "\$(basename "\$0") ERROR: Invalid argument \$1" >&2 && exit 1
+        ;;
+    esac
     ;;
   --stop)
     shift
@@ -180,10 +318,7 @@ while [[ \$# -gt 0 ]]; do
       esac
       shift
     done
-    if ! timeout "\$((\$SAVE_WAIT_TIME_S+1))" "\$0" --internal-stop \${no_save:+--no-save} \${no_graceful:+--no-graceful} \$debug; then
-      echo "\$(basename "\$0") ERROR: Timeout reached, killing instance" >&2
-      "\$0" --kill \$debug
-    fi
+    timed_stop "\$no_save" "\$no_graceful"; exit \$?
     ;;
   --internal-stop)
     shift
@@ -209,7 +344,7 @@ while [[ \$# -gt 0 ]]; do
     stop_server \${no_save:+--no-save} \${no_graceful:+--no-graceful}
     ;;
   --kill)
-    stop_server --no-save --no-graceful
+    kill_server; exit \$?
     ;;
   --save)
     save_game
@@ -221,6 +356,12 @@ while [[ \$# -gt 0 ]]; do
     shift
     [[ -z "\$1" ]] && echo "\$(basename "\$0") ERROR: Missing argument <command>" >&2 && exit 1
     send_input "\$1"
+    ;;
+  --enable-upnp)
+    enable_upnp; exit \$?
+    ;;
+  --disable-upnp)
+    disable_upnp; exit \$?
     ;;
   *)
     echo "\$(basename "\$0") ERROR: Unknown argument \$1" >&2 && exit 1

@@ -36,11 +36,12 @@ grep jq wget unzip tar sed coreutils findutils steamcmd
 These are not required unless you want to enable some features through configuration.
 
 ```sh
-ufw socat
+ufw socat miniupnpc
 ```
 
 - `ufw` is used only if `USE_UFW` is enabled in the `config.ini` file.
 - `socat` is used only if `USE_EVENTS` is enabled in the `config.ini` file.
+- `miniupnpc` is used only if `USE_UPNP` is enabled in the `config.ini` file.
 
 > [!NOTE]
 >

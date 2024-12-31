@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Disabling SC2086 globally:
+# Exit code variables are guaranteed to be numeric and safe for unquoted use.
+# shellcheck disable=SC2086
+
 # Check for KGSM_ROOT
 if [[ -z "$KGSM_ROOT" ]]; then
   # Absolute path to this script file
@@ -30,25 +34,31 @@ fi
 # Error codes and definitions
 if [[ ! "$KGSM_ERRORS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module errors.sh)" || exit 1
+  source "$(__load_module errors.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # User config.ini
 if [[ ! "$KGSM_CONFIG_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module config.sh)" || exit "$EC_FAILED_SOURCE"
+  source "$(__load_module config.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # File logging
 if [[ ! "$KGSM_LOGGING_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module logging.sh)" || exit "$EC_FAILED_SOURCE"
+  source "$(__load_module logging.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # KGSM Socket events
 if [[ ! "$KGSM_EVENTS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module events.sh)" || exit "$EC_FAILED_SOURCE"
+  source "$(__load_module events.sh)" || exit $EC_FAILED_SOURCE
+fi
+
+# Parser
+if [[ -z "$KGSM_PARSER_LOADED" ]]; then
+  # shellcheck disable=SC1090
+  source "$(__load_module parser.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # Export this to check before loading this file again
