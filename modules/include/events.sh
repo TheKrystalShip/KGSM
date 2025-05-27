@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Starting creation process
 export EVENT_INSTANCE_CREATED="instance_created"

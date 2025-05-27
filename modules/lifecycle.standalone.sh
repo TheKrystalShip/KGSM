@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 debug=
 # shellcheck disable=SC2199
@@ -9,8 +9,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
+      --debug) continue ;;
+      *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -42,12 +42,12 @@ Examples:
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  -h | --help)
-    usage && exit 0
-    ;;
-  *)
-    break
-    ;;
+    -h | --help)
+      usage && exit 0
+      ;;
+    *)
+      break
+      ;;
   esac
 done
 
@@ -110,61 +110,42 @@ function _get_logs() {
 
   # shellcheck disable=SC1090
   source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
-
-  while true; do
-    local latest_log_file
-    latest_log_file="$(ls "$INSTANCE_LOGS_DIR" -t | head -1)"
-
-    if [[ -z "$latest_log_file" ]]; then
-      sleep 2
-      continue
-    fi
-
-    __print_info "Following logs from $latest_log_file"
-
-    tail -F "$INSTANCE_LOGS_DIR/$latest_log_file" &
-    tail_pid=$!
-
-    # Wait for tail process to finish or the log file to be replaced
-    inotifywait -e create -e moved_to "$INSTANCE_LOGS_DIR" >/dev/null 2>&1
-
-    # New log file detected; kill current tail and loop back to follow the new file
-    kill "$tail_pid"
-    __print_info "Detected new log file. Switching to the latest log..."
-    sleep 1
-  done
+  "$INSTANCE_MANAGE_FILE" --logs $debug
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --logs)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _get_logs "$1"; exit $?
-    ;;
-  --is-active)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _is_instance_active "$1"; exit $?
-    ;;
-  --start)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _start_instance "$1"; exit $?
-    ;;
-  --stop)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _stop_instance "$1"; exit $?
-    ;;
-  --restart)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _restart_instance "$1"; exit $?
-    ;;
-  *)
-    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-    ;;
+    --logs | --is-active | --start | --stop | --restart)
+      command=$1
+      shift
+      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
+      instance=$1
+      case "$command" in
+        --logs)
+          _get_logs "$instance"
+          ;;
+        --is-active)
+          _is_instance_active "$instance"
+          ;;
+        --start)
+          _start_instance "$instance"
+          ;;
+        --stop)
+          _stop_instance "$instance"
+          ;;
+        --restart)
+          _restart_instance "$instance"
+          ;;
+        *)
+          __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+          ;;
+      esac
+      ;;
+    *)
+      __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+      ;;
   esac
   shift
 done
+
+exit $?

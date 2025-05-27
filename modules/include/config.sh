@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check for KGSM_ROOT
 if [[ -z "$KGSM_ROOT" ]]; then

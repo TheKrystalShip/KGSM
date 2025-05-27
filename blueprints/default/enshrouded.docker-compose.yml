@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  enshrouded:
+
+    image: ghcr.io/thekrystalship/enshrouded:latest
+
+    # Dynamic container name
+    container_name: "${INSTANCE_FULL_NAME}"
+
+    # Use the host’s network stack directly
+    network_mode: host
+
+    # Ensure these ports are forwarded to allow external access
+    ports:
+      - "15636:15636/udp"
+      - "15637:15637/udp"
+      - "27015:27015/udp"
+      - "27016:27016/udp"
+
+    volumes:
+      - "${INSTANCE_WORKING_DIR:-.}:/opt/enshrouded"
+
+    environment:
+      STEAM_USERNAME: "${STEAM_USERNAME}"
+      STEAM_PASSWORD: "${STEAM_PASSWORD}"
+
+    restart: unless-stopped
+

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 debug=
 # shellcheck disable=SC2199

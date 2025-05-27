@@ -1,32 +1,39 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Disabling SC2086 globally:
+# Exit code variables are guaranteed to be numeric and safe for unquoted use.
+# shellcheck disable=SC2086
 
 function usage() {
-  echo "Manages the various necessary files to run a game server.
+  echo "Usage: $(basename "$0") [OPTION]... [COMMAND] [FLAGS]
 
-Usage:
-  $(basename "$0") [-i | --instance <instance>] OPTION
+Manage necessary files for running a game server.
 
 Options:
-  -h, --help                 Prints this message
-  -i, --instance <instance>  Full name of the instance, equivalent of
-                             INSTANCE_FULL_NAME from the instance config file
-                             The .ini extension is not required
-    --create                 Generates all files:
-                             instance.manage.sh file, instance.override.sh
-                             file if applicable, systemd service/ socket files
-                             and ufw firewall rules if applicable.
-      [--manage]             Creates the instance.manage.sh file
-      [--override]           Creates the instance.overrides.sh file if applicable
-      [--systemd]            Generates the systemd service/socket files
-      [--ufw]                Generates the ufw firewall rule file and enables it
-    --remove                 Removes and disables systemd service/socket files
-                             and UFW firewall rule
-      [--systemd]            Removes the systemd service and socket files
-      [--ufw]                Removes the ufw firewall rule files
+  -h, --help                  Display this help and exit
+  -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
+                              Equivalent to INSTANCE_FULL_NAME in the config
+
+Commands:
+  --create                    Generate all required files:
+                                - instance.manage.sh
+                                - instance.override.sh (if applicable)
+                                - systemd service/socket files
+                                - UFW firewall rules (if applicable)
+    --manage                   Create instance.manage.sh
+    --override                 Create instance.override.sh if applicable
+    --systemd                  Generate systemd service/socket files
+    --ufw                      Generate and enable UFW firewall rule
+
+  --remove                    Remove and disable:
+                                - systemd service/socket files
+                                - UFW firewall rules
+    --systemd                  Remove systemd service/socket files
+    --ufw                      Remove UFW firewall rules
 
 Examples:
-  $(basename "$0") -i factorio-L2ZeLQ.ini --create
-  $(basename "$0") -i 7dtd-fqcLvt --remove --ufw
+  $(basename "$0") --instance factorio-space-age --create
+  $(basename "$0") -i 7dtd-32 --remove --ufw
 "
 }
 
@@ -83,148 +90,188 @@ fi
 
 instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
-source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
+source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 [[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
 
-function _create_manage_file() {
-  # shellcheck disable=SC2155
-  local manage_template_file="$(__load_template manage.tp)"
-
-  local instance_manage_file="${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.manage.sh"
-  export INSTANCE_SOCKET_FILE="${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin"
-
-  if grep -q "INSTANCE_SOCKET_FILE=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# Path to the Unix Domain Socket"
-      echo "INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE"
-    } >> "$instance_config_file"
-  fi
+function __inject_native_management_variables() {
+  # UPnP ports on startup & disabled them on shutdown
+  export USE_UPNP
 
   # shellcheck disable=SC2155
   local instance_install_subdir=$(grep "BP_INSTALL_SUBDIRECTORY=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
 
-  # Used by the template
   INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR"
   if [[ -n "$instance_install_subdir" ]]; then
     INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR/$instance_install_subdir"
   fi
 
-  # Required by the template
-  export INSTANCE_LAUNCH_DIR
-  # Stores PID of the game server
-  export INSTANCE_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.pid"
-  # Stores PID of the dummy writer that keeps input socket alive
-  export TAIL_PID_FILE="$INSTANCE_WORKING_DIR/.${INSTANCE_FULL_NAME}.tail.pid"
-
-  # This comes from config.ini
-  # Used inside the management file to determine if the instance should enable
-  # UPnP ports on startup & disabled them on shutdown
-  export USE_UPNP
-  # Needed inside the management file for description when creating UPnP entries
-  export INSTANCE_FULL_NAME
-
-  # The UPnP port definition gets added to the management file
-  INSTANCE_UPNP_PORTS=()
-
-  read -ra INSTANCE_UPNP_PORTS <<< "$(__parse_ufw_to_upnp_ports "$INSTANCE_PORT")"
-
-  if [[ -z "${#INSTANCE_UPNP_PORTS[@]}" ]]; then
-    __print_warning "Failed to generate INSTANCE_UPNP_PORTS. Disabling UPnP for instance $INSTANCE_FULL_NAME"
-    export USE_UPNP=0
-  fi
-
-  export INSTANCE_UPNP_PORTS
-
   # shellcheck disable=SC2140
-  stdout_file="$INSTANCE_LOGS_DIR/$INSTANCE_FULL_NAME-\"\$(date +"%Y-%m-%dT%H:%M:%S")\".log"
+  stdout_file="\$INSTANCE_LOGS_DIR/\$INSTANCE_FULL_NAME-\$(date +"%Y-%m-%dT%H:%M:%S").log"
 
   export INSTANCE_LOGS_REDIRECT="1>$stdout_file 2>&1"
 
-  if grep -q "INSTANCE_PID_FILE=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# File where the instance process ID will be stored while the instance is running"
-      echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
-    } >> "$instance_config_file"
-  fi
+  # Avoid evaluating INSTANCE_LAUNCH_ARGS as it can contain variables that need
+  # to just be passed along, not evaluated
+  local instance_launch_args
+  instance_launch_args="$(grep "INSTANCE_LAUNCH_ARGS=" < "$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
+  export instance_launch_args
 
-  # Create manage.sh from template and put it in $instance_manage_file
-  if ! eval "cat <<EOF
-$(< "$manage_template_file")
+  local injected_config
+  injected_config=$(
+    cat << EOF
+# Log redirection into file
+INSTANCE_LOGS_REDIRECT="$INSTANCE_LOGS_REDIRECT"
+
+# Directory from which to launch the instance binary
+INSTANCE_LAUNCH_DIR="$INSTANCE_LAUNCH_DIR"
+
+$(< "$instance_config_file")
 EOF
-" > "$instance_manage_file" 2> /dev/null; then
-    __print_error "Could not generate template for $instance_manage_file" && return 1
-  fi
+  )
 
-  INSTANCE_USER=$USER
-  if [ "$EUID" -eq 0 ]; then
-    INSTANCE_USER=$SUDO_USER
-  fi
+  local marker="# === BEGIN INJECT CONFIG ==="
 
-  # Make sure file is owned by the user and not root
-  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_manage_file"; then
-    __print_error "Failed to assing $instance_manage_file to $INSTANCE_USER" && return "$EC_PERMISSION"
-  fi
-
-  if ! chmod +x "$instance_manage_file"; then
-    __print_error "Failed to add +x permission to $instance_manage_file" && return "$EC_PERMISSION"
-  fi
-
-  if grep -q "INSTANCE_MANAGE_FILE=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_MANAGE_FILE=*/c\INSTANCE_MANAGE_FILE=$instance_manage_file" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# Path to the instance.manage.sh script file"
-      echo "INSTANCE_MANAGE_FILE=$instance_manage_file"
-    } >> "$instance_config_file"
+  # Replace the marker with the injected config
+  if ! sed -i "/${marker}/{
+      r /dev/stdin
+      d
+  }" "$INSTANCE_MANAGE_FILE" <<< "$injected_config"; then
+    __print_error "Failed to inject config into $INSTANCE_MANAGE_FILE"
+    return $EC_FAILED_TEMPLATE
   fi
 
   return 0
 }
 
-function _create_overrides_file() {
-  # shellcheck disable=SC2155
-  local overrides_file="$(find "$OVERRIDES_SOURCE_DIR" -type f -name "$INSTANCE_NAME".overrides.sh)"
-  [[ ! -f "$overrides_file" ]] && return 0
+function __inject_docker_management_variables() {
+  local injected_config
+  injected_config=$(
+    cat << EOF
+$(< "$instance_config_file")
+EOF
+  )
 
-  local instance_overrides_file=${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.overrides.sh
+  local marker="# === BEGIN INJECT CONFIG ==="
 
-  # Make copy
-  if ! cp -f "$overrides_file" "$instance_overrides_file"; then
-    __print_error "Could not copy $overrides_file to $instance_overrides_file" && return "$EC_FAILED_CP"
+  # Replace the marker with the injected config
+  if ! sed -i "/${marker}/{
+      r /dev/stdin
+      d
+  }" "$INSTANCE_MANAGE_FILE" <<< "$injected_config"; then
+    __print_error "Failed to inject config into $INSTANCE_MANAGE_FILE"
+    return $EC_FAILED_TEMPLATE
   fi
 
+  return 0
+}
+
+function _inject_management_overrides() {
+
+  # Source the overrides
+
+  # shellcheck disable=SC1090
+  source "$(__load_module overrides.sh)" "$INSTANCE_BP_NAME" || {
+    __print_error "Failed to source module overrides.sh"
+    return 1
+  }
+
+  # Check for function definitions and replace defaults with overrides
+  __print_info "Checking for overrides..."
+
+  # Check for _get_latest_version
+  if declare -F _get_latest_version > /dev/null; then
+    get_latest_version_def=$(declare -f _get_latest_version)
+    unset -f _get_latest_version
+
+    __print_into "Found definition for '_get_latest_version', overriding..."
+    sed -i "/^function _get_latest_version/,/^}/c\\$get_latest_version_def" "$INSTANCE_MANAGE_FILE"
+  fi
+
+  # Check for _download
+  if declare -F _download > /dev/null; then
+    download_def=$(declare -f _download)
+    unset -r _download
+
+    __print_into "Found definition for '_download', overriding..."
+    sed -i "/^function _download/,/^}/c\\$download_def" "$INSTANCE_MANAGE_FILE"
+  fi
+
+  # Check for _deploy
+  if declare -F _deploy > /dev/null; then
+    deploy_def=$(declare -f _deploy)
+    unset -f _deploy
+
+    __print_into "Found definition for '_deploy', overriding..."
+    sed -i "/^function _deploy/,/^}/c\\$deploy_def" "$INSTANCE_MANAGE_FILE"
+  fi
+
+  return 0
+}
+
+function _create_manage_file() {
+
+  # Prepare source file
+  local manage_template_file
+
+  __print_info "Generating management file..."
+
+  # Choose appropriate template based on runtime
+  if ! manage_template_file="$(__load_template "manage.${INSTANCE_RUNTIME}")"; then
+    __print_error "Failed to manage template for $INSTANCE_FULL_NAME"
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Create the new management file
+  if ! cp -f "$manage_template_file" "$INSTANCE_MANAGE_FILE"; then
+    __print_error "Failed to generate management template for $INSTANCE_MANAGE_FILE"
+    return $EC_FAILED_TEMPLATE
+  fi
+
+  # Inject config
+  case "$INSTANCE_RUNTIME" in
+    native)
+      __inject_native_management_variables
+      ;;
+    docker)
+      __inject_docker_management_variables
+      ;;
+    *)
+      __print_error "Invalid instance runtime: $INSTANCE_LIFECYCLE_MANAGER"
+      return $EC_GENERAL
+      ;;
+  esac
+
+  # Inject overrides
+  _inject_management_overrides
+
+  # File permissions
   INSTANCE_USER=$USER
   if [ "$EUID" -eq 0 ]; then
     INSTANCE_USER=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$instance_overrides_file"; then
-    __print_error "Failed to assing $instance_overrides_file to $INSTANCE_USER" && return "$EC_PERMISSION"
+  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$INSTANCE_MANAGE_FILE"; then
+    __print_error "Failed to assing $INSTANCE_MANAGE_FILE to user $INSTANCE_USER"
+    return $EC_PERMISSION
   fi
 
-  if grep -q "INSTANCE_OVERRIDES_FILE=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_OVERRIDES_FILE=*/c\INSTANCE_OVERRIDES_FILE=$instance_overrides_file" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# Path to the instance.overrides.sh script file"
-      echo "INSTANCE_OVERRIDES_FILE=$instance_overrides_file"
-    } >> "$instance_config_file"
+  # Make sure it's executable
+  if ! chmod +x "$INSTANCE_MANAGE_FILE"; then
+    __print_error "Failed to add +x permission to $INSTANCE_MANAGE_FILE"
+    return $EC_PERMISSION
   fi
+
+  __print_info "Management file created"
 
   return 0
 }
 
 function _systemd_uninstall() {
+
+  __print_info "Removing systemd integration..."
+
   if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
     # Nothing to uninstall
     return 0
@@ -259,31 +306,45 @@ function _systemd_uninstall() {
   fi
 
   # Reload systemd
+
+  __print_info "Reloading systemd..."
   if ! $SUDO systemctl daemon-reload; then
     __print_error "Failed to reload systemd" && return "$EC_SYSTEMD"
   fi
 
-  # Remove entries from instance config file
-  sed -i "\%# Path to the systemd instance.service file%d" "$instance_config_file" > /dev/null
-  if ! sed -i "\%INSTANCE_SYSTEMD_SERVICE_FILE=$INSTANCE_SYSTEMD_SERVICE_FILE%d" "$instance_config_file" > /dev/null; then
-    __print_error "Failed to remove INSTANCE_SYSTEMD_SERVICE_FILE from $instance_config_file" && return "$EC_FAILED_SED"
+  # Remove entries from instance config file and management file
+  if ! {
+    sed -i "\%# Path to the systemd instance.service file%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null
+    sed -i "\%INSTANCE_SYSTEMD_SERVICE_FILE=$INSTANCE_SYSTEMD_SERVICE_FILE%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null
+  }; then
+    __print_error "Failed to remove INSTANCE_SYSTEMD_SERVICE_FILE from config and management files"
+    return $EC_FAILED_SED
   fi
 
-  sed -i "\%# Path to the systemd instance.socket file%d" "$instance_config_file" > /dev/null
-  if ! sed -i "\%INSTANCE_SYSTEMD_SOCKET_FILE=$INSTANCE_SYSTEMD_SOCKET_FILE%d" "$instance_config_file" > /dev/null; then
-    __print_error "Failed to remove INSTANCE_SYSTEMD_SOCKET_FILE from $instance_config_file" && return "$EC_FAILED_SED"
+  if ! {
+    sed -i "\%# Path to the systemd instance.socket file%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null
+    sed -i "\%INSTANCE_SYSTEMD_SOCKET_FILE=$INSTANCE_SYSTEMD_SOCKET_FILE%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null
+  }; then
+    __print_error "Failed to remove INSTANCE_SYSTEMD_SOCKET_FILE from config and management files"
+    return $EC_FAILED_SED
   fi
 
   # Change the INSTANCE_LIFECYCLE_MANAGER to standalone
-  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=standalone" "$instance_config_file" > /dev/null; then
-    __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to standalone" && return "$EC_FAILED_SED"
+  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=standalone" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+    __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to standalone"
+    return $EC_FAILED_SED
   fi
+
+  __print_info "Systemd integration removed"
 
   return 0
 }
 
 function _systemd_install() {
-  [[ -z "$SYSTEMD_DIR" ]] && __print_error "SYSTEMD_DIR is expected but it's not set" && return "$EC_MISSING_ARG"
+
+  __print_info "Adding systemd integration..."
+
+  [[ -z "$SYSTEMD_DIR" ]] && __print_error "SYSTEMD_DIR is expected but it's not set" && return $EC_MISSING_ARG
 
   local service_template_file
   local socket_template_file
@@ -296,15 +357,18 @@ function _systemd_install() {
   local temp_systemd_service_file=/tmp/${INSTANCE_FULL_NAME}.service
   local temp_systemd_socket_file=/tmp/${INSTANCE_FULL_NAME}.socket
 
+  local instance_bin_absolute_path
+  instance_bin_absolute_path="$INSTANCE_LAUNCH_DIR/$INSTANCE_LAUNCH_BIN"
+
   # Required by template
-  # shellcheck disable=SC2155
-  export INSTANCE_MANAGE_FILE=$(grep "INSTANCE_MANAGE_FILE=" < "$instance_config_file" | cut -d "=" -f2 | tr -d '"')
+  export INSTANCE_BIN_ABSOLUTE_PATH="$instance_bin_absolute_path"
   export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin
 
   # If service file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_service_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
-      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" && return "$EC_GENERAL"
+      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME"
+      return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
         return "$EC_GENERAL"
@@ -315,10 +379,11 @@ function _systemd_install() {
   # If socket file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_socket_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
-      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME" && return "$EC_GENERAL"
+      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME"
+      return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
-        return "$EC_GENERAL"
+        return $EC_GENERAL
       fi
     fi
   fi
@@ -333,15 +398,18 @@ function _systemd_install() {
 $(< "$service_template_file")
 EOF
 " > "$temp_systemd_service_file" 2> /dev/null; then
-    __print_error "Could not generate $service_template_file to $temp_systemd_service_file" && return "$EC_FAILED_TEMPLATE"
+    __print_error "Could not generate $service_template_file to $temp_systemd_service_file"
+    return $EC_FAILED_TEMPLATE
   fi
 
   if ! $SUDO mv "$temp_systemd_service_file" "$instance_systemd_service_file"; then
-    __print_error "Failed to move $temp_systemd_socket_file into $instance_systemd_service_file" && return "$EC_FAILED_MV"
+    __print_error "Failed to move $temp_systemd_socket_file into $instance_systemd_service_file"
+    return $EC_FAILED_MV
   fi
 
   if ! $SUDO chown root:root "$instance_systemd_service_file"; then
-    __print_error "Failed to assign root user ownership to $instance_systemd_service_file" && return "$EC_PERMISSION"
+    __print_error "Failed to assign root user ownership to $instance_systemd_service_file"
+    return $EC_PERMISSION
   fi
 
   # Create the socket file
@@ -349,36 +417,33 @@ EOF
 $(< "$socket_template_file")
 EOF
 " > "$temp_systemd_socket_file" 2> /dev/null; then
-    __print_error "Could not generate $socket_template_file to $temp_systemd_socket_file" && return "$EC_FAILED_TEMPLATE"
+    __print_error "Could not generate $socket_template_file to $temp_systemd_socket_file"
+    return $EC_FAILED_TEMPLATE
   fi
 
   if ! $SUDO mv "$temp_systemd_socket_file" "$instance_systemd_socket_file"; then
-    __print_error "Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file" && return "$EC_FAILED_MV"
+    __print_error "Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file"
+    return $EC_FAILED_MV
   fi
 
   if ! $SUDO chown root:root "$instance_systemd_socket_file"; then
-    __print_error "Failed to assign root user ownership to $instance_systemd_socket_file" && return "$EC_PERMISSION"
+    __print_error "Failed to assign root user ownership to $instance_systemd_socket_file"
+    return $EC_PERMISSION
   fi
 
   # Reload systemd
+
+  __print_info "Reloading systemd..."
   if ! $SUDO systemctl daemon-reload; then
-    __print_error "Failed to reload systemd" && return "$EC_SYSTEMD"
+    __print_error "Failed to reload systemd"
+    return $EC_SYSTEMD
   fi
 
-  if grep -q "INSTANCE_SOCKET_FILE=" < "$instance_config_file"; then
-    if ! sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE" "$instance_config_file" > /dev/null; then
-      return "$EC_FAILED_SED"
-    fi
-  else
-    {
-      echo "# Path to the Unix Domain Socket"
-      echo "INSTANCE_SOCKET_FILE=$INSTANCE_SOCKET_FILE"
-    } >> "$instance_config_file"
-  fi
+  # Save new files into instance config file
 
   if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" < "$instance_config_file"; then
     if ! sed -i "/INSTANCE_SYSTEMD_SERVICE_FILE=*/c\INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file" "$instance_config_file" > /dev/null; then
-      return "$EC_FAILED_SED"
+      return $EC_FAILED_SED
     fi
   else
     {
@@ -389,7 +454,7 @@ EOF
 
   if grep -q "INSTANCE_SYSTEMD_SOCKET_FILE=" < "$instance_config_file"; then
     if ! sed -i "/INSTANCE_SYSTEMD_SOCKET_FILE=*/c\INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file" "$instance_config_file" > /dev/null; then
-      return "$EC_FAILED_SED"
+      return $EC_FAILED_SED
     fi
   else
     {
@@ -398,54 +463,102 @@ EOF
     } >> "$instance_config_file"
   fi
 
-  # Change the INSTANCE_LIFECYCLE_MANAGER to systemd
-  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=systemd" "$instance_config_file" > /dev/null; then
-    __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to systemd" && return "$EC_FAILED_SED"
+  # Save it into the instance's management file also. Prepend just before the bottom marker
+  local marker="# === END INJECT CONFIG ==="
+
+  if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" < "$INSTANCE_MANAGE_FILE"; then
+    if ! sed -i "/INSTANCE_SYSTEMD_SERVICE_FILE=*/c\INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+      return $EC_FAILED_SED
+    fi
+  else
+    sed -i "/${marker}/i\
+# Path to the systemd instance.service file\
+INSTANCE_SYSTEMD_SERVICE_FILE=$instance_systemd_service_file
+"
+    "$INSTANCE_MANAGE_FILE"
   fi
+
+  if grep -q "INSTANCE_SYSTEMD_SOCKET_FILE=" < "$INSTANCE_MANAGE_FILE"; then
+    if ! sed -i "/INSTANCE_SYSTEMD_SOCKET_FILE=*/c\INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+      return $EC_FAILED_SED
+    fi
+  else
+    sed -i "/${marker}/i\
+# Path to the systemd instance.socket file\
+INSTANCE_SYSTEMD_SOCKET_FILE=$instance_systemd_socket_file
+"
+    "$INSTANCE_MANAGE_FILE"
+  fi
+
+  # Change the INSTANCE_LIFECYCLE_MANAGER to systemd in both files
+  if ! sed -i "/INSTANCE_LIFECYCLE_MANAGER=*/c\INSTANCE_LIFECYCLE_MANAGER=systemd" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+    __print_error "Failed to update the INSTANCE_LIFECYCLE_MANAGER to systemd"
+    return $EC_FAILED_SED
+  fi
+
+  __print_info "Systemd integration complete"
 
   return 0
 }
 
 function _ufw_uninstall() {
+
+  __print_info "Removing UFW integration..."
+
   [[ -z "$UFW_RULES_DIR" ]] && __print_error "UFW_RULES_DIR is expected but it's not set" && return "$EC_MISSING_ARG"
   [[ -z "$INSTANCE_UFW_FILE" ]] && return 0
   [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
 
   # Remove ufw rule
+  __print_info "Deleting UFW rule"
   if ! $SUDO ufw delete allow "$INSTANCE_FULL_NAME" &> /dev/null; then
-    __print_error "Failed to remove UFW rule for $INSTANCE_FULL_NAME" && return "$EC_UFW"
+    __print_error "Failed to remove UFW rule for $INSTANCE_FULL_NAME"
+    return $EC_UFW
   fi
 
   if [ -f "$INSTANCE_UFW_FILE" ]; then
     # Delete firewall rule file
+    __print_info "Deleting rule definition file"
     if ! $SUDO rm "$INSTANCE_UFW_FILE"; then
-      __print_error "Failed to remove $INSTANCE_UFW_FILE" && return "$EC_FAILED_RM"
+      __print_error "Failed to remove $INSTANCE_UFW_FILE"
+      return $EC_FAILED_RM
     fi
   fi
 
   # Remove UFW entries from the instance config file
-  sed -i "\%# Path the the UFW firewall rule file%d" "$instance_config_file" > /dev/null
-  if ! sed -i "\%INSTANCE_UFW_FILE=$INSTANCE_UFW_FILE%d" "$instance_config_file" > /dev/null; then
-    __print_error "Failed to remove UFW firewall rule file from $instance_config_file" && return "$EC_UFW"
+  sed -i "\%# Path the the UFW firewall rule file%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null
+  if ! sed -i "\%INSTANCE_UFW_FILE=$INSTANCE_UFW_FILE%d" "$instance_config_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+    __print_error "Failed to remove UFW firewall rule file from config and management files"
+    return $EC_UFW
   fi
+
+  __print_info "UFW integration removed"
 
   return 0
 }
 
 function _ufw_install() {
-  [[ -z "$UFW_RULES_DIR" ]] && __print_error "UFW_RULES_DIR is expected but it's not set" && return "$EC_MISSING_ARG"
+
+  __print_info "Adding UFW integration..."
+
+  if [[ -z "$UFW_RULES_DIR" ]]; then
+    __print_error "UFW_RULES_DIR is expected but it's not set"
+    return $EC_MISSING_ARG
+  fi
 
   local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_FULL_NAME}
   local temp_ufw_file=/tmp/kgsm-${INSTANCE_FULL_NAME}
 
   # If firewall rule file already exists, remove it
-  if [ -f "$instance_ufw_file" ]; then
-    if ! _ufw_uninstall; then return "$EC_GENERAL"; fi
+  if [[ -f "$instance_ufw_file" ]]; then
+    __print_error "A UFW rule definition file for this instance already exists at '${instance_ufw_file}'. Manually remove it before trying again"
+    return $EC_GENERAL
   fi
 
   # shellcheck disable=SC2155
   local ufw_template_file="$(__load_template ufw.tp)"
 
+  __print_info "Creating UFW rule definition file"
   # Create firewall rule file from template
   if ! eval "cat <<EOF
 $(< "$ufw_template_file")
@@ -464,13 +577,14 @@ EOF
   fi
 
   # Enable firewall rule
+  __print_info "Allowing UFW rule"
   if ! $SUDO ufw allow "$INSTANCE_FULL_NAME" &> /dev/null; then
     __print_error "Failed to allow UFW rule for $INSTANCE_FULL_NAME" && return "$EC_UFW"
   fi
 
   if grep -q "INSTANCE_UFW_FILE=" < "$instance_config_file"; then
     if ! sed -i "/INSTANCE_UFW_FILE=*/c\INSTANCE_UFW_FILE=$instance_ufw_file" "$instance_config_file" > /dev/null; then
-      return "$EC_FAILED_SED"
+      return $EC_FAILED_SED
     fi
   else
     {
@@ -479,12 +593,35 @@ EOF
     } >> "$instance_config_file"
   fi
 
+  # Update INSTANCE_MANAGE_FILE UFW definition
+
+  local marker="=== END INJECT CONFIG ==="
+
+  if grep -q "INSTANCE_UFW_FILE=" < "$INSTANCE_MANAGE_FILE"; then
+    if ! sed -i "/INSTANCE_UFW_FILE=*/c\INSTANCE_UFW_FILE=$instance_ufw_file" "$INSTANCE_MANAGE_FILE" > /dev/null; then
+      return $EC_FAILED_SED
+    fi
+  else
+    sed -i "/${marker}/i\
+# Path the the UFW firewall rule file
+INSTANCE_UFW_FILE=$instance_ufw_file
+"
+    "$INSTANCE_MANAGE_FILE"
+  fi
+
+  __print_info "UFW integration complete"
+
   return 0
+}
+
+function _create_symlink() {
+
+
+  __print_info "Instance \"${instance%.ini}\" symlink created in $INSTANCE_MANAGEMENT_SYMLINK_DIR"
 }
 
 function _create() {
   _create_manage_file || return $?
-  _create_overrides_file || return $?
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     _systemd_install || return $?
@@ -492,6 +629,10 @@ function _create() {
 
   if [[ "$USE_UFW" -eq 1 ]]; then
     _ufw_install || return $?
+  fi
+
+  if [[ "$USE_INSTANCE_MANAGEMENT_SYMLINK" -eq 1 ]]; then
+    _create_symlink || return $?
   fi
 
   __emit_instance_files_created "${instance%.ini}"
@@ -525,10 +666,6 @@ while [ $# -gt 0 ]; do
           _create_manage_file
           exit $?
           ;;
-        --override)
-          _create_overrides_file
-          exit $?
-          ;;
         --systemd)
           _systemd_install
           exit $?
@@ -538,7 +675,8 @@ while [ $# -gt 0 ]; do
           exit $?
           ;;
         *)
-          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          __print_error "Invalid argument $1"
+          exit $EC_INVALID_ARG
           ;;
       esac
       ;;
@@ -558,13 +696,17 @@ while [ $# -gt 0 ]; do
           exit $?
           ;;
         *)
-          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          __print_error "Invalid argument $1"
+          exit $EC_INVALID_ARG
           ;;
       esac
       ;;
     *)
-      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+      __print_error "Invalid argument $1"
+      exit$EC_INVALID_ARG
       ;;
   esac
   shift
 done
+
+exit $?

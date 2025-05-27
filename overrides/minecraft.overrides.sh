@@ -1,26 +1,41 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
-# Uncomment and use any of the following functions, they will be called from
-# other scripts at various stages of the install/update/backup/setup process.
+# Uncomment and use any of the following functions, they will be used to
+# override the default function when generating a instance's management file
 ################################################################################
 #
 # Brief description of each:
 #
-# func_get_latest_version       Should always return the latest available
-#                               version, or EXITSTATUS_ERROR in case there's
-#                               any problem fetching the latest version nr.
+# INPUT:
+# - void
 #
-# func_download                 In charge of downloading all the required files
+# OUTPUT:
+# - echo "$version": Success
+# - exit 1: Error
+# _get_latest_version           Should always return the latest available
+#                               version, or 1 in case there's any problem.
+#
+# INPUT:
+# - $1: Version
+#
+# OUTPUT:
+# - exit 0: Success
+# - exit 1: Error
+# _download                     In charge of downloading all the required files
 #                               for the service, extract any zips, move, copy,
-#                               rename, remove, etc. It should leave the
-#                               SERVICE_TEMP_DIR with a fully working setup that
-#                               can be called and executed as if it was a full
-#                               install.
+#                               rename, remove, etc. It should leave the $2
+#                               with a fully working setup that can be called
+#                               and executed as if it was a full install.
 #
-# func_deploy                   Will move everything from the SERVICE_TEMP_DIR
-#                               into SERVICE_INSTALL_DIR, do any more cleanup
-#                               that couldn't be done by func_download.
+# INPUT:
+# - void
+#
+# OUTPUT:
+# - exit 0: Success
+# - exit 1: Error
+# _deploy                       Will move everything from $1 into $2 and do any
+#                               cleanup that couldn't be done by func_download.
 #
 ################################################################################
 #
@@ -60,28 +75,43 @@
 # OUTPUT:
 # - 0: Success (echo "$new_version")
 # - 1: Error
-function func_get_latest_version() {
-  wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r '{latest: .latest.release} | .[]' | tr -d '"'
+function _get_latest_version() {
+  wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json \
+    | jq -r '{latest: .latest.release} | .[]' \
+    | tr -d '"'
 }
 
 # INPUT:
 # - $1: Version
-# - $2: Destination directory, absolute path
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-function func_download() {
+function _download() {
   local version=$1
-  local dest=$2
+  local dest=$INSTANCE_TEMP_DIR
 
   # shellcheck disable=SC2155
-  local release_url="$(wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]")"
-  [[ -z "$release_url" ]] && __print_error "Could not find the URL of the latest release, exiting" && return 1
+  local release_url="$(
+    wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json \
+      | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]"
+  )"
+
+  if [[ -z "$release_url" ]]; then
+    __print_error "Could not find the URL of the latest release, exiting"
+    return 1
+  fi
 
   # shellcheck disable=SC2155
-  local release_server_jar_url="$(wget -qO - "$release_url" | jq -r '{url: .downloads.server.url} | .[]')"
-  [[ -z "$release_server_jar_url" ]] && __print_error "Could not find the URL of the JAR file" && return 1
+  local release_server_jar_url="$(
+    wget -qO - "$release_url" \
+      | jq -r '{url: .downloads.server.url} | .[]'
+  )"
+
+  if [[ -z "$release_server_jar_url" ]]; then
+    __print_error "Could not find the URL of the JAR file"
+    return 1
+  fi
 
   local local_release_jar="$dest/minecraft_server.$version.jar"
 
@@ -93,23 +123,23 @@ function func_download() {
 }
 
 # INPUT:
-# - $1: Source directory, absolute path
-# - $2: Destination directory, absolute path
+# - Void
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-function func_deploy() {
-  local source=$1
-  local dest=$2
+function _deploy() {
+  local source=$INSTANCE_TEMP_DIR
+  local dest=$INSTANCE_INSTALL_DIR
 
   if ! mv -f "$source"/*.jar "$dest"/release.jar; then
-    __print_error "mv -f $source/* $dest/" && return 1
+    __print_error "mv -f $source/* $dest/"
+    return 1
   fi
 
   local eula_file=$dest/eula.txt
 
-  if ! echo "eula=true" >"$eula_file"; then
+  if ! echo "eula=true" > "$eula_file"; then
     __print_warning "Failed to configure eula.txt file, continuing"
   fi
 

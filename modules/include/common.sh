@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Disabling SC2086 globally:
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.

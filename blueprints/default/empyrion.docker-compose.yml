@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  empyrion:
+
+    image: ghcr.io/thekrystalship/empyrion:latest
+
+    # Dynamic container name
+    container_name: "${INSTANCE_FULL_NAME}"
+
+    # Use the host’s network stack directly
+    network_mode: host
+
+    # Ensure these ports are forwarded to allow external access
+    ports:
+      - "30000:30000/udp"
+      - "30001:30001/udp"
+      - "30002:30002/udp"
+      - "30003:30003/udp"
+      - "27015:27015/udp"
+      - "27016:27016/udp"
+
+    volumes:
+      - "${INSTANCE_WORKING_DIR:-.}:/opt/empyrion"
+
+    environment:
+      STEAM_USERNAME: "${STEAM_USERNAME}"
+      STEAM_PASSWORD: "${STEAM_PASSWORD}"
+
+    restart: unless-stopped
+

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 function usage() {
   echo "Runs the deployment process
@@ -25,8 +25,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
+      --debug) continue ;;
+      *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -35,17 +35,17 @@ if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  -h | --help)
-    usage && exit 0
-    ;;
-  -i | --instance)
-    shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    instance=$1
-    ;;
-  *)
-    echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
-    ;;
+    -h | --help)
+      usage && exit 0
+      ;;
+    -i | --instance)
+      shift
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+      instance=$1
+      ;;
+    *)
+      echo "${0##*/} ERROR: Invalid argument $1" >&2 && exit 1
+      ;;
   esac
   shift
 done
@@ -74,25 +74,8 @@ source "$(__load_instance "$instance")" || exit "$EC_FAILED_SOURCE"
 
 module_overrides=$(__load_module overrides.sh)
 
-function func_deploy() {
-  local source=$1
-  local dest=$2
-
-  # Check if $source is empty
-  if [ -z "$(ls -A -I .gitignore "$source")" ]; then
-    __print_warning "$source is empty, nothing to deploy. Exiting" && return "$EC_FAILED_DEPLOY"
-  fi
-
-  # Copy everything from $source into $dest
-  if ! cp -rf "$source"/* "$dest"; then
-    __print_error "Failed to copy contents from $source into $dest" && return "$EC_FAILED_CP"
-  fi
-
-  if ! rm -rf "${source:?}"/*; then
-    __print_error "Failed to clear $source" && return "$EC_FAILED_RM"
-  fi
-
-  return 0
+function _deploy() {
+  "$INSTANCE_MANAGE_FILE" --deploy $debug
 }
 
 # shellcheck disable=SC1090
@@ -100,7 +83,7 @@ source "$module_overrides" "$instance" || exit "$EC_FAILED_SOURCE"
 
 __emit_instance_deploy_started "${instance%.ini}"
 
-func_deploy "$INSTANCE_TEMP_DIR" "$INSTANCE_INSTALL_DIR" || exit $?
+_deploy || exit $?
 
 __emit_instance_deploy_finished "${instance%.ini}"
 

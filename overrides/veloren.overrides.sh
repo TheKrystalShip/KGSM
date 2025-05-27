@@ -1,26 +1,41 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
-# Uncomment and use any of the following functions, they will be called from
-# other scripts at various stages of the install/update/backup/setup process.
+# Uncomment and use any of the following functions, they will be used to
+# override the default function when generating a instance's management file
 ################################################################################
 #
 # Brief description of each:
 #
-# func_get_latest_version       Should always return the latest available
-#                               version, or EXITSTATUS_ERROR in case there's
-#                               any problem fetching the latest version nr.
+# INPUT:
+# - void
 #
-# func_download                 In charge of downloading all the required files
+# OUTPUT:
+# - echo "$version": Success
+# - exit 1: Error
+# _get_latest_version           Should always return the latest available
+#                               version, or 1 in case there's any problem.
+#
+# INPUT:
+# - $1: Version
+#
+# OUTPUT:
+# - exit 0: Success
+# - exit 1: Error
+# _download                     In charge of downloading all the required files
 #                               for the service, extract any zips, move, copy,
-#                               rename, remove, etc. It should leave the
-#                               SERVICE_TEMP_DIR with a fully working setup that
-#                               can be called and executed as if it was a full
-#                               install.
+#                               rename, remove, etc. It should leave the $2
+#                               with a fully working setup that can be called
+#                               and executed as if it was a full install.
 #
-# func_deploy                   Will move everything from the SERVICE_TEMP_DIR
-#                               into SERVICE_INSTALL_DIR, do any more cleanup
-#                               that couldn't be done by func_download.
+# INPUT:
+# - void
+#
+# OUTPUT:
+# - exit 0: Success
+# - exit 1: Error
+# _deploy                       Will move everything from $1 into $2 and do any
+#                               cleanup that couldn't be done by func_download.
 #
 ################################################################################
 #
@@ -60,7 +75,7 @@
 # OUTPUT:
 # - void: Success (echo "$new_version")
 # - 1: Error
-function func_get_latest_version() {
+function _get_latest_version() {
   # TODO: Veloren doesn't have an API to check for new version releases,
   # gonna have to do some manual work.
   # This will download once for a clean install
@@ -69,44 +84,45 @@ function func_get_latest_version() {
 
 # INPUT:
 # - $1: Version
-# - $2: Destination directory, absolute path
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-function func_download() {
+function _download() {
   # https://download.veloren.net/latest/linux/x86_64/weekly
   local version=$1
-  local dest=$2
+  local dest=$INSTANCE_TEMP_DIR
 
   local download_url="https://download.veloren.net/latest/linux/x86_64/weekly"
 
   # Download zip file in $dest
   if ! wget -P "$dest" "$download_url"; then
-    __print_error "wget -P $dest $download_url" && return 1
+    __print_error "wget -P $dest $download_url"
+    return 1
   fi
 
   # Extract zipped contents in the same $dest
   if ! unzip "$dest"/weekly -d "$dest"; then
-    __print_error "unzip $dest/weekly -d $dest" && return 1
+    __print_error "unzip $dest/weekly -d $dest"
+    return 1
   fi
 
   # Remove zip file
   if ! rm "$dest"/weekly; then
-    __print_error "rm $dest/weekly" && return 1
+    __print_error "rm $dest/weekly"
+    return 1
   fi
 
   return 0
 }
 
 # INPUT:
-# - $1: Source directory, absolute path
-# - $2: Destination directory, absolute path
+# - Void
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-# function func_deploy() {
+# function _deploy() {
 #   local source=$1
 #   local dest=$2
 #   return 0

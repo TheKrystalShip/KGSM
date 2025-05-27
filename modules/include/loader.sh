@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Blueprints (*.bp) are stored here
 export BLUEPRINTS_SOURCE_DIR=$KGSM_ROOT/blueprints

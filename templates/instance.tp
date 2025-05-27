@@ -1,37 +1,56 @@
-# KGSM Instance template
-
 # Unique identifier
-INSTANCE_ID=$instance_id
+INSTANCE_ID="$instance_id"
 
 # Instance name, same as blueprint BP_NAME
-INSTANCE_NAME=$instance_name
+INSTANCE_NAME="$instance_name"
 
 # Full name, INSTANCE_NAME + INSTANCE_ID
-INSTANCE_FULL_NAME=$instance_full_name
+INSTANCE_FULL_NAME="$instance_full_name"
+
+# Path to the instance.manage.sh script file"
+INSTANCE_MANAGE_FILE="$instance_manage_file"
 
 # Working directory where the instance is located
-INSTANCE_WORKING_DIR=$instance_working_dir
+INSTANCE_WORKING_DIR="$instance_working_dir"
 
 # DateTime when instance was spawned
-INSTANCE_INSTALL_DATETIME=$instance_install_datetime
+INSTANCE_INSTALL_DATETIME="$instance_install_datetime"
 
 # Path to the blueprints used to spawn the instance
-INSTANCE_BLUEPRINT_FILE=$instance_blueprint_file
+INSTANCE_BLUEPRINT_FILE="$instance_blueprint_file"
 
 # Savefile name / world name / level, whichever is applicable
-INSTANCE_LEVEL_NAME=$instance_level_name
+INSTANCE_LEVEL_NAME="$instance_level_name"
 
 # Network port
-INSTANCE_PORT=$instance_port
+INSTANCE_PORT="$instance_port"
 
 # The executable in charge of starting the service
-INSTANCE_LAUNCH_BIN=$instance_launch_bin
+INSTANCE_LAUNCH_BIN="$instance_launch_bin"
 
 # The arguments passed to the INSTANCE_LAUNCH_BIN
-INSTANCE_LAUNCH_ARGS=$instance_launch_args
+INSTANCE_LAUNCH_ARGS="$instance_launch_args"
 
 # Who's in charge of managing the lifecycle of the instance
 # Values:
 #   - standalone
 #   - systemd
-INSTANCE_LIFECYCLE_MANAGER=$instance_lifecycle_manager
+INSTANCE_LIFECYCLE_MANAGER="$instance_lifecycle_manager"
+
+# The program in charge of actually launching the instance
+# Values:
+#   - native
+#   - docker
+INSTANCE_RUNTIME="$instance_runtime"
+
+# Timeout for the "save" command
+INSTANCE_SAVE_COMMAND_TIMEOUT_S="$instance_save_command_timeout_s"
+
+# Timeout for the "stop" command
+INSTANCE_STOP_COMMAND_TIMEOUT_S="$instance_stop_command_timeout_s"
+
+# UPnP enabled/disabled
+INSTANCE_USE_UPNP="$instance_use_upnp"
+
+# Backup file compression enabled/disabled
+INSTANCE_COMPRESS_BACKUPS="$instance_compress_backups"

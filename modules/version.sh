@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Disabling SC2086 globally:
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
@@ -36,8 +36,10 @@ Examples:
 "
 }
 
+debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
+  debug=" --debug"
   export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
   set -x
   for a; do
@@ -88,106 +90,37 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-module_overrides=$(__load_module overrides.sh)
-
 instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit $EC_FAILED_SOURCE
-
-# https://github.com/ValveSoftware/steam-for-linux/issues/10975
-function func_get_latest_version() {
-
-  app_id="$(grep "BP_APP_ID=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
-  {
-    [[ -z "$app_id" ]] || [[ "$app_id" -eq 0 ]]
-  } && __print_error "APP_ID is expected but it's not set" && return $EC_MALFORMED_INSTANCE
-
-  username=anonymous
-  auth_level="$(grep "BP_STEAM_AUTH_LEVEL=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d '=' -f2 | tr -d '"')"
-  if [[ $auth_level -ne 0 ]]; then
-    [[ -z "$STEAM_USERNAME" ]] && __print_error "STEAM_USERNAME is expected but it's not set" && return $EC_MISSING_ARG
-    [[ -z "$STEAM_PASSWORD" ]] && __print_error "STEAM_PASSWORD is expected but it's not set" && return $EC_MISSING_ARG
-
-    username="$STEAM_USERNAME $STEAM_PASSWORD"
-  fi
-
-  local latest_version
-  latest_version=$(steamcmd \
-    +login $username \
-    +app_info_update 1 \
-    +app_info_print $app_id \
-    +quit | tr '\n' ' ' | grep \
-    --color=NEVER \
-    -Po '"branches"\s*{\s*"public"\s*{\s*"buildid"\s*"\K(\d*)')
-
-  if [[ -z "$latest_version" ]]; then
-    __print_error "Failed to retrieve latest version, got empty response from SteamCMD"
-    return "$EC_GENERAL"
-  fi
-
-  echo "$latest_version"
-}
-
-function _compare() {
-  [[ -z "$INSTANCE_INSTALLED_VERSION" ]] && __print_error "$instance is missing INSTANCE_INSTALLED_VERSION varible" && return $EC_MALFORMED_INSTANCE
-
-  local latest_version
-  latest_version=$(func_get_latest_version)
-
-  [[ -z "$latest_version" ]] && return $EC_GENERAL
-  [[ "$latest_version" == "$INSTANCE_INSTALLED_VERSION" ]] && return $EC_GENERAL
-
-  echo "$latest_version"
-}
-
-function _save_version() {
-  local version=$1
-
-  if grep -q "INSTANCE_INSTALLED_VERSION=" < "$instance_config_file"; then
-    if ! sed -i "/INSTANCE_INSTALLED_VERSION=*/c\INSTANCE_INSTALLED_VERSION=$version" "$instance_config_file" > /dev/null; then
-      return $EC_FAILED_SED
-    fi
-  else
-    {
-      echo ""
-      echo "# Installed version"
-      echo "INSTANCE_INSTALLED_VERSION=$version"
-    } >> "$instance_config_file"
-  fi
-
-  echo "$version" > "${INSTANCE_WORKING_DIR}/${INSTANCE_FULL_NAME}.version"
-
-  __emit_instance_version_updated "${instance%.ini}" "$INSTANCE_INSTALLED_VERSION" "$version"
-
-  return 0
-}
-
-# shellcheck disable=SC1090
-source "$module_overrides" "$instance"
 
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
     --compare)
-      _compare
-      exit $?
+      "$INSTANCE_MANAGE_FILE" --version --compare $debug
       ;;
     --installed)
-      echo "$INSTANCE_INSTALLED_VERSION" && exit 0
+      "$INSTANCE_MANAGE_FILE" --version --installed $debug
       ;;
     --latest)
-      func_get_latest_version
-      exit $?
+      "$INSTANCE_MANAGE_FILE" --version --latest $debug
       ;;
     --save)
       shift
-      [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit $EC_MISSING_ARG
-      _save_version "$1"
-      exit $?
+      if [[ -z "$1" ]]; then
+        __print_error "Missing argument <version>"
+        exit $EC_MISSING_ARG
+      fi
+
+      "$INSTANCE_MANAGE_FILE" --version --save "$1" $debug
       ;;
     *)
-      __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
       ;;
   esac
   shift
 done
+
+exit $?

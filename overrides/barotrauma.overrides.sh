@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
-# Uncomment and use any of the following functions, they will be called from
-# other scripts at various stages of the install/update/backup/setup process.
+# Uncomment and use any of the following functions, they will be used to
+# override the default function when generating a instance's management file
 ################################################################################
 #
 # Brief description of each:
@@ -13,30 +13,28 @@
 # OUTPUT:
 # - echo "$version": Success
 # - exit 1: Error
-# func_get_latest_version       Should always return the latest available
+# _get_latest_version           Should always return the latest available
 #                               version, or 1 in case there's any problem.
 #
 # INPUT:
 # - $1: Version
-# - $2: Destination directory, absolute path
 #
 # OUTPUT:
 # - exit 0: Success
 # - exit 1: Error
-# func_download                 In charge of downloading all the required files
+# _download                     In charge of downloading all the required files
 #                               for the service, extract any zips, move, copy,
 #                               rename, remove, etc. It should leave the $2
 #                               with a fully working setup that can be called
 #                               and executed as if it was a full install.
 #
 # INPUT:
-# - $1: Source directory, absolute path
-# - $2: Destination directory, absolute path
+# - void
 #
 # OUTPUT:
 # - exit 0: Success
 # - exit 1: Error
-# func_deploy                   Will move everything from $1 into $2 and do any
+# _deploy                       Will move everything from $1 into $2 and do any
 #                               cleanup that couldn't be done by func_download.
 #
 ################################################################################
@@ -71,54 +69,52 @@
 # (Optional) INSTANCE_SYSTEMD_SOCKET_FILE
 ################################################################################
 
-
-
 # INPUT:
 # - void
 #
 # OUTPUT:
 # - void: Success (echo "$new_version")
 # - 1: Error
-# function func_get_latest_version() {
+# function _get_latest_version() {
 #   echo ""
 # }
 
 # INPUT:
 # - $1: Version
-# - $2: Destination directory, absolute path
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-# function func_download() {
+# function _download() {
 #   local version=$1
-#   local dest=$2
 #
 #   return 0
 # }
 
 # INPUT:
-# - $1: Source directory, absolute path
-# - $2: Destination directory, absolute path
+# - Void
 #
 # OUTPUT:
 # - 0: Success
 # - 1: Error
-function func_deploy() {
-  local source=$1
-  local dest=$2
+function _deploy() {
+  local source=$INSTANCE_TEMP_DIR
+  local dest=$INSTANCE_INSTALL_DIR
 
   if ! cp -r "$source"/* "$dest"; then
-    __print_error "Failed to copy $source into $dest" && return 1
+    __print_error "Failed to copy $source into $dest"
+    return 1
   fi
 
   if ! rm -rf "${source:?}/*"; then
-    __print_error "Failed to clear $source" && return 1
+    __print_error "Failed to clear $source"
+    return 1
   fi
 
   # https://barotraumagame.com/wiki/Hosting_a_Dedicated_Server#Linux_Dedicated_Server_Hosting
   if ! mkdir -p "${HOME}/.local/share/Daedalic Entertainment GmbH/Barotrauma"; then
-    __print_error "Failed to create required directory" && return 1
+    __print_error "Failed to create required directory"
+    return 1
   fi
 
   return 0

@@ -28,7 +28,7 @@ Before diving in, make sure your system has the following packages:
 These are used throughout KGSM, without them it won't function.
 
 ```sh
-grep jq wget unzip tar sed coreutils findutils steamcmd
+grep jq wget unzip tar sed coreutils findutils steamcmd inotify-tools
 ```
 
 ### Optional dependencies:
