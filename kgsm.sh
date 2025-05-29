@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Disable shellcheck for double quotes, as it will complain about
+# the variables being used in the functions below.
+# shellcheck disable=SC2086
+
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -78,6 +82,7 @@ Options:
   --update-config             Update config.ini with the latest options added
                               or modified in config.default.ini
   --ip                        Print the external server IP address.
+  --config                    Modify the configuration file.
   -v, --version               Print the KGSM version.
 
 ${UNDERLINE}Blueprints${END}
@@ -235,11 +240,6 @@ done
 module_blueprints=$(__load_module blueprints.sh)
 module_directories=$(__load_module directories.sh)
 module_files=$(__load_module files.sh)
-module_version=$(__load_module version.sh)
-module_download=$(__load_module download.sh)
-module_deploy=$(__load_module deploy.sh)
-module_update=$(__load_module update.sh)
-module_backup=$(__load_module backup.sh)
 module_instance=$(__load_module instances.sh)
 module_lifecycle=$(__load_module lifecycle.sh)
 
@@ -249,6 +249,8 @@ function _install() {
   # Value of 0 means get latest
   local version=$3
   local identifier=${4:-}
+
+  __print_info "Installing $blueprint in $install_dir"
 
   if [[ "$blueprint" != *.bp ]]; then
     blueprint="${blueprint}.bp"
@@ -272,13 +274,20 @@ function _install() {
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
 
+  # After generating the instance and the files, we need to load the instance
+  # config file so we can use the variables defined in it.
+  # From this point on, we will use the instance managment file to handle
+  # the next installation steps.
+
+  # shellcheck disable=SC1090
+  source "$(__load_instance "$instance")" || return $EC_FAILED_SOURCE
   if [[ "$version" == 0 ]]; then
-    version=$("$module_version" -i "$instance" --latest)
+    version=$("$INSTANCE_MANAGE_FILE" --version --latest)
   fi
 
-  "$module_download" -i "$instance" -v "$version" $debug || return $?
-  "$module_deploy" -i "$instance" $debug || return $?
-  "$module_version" -i "$instance" --save "$version" $debug || return $?
+  "$INSTANCE_MANAGE_FILE" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
+  "$INSTANCE_MANAGE_FILE" --deploy $debug || return $EC_FAILED_DEPLOY
+  "$INSTANCE_MANAGE_FILE" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
 
   __emit_instance_installation_finished "${instance%.ini}" "${blueprint}"
 
@@ -408,7 +417,12 @@ KGSM - Interactive menu
       ;;
   esac
 
-  [[ "${#blueprints_or_instances[@]}" -eq 0 ]] && __print_warning "No instances found" && return 0
+  # If the user selected an action that requires a blueprint or instance,
+  # check if there are any available.
+  if [[ "${#blueprints_or_instances[@]}" -eq 0 ]]; then
+    __print_warning "No instances found"
+    return 0
+  fi
 
   # Select blueprint/instance for the action
   select bp in "${blueprints_or_instances[@]}"; do
@@ -448,7 +462,7 @@ KGSM - Interactive menu
       ;;
     --restore-backup)
       # shellcheck disable=SC2207
-      backups_array=($("$module_backup" -i "$blueprint_or_instance" --list))
+      backups_array=($("$INSTANCE_MANAGE_FILE" --list-backups))
       [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
 
       PS3="Choose a backup to restore: "
@@ -471,6 +485,8 @@ KGSM - Interactive menu
         ["Remove systemd"]="--remove systemd"
         ["Add ufw"]="--add ufw"
         ["Remove ufw"]="--remove ufw"
+        ["Add symlink"]="--add symlink"
+        ["Remove symlink"]="--remove symlink"
       )
       local mod_action
 
@@ -487,6 +503,12 @@ KGSM - Interactive menu
         modify_options+=("Remove ufw")
       else
         modify_options+=("Add ufw")
+      fi
+
+      if grep -q "INSTANCE_SYMLINK=" < "$instance_config_file"; then
+        modify_options+=("Remove symlink")
+      else
+        modify_options+=("Add symlink")
       fi
 
       select mod_arg in "${modify_options[@]}"; do
@@ -617,6 +639,12 @@ while [[ "$#" -gt 0 ]]; do
         __print_error "wget is required but not installed" && exit "$EC_MISSING_DEPENDENCY"
       fi
       ;;
+    --config)
+      ${EDITOR:-vim} "$CONFIG_FILE" || {
+        __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
+        exit "$EC_GENERAL"
+      }
+      ;;
     --update)
       update_script "$@"
       exit $?
@@ -655,6 +683,9 @@ while [[ "$#" -gt 0 ]]; do
       shift
       [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
       instance=$1
+
+      # shellcheck disable=SC1090
+      source "$(__load_instance "$instance")" || exit $EC_FAILED_SOURCE
       shift
       [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
       case "$1" in
@@ -689,7 +720,7 @@ while [[ "$#" -gt 0 ]]; do
           exit $?
           ;;
         --save)
-          "$module_instance" --save "$instance" $debug
+          "$INSTANCE_MANAGE_FILE" --save $debug
           exit $?
           ;;
         --input)
@@ -701,74 +732,41 @@ while [[ "$#" -gt 0 ]]; do
         -v | --version)
           shift
           if [[ -z "$1" ]]; then
-            "$module_version" -i "$instance" --installed $debug
+            "$INSTANCE_MANAGE_FILE" --version --installed $debug
             exit $?
           fi
           case "$1" in
             --installed)
-              "$module_version" -i "$instance" --installed $debug
+              "$INSTANCE_MANAGE_FILE" --version --installed $debug
               exit $?
               ;;
             --latest)
-              "$module_version" -i "$instance" --latest $debug
+              "$INSTANCE_MANAGE_FILE" --version --latest $debug
               exit $?
               ;;
             *) __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG" ;;
           esac
           ;;
         --check-update)
-          case "$1" in
-            -h | --help)
-              "$module_version" --help
-              exit $?
-              ;;
-            *)
-              "$module_version" -i "$instance" --compare $debug
-              exit $?
-              ;;
-          esac
+          "$INSTANCE_MANAGE_FILE" --version --compare $debug
+          exit $?
           ;;
         --update)
-          case "$1" in
-            -h | --help)
-              "$module_update" --help
-              exit $?
-              ;;
-            *)
-              "$module_update" -i "$instance" $debug
-              exit $?
-              ;;
-          esac
+          "$INSTANCE_MANAGE_FILE" --update $debug
+          exit $?
           ;;
         --backups)
-          "$module_backup" -i "$instance" --list $debug
+          "$INSTANCE_MANAGE_FILE" --list-backups $debug
           exit $?
           ;;
         --create-backup)
-          case "$1" in
-            -h | --help)
-              "$module_backup" --help
-              exit $?
-              ;;
-            *)
-              "$module_backup" -i "$instance" --create $debug
-              exit $?
-              ;;
-          esac
+          "$INSTANCE_MANAGE_FILE" --create-backup $debug
+          exit $?
           ;;
         --restore-backup)
           [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit "$EC_MISSING_ARG"
-          shift
-          case "$1" in
-            -h | --help)
-              "$module_backup" --help
-              exit $?
-              ;;
-            *)
-              "$module_backup" -i "$instance" --restore "$1" $debug
-              exit $?
-              ;;
-          esac
+          "$INSTANCE_MANAGE_FILE" --restore-backup "$1" $debug
+          exit $?
           ;;
         --modify)
           shift
@@ -784,6 +782,10 @@ while [[ "$#" -gt 0 ]]; do
                   ;;
                 systemd)
                   "$module_files" -i "$instance" --create --systemd $debug
+                  exit $?
+                  ;;
+                symlink)
+                  "$module_files" -i "$instance" --create --symlink $debug
                   exit $?
                   ;;
                 *)
@@ -802,6 +804,10 @@ while [[ "$#" -gt 0 ]]; do
                   ;;
                 systemd)
                   "$module_files" -i "$instance" --remove --systemd $debug
+                  exit $?
+                  ;;
+                symlink)
+                  "$module_files" -i "$instance" --remove --symlink $debug
                   exit $?
                   ;;
                 *)

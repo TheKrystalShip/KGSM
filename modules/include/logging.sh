@@ -28,13 +28,6 @@ export LOG_LEVEL_ERROR="ERROR"
 export LOGS_SOURCE_DIR=$KGSM_ROOT/logs
 export LOG_FILE="$LOGS_SOURCE_DIR/kgsm.log"
 
-declare -A LOG_LEVEL_COLOR_MAP=(
-  [$LOG_LEVEL_SUCCESS]=$COLOR_GREEN
-  [$LOG_LEVEL_INFO]=$COLOR_BLUE
-  [$LOG_LEVEL_WARNING]=$COLOR_ORANGE
-  [$LOG_LEVEL_ERROR]=$COLOR_RED
-)
-
 # Don't call directly, use the __print_* functions instead
 function __log_message() {
   local log_level="$1"
@@ -42,12 +35,22 @@ function __log_message() {
   local timestamp
   timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
-  local printable_log_entry="[${LOG_LEVEL_COLOR_MAP[$log_level]}$log_level${COLOR_END}] $message"
+  # This works if declared in here but not if declared outside
+  # of the function why?
+  declare -A LOG_LEVEL_COLOR_MAP=(
+    ["$LOG_LEVEL_SUCCESS"]="$COLOR_GREEN"
+    ["$LOG_LEVEL_INFO"]="$COLOR_BLUE"
+    ["$LOG_LEVEL_WARNING"]="$COLOR_ORANGE"
+    ["$LOG_LEVEL_ERROR"]="$COLOR_RED"
+  )
+
+  # Get the color for the log level
+  local colored_log_level="${LOG_LEVEL_COLOR_MAP[$log_level]:-$COLOR_END}"
+
+  local printable_log_entry="[${colored_log_level}${log_level}${COLOR_END}] $message"
   local log_entry="[$timestamp] [$log_level] $message"
 
-  if [[ ! -d "$LOGS_SOURCE_DIR" ]]; then
-    mkdir -p "$LOGS_SOURCE_DIR"
-  fi
+  _create_dir "$LOGS_SOURCE_DIR"
 
   # Rotate log file if it reaches the size limit
   if [[ -f "$LOG_FILE" ]] && [[ "$(stat --format=%s "$LOG_FILE")" -ge "$LOG_FILE_MAX_SIZE" ]]; then

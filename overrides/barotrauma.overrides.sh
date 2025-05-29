@@ -98,8 +98,15 @@
 # - 0: Success
 # - 1: Error
 function _deploy() {
-  local source=$INSTANCE_TEMP_DIR
-  local dest=$INSTANCE_INSTALL_DIR
+  local source=${1:-$INSTANCE_TEMP_DIR}
+  local dest=${2:-$INSTANCE_INSTALL_DIR}
+
+  __print_info "Deploying $INSTANCE_FULL_NAME..."
+
+  if [[ -z "$source" || -z "$dest" ]]; then
+    __print_error "Source or destination directory is not set"
+    return 1
+  fi
 
   if ! cp -r "$source"/* "$dest"; then
     __print_error "Failed to copy $source into $dest"
@@ -111,11 +118,21 @@ function _deploy() {
     return 1
   fi
 
-  # https://barotraumagame.com/wiki/Hosting_a_Dedicated_Server#Linux_Dedicated_Server_Hosting
-  if ! mkdir -p "${HOME}/.local/share/Daedalic Entertainment GmbH/Barotrauma"; then
-    __print_error "Failed to create required directory"
+  # Ensure HOME is set to the user's home directory
+  if [[ -z "$HOME" ]]; then
+    __print_error "HOME environment variable is not set"
     return 1
   fi
+
+  local config_dir="${HOME}/.local/share/Daedalic Entertainment GmbH/Barotrauma"
+
+  # https://barotraumagame.com/wiki/Hosting_a_Dedicated_Server#Linux_Dedicated_Server_Hosting
+  if ! mkdir -p "${config_dir}"; then
+    __print_error "Failed to create required directory: ${config_dir}"
+    return 1
+  fi
+
+  __print_success "Deployed $INSTANCE_FULL_NAME successfully"
 
   return 0
 }

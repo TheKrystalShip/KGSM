@@ -27,8 +27,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
+      --debug) continue ;;
+      *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -37,17 +37,17 @@ if [ "$#" -eq 0 ]; then usage && exit 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  -h | --help)
-    usage && exit 0
-    ;;
-  -i | --instance)
-    shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-    instance=$1
-    ;;
-  *)
-    break
-    ;;
+    -h | --help)
+      usage && exit 0
+      ;;
+    -i | --instance)
+      shift
+      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+      instance=$1
+      ;;
+    *)
+      break
+      ;;
   esac
   shift
 done
@@ -75,6 +75,18 @@ instance_config_file=$(__load_instance "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
 
+# Check if INSTANCE_WORKING_DIR is set
+if [[ -z "$INSTANCE_WORKING_DIR" ]]; then
+  __print_error "INSTANCE_WORKING_DIR is not set in the instance config file $instance_config_file"
+  exit $EC_INVALID_CONFIG
+fi
+
+# Ensure INSTANCE_WORKING_DIR is an absolute path
+if [[ ! "$INSTANCE_WORKING_DIR" = /* ]]; then
+  __print_error "INSTANCE_WORKING_DIR must be an absolute path, got: $INSTANCE_WORKING_DIR"
+  exit $EC_INVALID_CONFIG
+fi
+
 declare -A DIR_ARRAY=(
   ["INSTANCE_WORKING_DIR"]=$INSTANCE_WORKING_DIR
   ["INSTANCE_BACKUPS_DIR"]=$INSTANCE_WORKING_DIR/backups
@@ -85,53 +97,56 @@ declare -A DIR_ARRAY=(
 )
 
 function _create() {
-  for dir in "${!DIR_ARRAY[@]}"; do
-    if ! mkdir -p "${DIR_ARRAY[$dir]}"; then
-      __print_error "Failed to create $dir" && return "$EC_FAILED_MKDIR";
-    fi
 
-    if grep -q "^$dir" <"$instance_config_file"; then
-      # If it exists, modify in-place
-      if ! sed -i "/$dir=*/c$dir=${DIR_ARRAY[$dir]}" "$instance_config_file" >/dev/null; then
-        return "$EC_FAILED_SED"
-      fi
-    else
-      # If it doesn't exist, append after INSTANCE_WORKING_DIR
-      # IMPORTANT: Needs to be appended after INSTANCE_WORKING_DIR in order for
-      # INSTANCE_LAUNCH_ARGS to be able to pick them up, the order matters.
-      # Do not append to EOF
-      if ! sed -i -e '/INSTANCE_WORKING_DIR=/a\' -e "$dir=${DIR_ARRAY[$dir]}" "$instance_config_file" >/dev/null; then
-        return "$EC_FAILED_SED"
-      fi
-    fi
+  __print_info "Creating directories for instance ${INSTANCE_FULL_NAME}"
+
+  for dir in "${!DIR_ARRAY[@]}"; do
+
+    local current_dir="${DIR_ARRAY[$dir]}"
+
+    _create_dir "$current_dir"
+
+    __add_or_update_config "$instance_config_file" "$dir" "$current_dir" "INSTANCE_WORKING_DIR" || {
+      __print_error "Failed to add or update $dir in $instance_config_file"
+      return $?
+    }
   done
 
   __emit_instance_directories_created "${instance%.ini}"
+
+  __print_success "Directories created successfully for instance ${INSTANCE_FULL_NAME}"
+
   return 0
 }
 
 function _remove() {
   # Remove main working directory
+  # This will also remove all subdirectories
   if ! rm -rf "${INSTANCE_WORKING_DIR?}"; then
-    __print_error "Failed to remove $INSTANCE_WORKING_DIR" && return "$EC_FAILED_RM"
+    __print_error "Failed to remove $INSTANCE_WORKING_DIR"
+    return $EC_FAILED_RM
   fi
 
   __emit_instance_directories_removed "${instance%.ini}"
+
   return 0
 }
 
 # Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
-  --create)
-    _create; exit $?
-    ;;
-  --remove)
-    _remove; exit $?
-    ;;
-  *)
-    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-    ;;
+    --create)
+      _create
+      exit $?
+      ;;
+    --remove)
+      _remove
+      exit $?
+      ;;
+    *)
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
+      ;;
   esac
   shift
 done

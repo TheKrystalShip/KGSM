@@ -10,6 +10,9 @@ INSTANCE_FULL_NAME="$instance_full_name"
 # Path to the instance.manage.sh script file"
 INSTANCE_MANAGE_FILE="$instance_manage_file"
 
+# Path to the instance version file
+INSTANCE_VERSION_FILE="$instance_version_file"
+
 # Working directory where the instance is located
 INSTANCE_WORKING_DIR="$instance_working_dir"
 

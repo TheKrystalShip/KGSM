@@ -126,3 +126,87 @@ function __merge_user_config_with_default() {
     __enable_error_checking
   fi
 }
+
+export -f __merge_user_config_with_default
+
+# Function to add or update a config key in an instance config file
+function __add_or_update_config() {
+  local config_file="$1"
+  local key="$2"
+  local value="$3"
+  local after_key="${4:-}"
+
+  if [[ -z "$key" || -z "$value" || -z "$config_file" ]]; then
+    __print_error "Invalid arguments provided to __add_or_update_config_key."
+    return $EC_INVALID_ARG
+  fi
+
+  # Check if the config file exists
+  if [[ ! -f "$config_file" ]]; then
+    __print_error "Config file '$config_file' does not exist."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Check if the key already exists in the config filee
+  if grep -q "^$key=" "$config_file"; then
+    # If it exists, modify in-place
+    if ! sed -i "/^$key=/c$key=$value" "$config_file" >/dev/null; then
+      __print_error "Failed to update key '$key' in '$config_file'."
+      return $EC_FAILED_SED
+    fi
+  else
+    # If it doesn't exist, append after the specified key or at the end
+    if [[ -n "$after_key" && $(grep -q "^$after_key=" "$config_file") ]]; then
+      sed -i "/^$after_key=/a$key=$value" "$config_file"
+    else
+      echo "$key=$value" >>"$config_file"
+    fi
+  fi
+}
+
+export -f __add_or_update_config
+
+function __remove_config() {
+  local config_file="$1"
+  local key="$2"
+
+  # Check if the key and config file are provided
+  if [[ -z "$key" || -z "$config_file" ]]; then
+    __print_error "Invalid arguments provided to __remove_config_key."
+    return $EC_INVALID_ARG
+  fi
+
+  # Check if the config file exists
+  if [[ ! -f "$config_file" ]]; then
+    __print_error "Config file '$config_file' does not exist."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Check if the file is readable
+  if [[ ! -r "$config_file" ]]; then
+    __print_error "Config file '$config_file' is not readable."
+    return $EC_PERMISSION
+  fi
+
+  # Check if the file is writable
+  if [[ ! -w "$config_file" ]]; then
+    __print_error "Config file '$config_file' is not writable."
+    return $EC_PERMISSION
+  fi
+
+  # Check if the key exists in the config file
+  if ! grep -q "^$key=" "$config_file"; then
+    __print_error "Key '$key' does not exist in '$config_file'."
+    return $EC_KEY_NOT_FOUND
+  fi
+
+  # Remove the key from the config file
+  if ! sed -i "/^$key=/d" "$config_file" >/dev/null; then
+    __print_error "Failed to remove key '$key' from '$config_file'."
+    return $EC_FAILED_SED
+  fi
+
+  return 0
+}
+
+export -f __remove_config

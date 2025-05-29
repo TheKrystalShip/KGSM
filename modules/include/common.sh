@@ -31,6 +31,12 @@ if [[ ! $KGSM_LOADER_LOADED ]]; then
   source "$include_loader" || exit 1
 fi
 
+# System
+if [[ -z "$KGSM_SYSTEM_LOADED" ]]; then
+  # shellcheck disable=SC1090
+  source "$(__load_module system.sh)" || exit $EC_FAILED_SOURCE
+fi
+
 # Error codes and definitions
 if [[ ! "$KGSM_ERRORS_LOADED" ]]; then
   # shellcheck disable=SC1090

@@ -66,4 +66,16 @@ function __load_template() {
 
 export -f __load_template
 
+function __load_override() {
+  local instance=$1
+  # $INSTANCE_BLUEPRINT_FILE is the absolute path to the blueprint file, we just need the name
+  instance_bp_name=$(basename "$INSTANCE_BLUEPRINT_FILE" | sed 's/\.bp$//')
+
+  instance_overrides_file="${instance_bp_name}.overrides.sh"
+
+  __find_or_fail "$instance_overrides_file" "$OVERRIDES_SOURCE_DIR"
+}
+
+export -f __load_override
+
 export KGSM_LOADER_LOADED=1

@@ -26,20 +26,16 @@ module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
 # shellcheck disable=SC1090
 source "$module_common" || exit "$EC_FAILED_SOURCE"
 
-instance_config_file=$(__load_instance "$instance")
+instance_overrides_file=$(__load_override "$instance")
 
-# for when grep fails to find INSTANCE_OVERRIDES_FILE
-[[ $(type -t __disable_error_checking) == function ]] && __disable_error_checking
-instance_overrides_file=$(grep "INSTANCE_OVERRIDES_FILE=" <"$instance_config_file" | cut -d "=" -f2 | tr -d '"')
-[[ $(type -t __enable_error_checking) == function ]] && __enable_error_checking
+# Check if the overrides file exists
+if [[ ! -f "$instance_overrides_file" ]]; then
+  __print_info "No overrides file found for ${instance}, skipping."
+  return 0
+fi
 
 # Import custom scripts if the game has any
 if [[ -n "$instance_overrides_file" ]] && [[ -f "$instance_overrides_file" ]]; then
-  # It's important to also source the instance config file because the overrides
-  # need access to the variables contained in it.
-  # shellcheck disable=SC1090
-  source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
-
   # shellcheck disable=SC1090
   source "$instance_overrides_file" || exit "$EC_FAILED_SOURCE"
 fi

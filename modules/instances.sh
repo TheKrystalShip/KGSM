@@ -119,6 +119,8 @@ function _generate_unique_instance_name() {
   done
 }
 
+# IMPORTANT: This function cannot echo or print anything to stdout
+# other than the final instance file path.
 function _create_instance() {
   local blueprint=$1
   local install_dir=$2
@@ -173,6 +175,7 @@ function _create_instance() {
 
   export instance_level_name="${BP_LEVEL_NAME:-default}"
   export instance_working_dir=$install_dir/$instance_full_name
+  export instance_version_file=$install_dir/".${instance_full_name}.version"
 
   local instance_runtime="native"
   local instance_lifecycle_manager="standalone"
@@ -445,7 +448,7 @@ function _print_info() {
     fi
     echo "Directory:           $INSTANCE_WORKING_DIR"
     echo "Installation date:   $INSTANCE_INSTALL_DATETIME"
-    echo "Version:             $INSTANCE_INSTALLED_VERSION"
+    echo "Version:             $($INSTANCE_MANAGE_FILE --version)"
     echo "Blueprint:           $INSTANCE_BLUEPRINT_FILE"
 
     if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then

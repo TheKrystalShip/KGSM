@@ -23,6 +23,8 @@ EC_SYSTEMD=18
 EC_UFW=19
 EC_MALFORMED_INSTANCE=20
 EC_MISSING_DEPENDENCY=21
+EC_FAILED_LN=22
+EC_FAILED_UPDATE_CONFIG=23
 
 declare -A EXIT_CODES=(
   [$EC_OKAY]="No error"
@@ -47,6 +49,8 @@ declare -A EXIT_CODES=(
   [$EC_UFW]="Error with 'ufw' command"
   [$EC_MALFORMED_INSTANCE]="Malformed instance config file"
   [$EC_MISSING_DEPENDENCY]="Missing required dependency"
+  [$EC_FAILED_LN]="Failed to create symlink"
+  [$EC_FAILED_UPDATE_CONFIG]="Failed to update config file"
 )
 
 function __print_error_code() {
