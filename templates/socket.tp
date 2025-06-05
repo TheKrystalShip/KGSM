@@ -1,6 +1,6 @@
 [Unit]
-Description=Socket for $INSTANCE_FULL_NAME
-PartOf=$INSTANCE_FULL_NAME.service
+Description=Socket for $INSTANCE_ID
+PartOf=$INSTANCE_ID.service
 
 [Socket]
 ListenFIFO=$INSTANCE_SOCKET_FILE

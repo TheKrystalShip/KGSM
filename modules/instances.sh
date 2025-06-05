@@ -554,7 +554,7 @@ function _print_info() {
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   {
-    echo "Name:                $INSTANCE_FULL_NAME"
+    echo "Name:                $INSTANCE_ID"
     echo "Lifecycle manager:   $INSTANCE_LIFECYCLE_MANAGER"
 
     local status=""
@@ -563,7 +563,7 @@ function _print_info() {
       if [[ $(type -t __disable_error_checking) == function ]]; then
         __disable_error_checking
       fi
-      status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
+      status="$(systemctl is-active "$INSTANCE_ID")"
       if [[ $(type -t __enable_error_checking) == function ]]; then
         __enable_error_checking
       fi
@@ -612,7 +612,7 @@ function _print_info_json() {
   local status=""
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     __disable_error_checking
-    status="$(systemctl is-active "$INSTANCE_FULL_NAME")"
+    status="$(systemctl is-active "$INSTANCE_ID")"
     __enable_error_checking
   else
     status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
@@ -630,7 +630,7 @@ function _print_info_json() {
   firewall_rule=$([[ "$USE_UFW" -eq 1 && -f "$INSTANCE_UFW_FILE" ]] && echo "$INSTANCE_UFW_FILE" || echo "")
 
   jq -n \
-    --arg instance "$INSTANCE_FULL_NAME" \
+    --arg instance "$INSTANCE_ID" \
     --arg lifecycleManager "$INSTANCE_LIFECYCLE_MANAGER" \
     --arg status "$status" \
     --arg pid "$pid" \

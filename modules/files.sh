@@ -14,7 +14,7 @@ Manage necessary files for running a game server.
 Options:
   -h, --help                  Display this help and exit
   -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
-                              Equivalent to INSTANCE_FULL_NAME in the config
+                              Equivalent to INSTANCE_ID in the config
 
 Commands:
   --create                    Generate all required files:
@@ -116,7 +116,7 @@ function __inject_native_management_variables() {
   # The log file is named after the instance and the current date/time.
   # It is stored in the instance logs directory.
   # shellcheck disable=SC2140
-  stdout_file="\$INSTANCE_LOGS_DIR/\$INSTANCE_FULL_NAME-\$(date +"%Y-%m-%dT%H:%M:%S").log"
+  stdout_file="\$INSTANCE_LOGS_DIR/\$INSTANCE_ID-\$(date +"%Y-%m-%dT%H:%M:%S").log"
   export INSTANCE_LOGS_REDIRECT="$stdout_file"
 
   # Avoid evaluating INSTANCE_LAUNCH_ARGS as it can contain variables that need
@@ -251,7 +251,7 @@ function _create_manage_file() {
 
   # Choose appropriate template based on runtime
   if ! manage_template_file="$(__find_template "manage.${INSTANCE_RUNTIME}")"; then
-    __print_error "Failed to manage template for $INSTANCE_FULL_NAME"
+    __print_error "Failed to manage template for $INSTANCE_ID"
     return $EC_FILE_NOT_FOUND
   fi
 
@@ -319,15 +319,15 @@ function _systemd_uninstall() {
     return 0
   fi
 
-  if systemctl is-active "$INSTANCE_FULL_NAME" &> /dev/null; then
-    if ! $SUDO systemctl stop "$INSTANCE_FULL_NAME" &> /dev/null; then
-      __print_error "Failed to stop $INSTANCE_FULL_NAME before uninstalling systemd files" && return "$EC_SYSTEMD"
+  if systemctl is-active "$INSTANCE_ID" &> /dev/null; then
+    if ! $SUDO systemctl stop "$INSTANCE_ID" &> /dev/null; then
+      __print_error "Failed to stop $INSTANCE_ID before uninstalling systemd files" && return "$EC_SYSTEMD"
     fi
   fi
 
-  if systemctl is-enabled "$INSTANCE_FULL_NAME" &> /dev/null; then
-    if ! $SUDO systemctl disable "$INSTANCE_FULL_NAME"; then
-      __print_warning "Failed to disable $INSTANCE_FULL_NAME" && return "$EC_SYSTEMD"
+  if systemctl is-enabled "$INSTANCE_ID" &> /dev/null; then
+    if ! $SUDO systemctl disable "$INSTANCE_ID"; then
+      __print_warning "Failed to disable $INSTANCE_ID" && return "$EC_SYSTEMD"
     fi
   fi
 
@@ -381,23 +381,23 @@ function _systemd_install() {
   service_template_file="$(__find_template service.tp)"
   socket_template_file="$(__find_template socket.tp)"
 
-  local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.service
-  local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.socket
+  local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_ID}.service
+  local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_ID}.socket
 
-  local temp_systemd_service_file=/tmp/${INSTANCE_FULL_NAME}.service
-  local temp_systemd_socket_file=/tmp/${INSTANCE_FULL_NAME}.socket
+  local temp_systemd_service_file=/tmp/${INSTANCE_ID}.service
+  local temp_systemd_socket_file=/tmp/${INSTANCE_ID}.socket
 
   local instance_bin_absolute_path
   instance_bin_absolute_path="$INSTANCE_LAUNCH_DIR/$INSTANCE_LAUNCH_BIN"
 
   # Required by template
   export INSTANCE_BIN_ABSOLUTE_PATH="$instance_bin_absolute_path"
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/.${INSTANCE_FULL_NAME}.stdin
+  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/.${INSTANCE_ID}.stdin
 
   # If service file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_service_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
-      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME"
+      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_ID"
       return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
@@ -409,7 +409,7 @@ function _systemd_install() {
   # If socket file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_socket_file" ]]; then
     if [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
-      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_FULL_NAME"
+      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_ID"
       return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
@@ -519,8 +519,8 @@ function _ufw_uninstall() {
 
   # Remove ufw rule
   __print_info "Deleting UFW rule"
-  if ! $SUDO ufw delete allow "$INSTANCE_FULL_NAME" &> /dev/null; then
-    __print_error "Failed to remove UFW rule for $INSTANCE_FULL_NAME"
+  if ! $SUDO ufw delete allow "$INSTANCE_ID" &> /dev/null; then
+    __print_error "Failed to remove UFW rule for $INSTANCE_ID"
     return $EC_UFW
   fi
 
@@ -551,8 +551,8 @@ function _ufw_install() {
     return $EC_MISSING_ARG
   fi
 
-  local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_FULL_NAME}
-  local temp_ufw_file=/tmp/kgsm-${INSTANCE_FULL_NAME}
+  local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_ID}
+  local temp_ufw_file=/tmp/kgsm-${INSTANCE_ID}
 
   # If firewall rule file already exists, remove it
   if [[ -f "$instance_ufw_file" ]]; then
@@ -583,8 +583,8 @@ EOF
 
   # Enable firewall rule
   __print_info "Allowing UFW rule"
-  if ! $SUDO ufw allow "$INSTANCE_FULL_NAME" &> /dev/null; then
-    __print_error "Failed to allow UFW rule for $INSTANCE_FULL_NAME" && return "$EC_UFW"
+  if ! $SUDO ufw allow "$INSTANCE_ID" &> /dev/null; then
+    __print_error "Failed to allow UFW rule for $INSTANCE_ID" && return "$EC_UFW"
   fi
 
   # Save the UFW file into the instance config file
@@ -617,7 +617,7 @@ function _symlink_uninstall() {
     return $EC_MISSING_ARG
   fi
 
-  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_FULL_NAME}"
+  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_ID}"
 
   # Check if the symlink exists
   if [[ -L "$symlink_path" ]]; then
@@ -633,7 +633,7 @@ function _symlink_uninstall() {
   # Remove the symlink entry from the instance config file
   __remove_config "$instance_config_file" "INSTANCE_MANAGEMENT_SYMLINK_DIR"
 
-  __print_success "Symlink for instance '$INSTANCE_FULL_NAME' removed from $INSTANCE_MANAGEMENT_SYMLINK_DIR"
+  __print_success "Symlink for instance '$INSTANCE_ID' removed from $INSTANCE_MANAGEMENT_SYMLINK_DIR"
 
   return 0
 }
@@ -643,7 +643,7 @@ function _symlink_install() {
   # Create a symlink from the $INSTANCE_MANAGE_FILE into one of the directories
   # on the PATH, iso that the instance can be managed from anywhere.
 
-  __print_info "Creating symlink for instance '$INSTANCE_FULL_NAME'..."
+  __print_info "Creating symlink for instance '$INSTANCE_ID'..."
 
   # Check if the symlink directory is set
   if [[ -z "$INSTANCE_MANAGEMENT_SYMLINK_DIR" ]]; then
@@ -663,7 +663,7 @@ function _symlink_install() {
   #   return $EC_PERMISSION
   # fi
 
-  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_FULL_NAME}"
+  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_ID}"
 
   # Check if the symlink already exists
   if [[ -L "$symlink_path" ]]; then
@@ -685,7 +685,7 @@ function _symlink_install() {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  __print_success "Instance \"${INSTANCE_FULL_NAME}\" symlink created in $INSTANCE_MANAGEMENT_SYMLINK_DIR"
+  __print_success "Instance \"${INSTANCE_ID}\" symlink created in $INSTANCE_MANAGEMENT_SYMLINK_DIR"
 
   return 0
 }

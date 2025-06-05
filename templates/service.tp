@@ -1,6 +1,6 @@
 [Unit]
-Description=$INSTANCE_FULL_NAME Dedicated Server
-Requires=$INSTANCE_FULL_NAME.socket
+Description=$INSTANCE_ID Dedicated Server
+Requires=$INSTANCE_ID.socket
 
 [Service]
 User=$INSTANCE_USER
@@ -13,7 +13,7 @@ Restart=on-failure
 RestartSec=5
 StartLimitBurst=1
 
-Sockets=$INSTANCE_FULL_NAME.socket
+Sockets=$INSTANCE_ID.socket
 StandardInput=socket
 StandardOutput=journal
 StandardError=journal

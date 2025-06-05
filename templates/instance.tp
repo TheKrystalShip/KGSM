@@ -1,11 +1,5 @@
-# Unique identifier
+# Unique instance identifier
 INSTANCE_ID="$instance_id"
-
-# Instance name, same as blueprint name
-INSTANCE_NAME="$instance_name"
-
-# Full name, INSTANCE_NAME + INSTANCE_ID
-INSTANCE_FULL_NAME="$instance_full_name"
 
 # Path to the instance.manage.sh script file"
 INSTANCE_MANAGE_FILE="$instance_manage_file"

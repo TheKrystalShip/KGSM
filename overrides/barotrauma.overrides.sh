@@ -42,8 +42,6 @@
 # Available global vars:
 #
 # INSTANCE_ID
-# INSTANCE_NAME
-# INSTANCE_FULL_NAME
 # INSTANCE_WORKING_DIR
 # INSTANCE_INSTALL_DIR
 # INSTANCE_SAVES_DIR
@@ -101,7 +99,7 @@ function _deploy() {
   local source=${1:-$INSTANCE_TEMP_DIR}
   local dest=${2:-$INSTANCE_INSTALL_DIR}
 
-  __print_info "Deploying $INSTANCE_FULL_NAME..."
+  __print_info "Deploying $INSTANCE_ID..."
 
   if [[ -z "$source" || -z "$dest" ]]; then
     __print_error "Source or destination directory is not set"
@@ -132,7 +130,7 @@ function _deploy() {
     return 1
   fi
 
-  __print_success "Deployed $INSTANCE_FULL_NAME successfully"
+  __print_success "Deployed $INSTANCE_ID successfully"
 
   return 0
 }

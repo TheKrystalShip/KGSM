@@ -8,15 +8,14 @@ Usage:
 
 Options:
   -h, --help                  Prints this message
-  -i, --instance <instance>   Full name of the instance, equivalent of
-                              INSTANCE_FULL_NAME from the instance config file
+  -i, --instance <instance>   INSTANCE_ID from the instance config file.
                               The .ini extension is not required
     --create                  Generates the directory structure
     --remove                  Removes the directory structure
 
 Examples:
   $(basename "$0") -i valheim-h1up6V --create
-  $(basename "$0") --instance valheim-h1up6V.ini --remove
+  $(basename "$0") --instance valheim-h1up6V --remove
 "
 }
 
@@ -98,7 +97,7 @@ declare -A DIR_ARRAY=(
 
 function _create() {
 
-  __print_info "Creating directories for instance ${INSTANCE_FULL_NAME}"
+  __print_info "Creating directories for instance ${INSTANCE_ID}"
 
   for dir in "${!DIR_ARRAY[@]}"; do
 
@@ -114,7 +113,7 @@ function _create() {
 
   __emit_instance_directories_created "${instance%.ini}"
 
-  __print_success "Directories created successfully for instance ${INSTANCE_FULL_NAME}"
+  __print_success "Directories created successfully for instance ${INSTANCE_ID}"
 
   return 0
 }

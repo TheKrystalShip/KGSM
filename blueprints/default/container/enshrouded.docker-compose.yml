@@ -6,7 +6,7 @@ services:
     image: ghcr.io/thekrystalship/enshrouded:latest
 
     # Dynamic container name
-    container_name: "${INSTANCE_FULL_NAME}"
+    container_name: "${INSTANCE_ID}"
 
     # Use the host’s network stack directly
     network_mode: host

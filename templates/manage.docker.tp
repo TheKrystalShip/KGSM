@@ -54,7 +54,7 @@ set -o pipefail
 
 function enable_upnp() {
   local output
-  if ! output=$(upnpc -e "$INSTANCE_FULL_NAME" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -e "$INSTANCE_ID" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
     echo "$self ERROR: Failed to enable UPnP ports" >&2
     echo "$self ERROR: ${output}" >&2
   fi
@@ -76,7 +76,7 @@ function start_foreground() {
   fi
 
   # https://docs.docker.com/reference/cli/docker/container/start/
-  docker start -a "$INSTANCE_FULL_NAME" $INSTANCE_LAUNCH_ARGS
+  docker start -a "$INSTANCE_ID" $INSTANCE_LAUNCH_ARGS
 }
 
 function start_background() {
@@ -85,12 +85,12 @@ function start_background() {
   fi
 
   # https://docs.docker.com/reference/cli/docker/container/start/
-  docker start "$INSTANCE_FULL_NAME" $INSTANCE_LAUNCH_ARGS
+  docker start "$INSTANCE_ID" $INSTANCE_LAUNCH_ARGS
 }
 
 function stop_server() {
   if ! $(is_active &>/dev/null); then
-    echo "$self WARNING: Instance $INSTANCE_FULL_NAME is not running"
+    echo "$self WARNING: Instance $INSTANCE_ID is not running"
     return 0
   fi
 
@@ -99,9 +99,9 @@ function stop_server() {
   fi
 
   # https://docs.docker.com/reference/cli/docker/container/stop/
-  docker stop "$INSTANCE_FULL_NAME" -t $STOP_TIMEOUT_S
+  docker stop "$INSTANCE_ID" -t $STOP_TIMEOUT_S
 
-  echo "$self SUCCESS: Instance $INSTANCE_FULL_NAME stopped"
+  echo "$self SUCCESS: Instance $INSTANCE_ID stopped"
 }
 
 function save_game() {
@@ -113,7 +113,7 @@ function send_input() {
 }
 
 function is_active() {
-  if [ "$(docker container inspect -f '{{.State.Status}}' "$INSTANCE_FULL_NAME")" = "running" ]; then
+  if [ "$(docker container inspect -f '{{.State.Status}}' "$INSTANCE_ID")" = "running" ]; then
     echo "$self INFO: Active" && true
   fi
 
@@ -124,9 +124,9 @@ function print_logs() {
   local follow=$1
 
   if [[ "$follow" == "--follow" ]]; then
-    docker logs -f "$INSTANCE_FULL_NAME"
+    docker logs -f "$INSTANCE_ID"
   else
-    docker logs -n 10 "$INSTANCE_FULL_NAME"
+    docker logs -n 10 "$INSTANCE_ID"
   fi
 }
 

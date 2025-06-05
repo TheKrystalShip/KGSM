@@ -130,7 +130,7 @@ function _enable_upnp() {
 
   __print_info "Enabling UPnP..."
 
-  if ! output=$(upnpc -e "$INSTANCE_FULL_NAME" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -e "$INSTANCE_ID" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
     __print_error "Failed to enable UPnP ports"
     __print_info "To stop these message, set USE_UPNP to 0 in $0"
     __print_error "${output}"
@@ -199,7 +199,7 @@ function _start_background() {
 
   local server_pid=$!
   echo "$server_pid" >"$INSTANCE_PID_FILE"
-  __print_success "Instance $INSTANCE_FULL_NAME started with PID $server_pid, saved to $INSTANCE_PID_FILE"
+  __print_success "Instance $INSTANCE_ID started with PID $server_pid, saved to $INSTANCE_PID_FILE"
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
   tail -f /dev/null >"$INSTANCE_SOCKET_FILE" &
@@ -220,7 +220,7 @@ function _kill_all_processes() {
   fi
 
   if [[ ! -f "$INSTANCE_PID_FILE" ]]; then
-    __print_error "No PID file found for $INSTANCE_FULL_NAME."
+    __print_error "No PID file found for $INSTANCE_ID."
     __print_error "If this is unexpected, check running processes to ensure the instance is not running uncontrolled"
     return 1
   fi
@@ -260,7 +260,7 @@ function _stop_server() {
   __print_info "Stopping $self"
 
   if ! _is_active &>/dev/null; then
-    __print_error "Instance $INSTANCE_FULL_NAME is not running"
+    __print_error "Instance $INSTANCE_ID is not running"
     return 0
   fi
 
@@ -296,7 +296,7 @@ function _stop_server() {
     _disable_upnp
   fi
 
-  __print_success "Instance $INSTANCE_FULL_NAME stopped"
+  __print_success "Instance $INSTANCE_ID stopped"
 }
 
 # This function is used to stop the server gracefully with a timeout
@@ -497,7 +497,7 @@ function _create_backup() {
 
   #shellcheck disable=SC2155
   local datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
-  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_FULL_NAME}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
+  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_ID}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
 
   if [[ "$INSTANCE_COMPRESS_BACKUPS" == 1 ]]; then
     output="${output}.tar.gz"
