@@ -84,6 +84,7 @@ Options:
   --ip                        Print the external server IP address.
   --config                    Modify the configuration file.
   -v, --version               Print the KGSM version.
+  --check-update              Check for KGSM updates.
 
 ${UNDERLINE}Blueprints${END}
   --create-blueprint          Create a new blueprints file.
@@ -91,6 +92,7 @@ ${UNDERLINE}Blueprints${END}
                               creation process.
   --blueprints                List all available blueprints.
   --blueprints --json         Print a JSON array with all blueprints.
+  --blueprints --detailed     Print detailed information on all blueprints.
   --blueprints --json --detailed
                               Print a detailed JSON formatted Map with
                               information on all blueprints.
@@ -108,13 +110,13 @@ ${UNDERLINE}Blueprints${END}
 
 ${UNDERLINE}Instances${END}
   --uninstall <instance>      Run the uninstall process for an instance.
-  --instances [blueprint]     List all installed instances.
+  --instances                 List all installed instances.
+  --instances <blueprint>     List all instances of a specific blueprint.
+  --instances --detailed      List all instances with detailed information.
   --instances --json          Print a JSON formatted array with all instances.
   --instances --json --detailed
                               Print a detailed JSON Map with all instances
                               and their information.
-                              Optionally a blueprint name can be specified in
-                              order to only list instances of that blueprint
 
   -i, --instance <x> OPTION   Interact with an instance.
                               OPTION represents one of the following:
@@ -123,6 +125,7 @@ ${UNDERLINE}Instances${END}
       [-f, --follow]          Continuously follow the log output.
     --status                  Return a detailed running status.
     --info                    Print information about the instance.
+      [--json]                Print information in JSON format.
     --is-active               Check if the instance is active.
     --start                   Start the instance.
     --stop                    Stop the instance.
@@ -144,11 +147,11 @@ ${UNDERLINE}Instances${END}
                               version, if any.
     --restore-backup NAME     Restore a backup.
                               NAME is the backup name.
-    --modify                  Modify and existing instance.
+    --modify                  Modify an existing instance.
       --add OPTION            Add additional functionality. Possible options:
-                                ufw, systemd
+                                ufw, systemd, symlink
       --remove OPTION         Remove functionality. Possible options:
-                                ufw, systemd
+                                ufw, systemd, symlink
 "
 }
 
@@ -172,14 +175,14 @@ function usage_interactive() {
 
   ${UNDERLINE}Restart${END}            Restart an instance.
 
-  ${UNDERLINE}Status${END}             Print a detailed information about an instance.
+  ${UNDERLINE}Status${END}             Print detailed information about an instance.
 
-  ${UNDERLINE}Modify${END}             Modify and existing instance to add or remove
+  ${UNDERLINE}Modify${END}             Modify an existing instance to add or remove
                      features.
-                     Currently 'ufw' and 'systemd' integrations can
+                     Currently 'ufw', 'systemd', and 'symlink' integrations can
                      be added/removed.
 
-  ${UNDERLINE}Check for update${END}   Check if a new version of a instance is available.
+  ${UNDERLINE}Check for update${END}   Check if a new version of an instance is available.
                      It will print out the new version if found, otherwise
                      it will fail with exit code 1.
 
@@ -192,7 +195,7 @@ function usage_interactive() {
 
   ${UNDERLINE}Create backup${END}      Creates a backup of an instance.
 
-  ${UNDERLINE}Restore backup${END}     Restores a backup of an instance
+  ${UNDERLINE}Restore backup${END}     Restores a backup of an instance.
                      It will prompt to select a backup to restore and
                      also if the current installation directory of the
                      instance is not empty.
