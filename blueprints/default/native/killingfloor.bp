@@ -6,36 +6,36 @@
 # The name of the new file can be the same as this one, acting as an override.
 
 # Unique name, lowercase with no spaces
-BP_NAME=factorio
+name=killingfloor
 
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='34197'
+ports='7707:7708/udp|7717/udp|28852|8075/tcp|20560/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-BP_APP_ID=0
+steam_app_id=215360
 
-# (Optional) Only applicable if BP_APP_ID != 0
+# (Optional) Only applicable if steam_app_id != 0
 # Values: 0 for anonymous, 1 for account required
 # Default: 0
-BP_STEAM_AUTH_LEVEL=0
+is_steam_account_required=1
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-BP_LAUNCH_BIN=factorio
+executable_file="ucc-bin"
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-BP_LEVEL_NAME=default
+level_name="default"
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-BP_INSTALL_SUBDIRECTORY=bin/x64
+executable_subdirectory="System"
 
 # Any args passed onto the executable
 # Availble vars that can be used:
@@ -48,10 +48,10 @@ BP_INSTALL_SUBDIRECTORY=bin/x64
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-BP_LAUNCH_ARGS="--start-server $INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME"
+executable_arguments="server KF-bioticslab.rom?game=KFmod.KFGameType?VACSecured=true?MaxPlayers=6 -nohomedir"
 
 # (Optional) Stop command sent to the input socket
-BP_STOP_COMMAND=/quit
+stop_command=
 
 # (Optional) Save command sent to the input socket
-BP_SAVE_COMMAND=/save
+save_command=

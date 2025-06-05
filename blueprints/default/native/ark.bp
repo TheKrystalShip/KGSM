@@ -6,36 +6,36 @@
 # The name of the new file can be the same as this one, acting as an override.
 
 # Unique name, lowercase with no spaces
-BP_NAME=killingfloor2
+name=ark
 
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='7777/udp|27015/udp|8080/tcp|20560/udp'
+ports='27015/udp|7777/udp|7778/udp|27020/tcp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-BP_APP_ID=232130
+steam_app_id=376030
 
-# (Optional) Only applicable if BP_APP_ID != 0
+# (Optional) Only applicable if steam_app_id != 0
 # Values: 0 for anonymous, 1 for account required
 # Default: 0
-BP_STEAM_AUTH_LEVEL=0
+is_steam_account_required=0
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-BP_LAUNCH_BIN="KFGameSteamServer.bin.x86_64"
+executable_file=ShooterGameServer
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-BP_LEVEL_NAME="kf-bioticslab"
+level_name="default"
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-BP_INSTALL_SUBDIRECTORY="Binaries/Win64"
+executable_subdirectory="ShooterGame/Binaries/Linux"
 
 # Any args passed onto the executable
 # Availble vars that can be used:
@@ -48,10 +48,10 @@ BP_INSTALL_SUBDIRECTORY="Binaries/Win64"
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-BP_LAUNCH_ARGS="$INSTANCE_LEVEL_NAME"
+executable_arguments="TheIsland?listen?SessionName=$INSTANCE_LEVEL_NAME -server -log"
 
 # (Optional) Stop command sent to the input socket
-BP_STOP_COMMAND=
+stop_command=
 
 # (Optional) Save command sent to the input socket
-BP_SAVE_COMMAND=
+save_command=

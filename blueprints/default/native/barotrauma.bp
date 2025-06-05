@@ -6,40 +6,41 @@
 # The name of the new file can be the same as this one, acting as an override.
 
 # Unique name, lowercase with no spaces
-BP_NAME=necesse
+name=barotrauma
 
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='14159/tcp|14159/udp'
+ports='27015/udp|27016/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-BP_APP_ID=1169370
+steam_app_id=1026340
 
-# (Optional)
-# Only used if BP_APP_ID != 0
+# (Optional) Only applicable if steam_app_id != 0
 # Values: 0 for anonymous, 1 for account required
-BP_STEAM_AUTH_LEVEL=0
+# Default: 0
+is_steam_account_required=0
 
-# Name of the executable that will start the server
+# Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-BP_LAUNCH_BIN=StartServer-nogui.sh
+executable_file=DedicatedServer
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-BP_LEVEL_NAME=default
+level_name=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-BP_INSTALL_SUBDIRECTORY=
+executable_subdirectory=
 
 # Any args passed onto the executable
 # Availble vars that can be used:
 #   $INSTANCE_LAUNCH_DIR
+#   $INSTANCE_LEVEL_NAME
 #   $INSTANCE_WORKING_DIR
 #   $INSTANCE_BACKUPS_DIR
 #   $INSTANCE_TEMP_DIR
@@ -47,12 +48,10 @@ BP_INSTALL_SUBDIRECTORY=
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-BP_LAUNCH_ARGS="-world $INSTANCE_LEVEL_NAME -localdir"
+executable_arguments=
 
-# (Optional)
-# Stop command sent to the input socket
-BP_STOP_COMMAND=
+# (Optional) Stop command sent to the input socket
+stop_command=
 
-# (Optional)
-# Save command sent to the input socket
-BP_SAVE_COMMAND=
+# (Optional) Save command sent to the input socket
+save_command=

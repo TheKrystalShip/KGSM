@@ -58,7 +58,7 @@ func_deploy                   # Moves files from the source to the destination a
 Each function can be implemented in the override script if needed. By default, KGSM provides implementations for these functions, designed to support standard Steam-based installations. If a function is not implemented in the override, KGSM will fall back to its default behavior. This ensures that non-Steam game servers or those requiring custom behavior can still function seamlessly while relying on defaults where appropriate.
 
 ### Linking Blueprints and Overrides
-Blueprints specify which override script to use through the `BP_NAME` field. The `BP_NAME` value links a blueprint to its corresponding override file.
+Blueprints specify which override script to use through the `blueprint_name` field. The `blueprint_name` value links a blueprint to its corresponding override file.
 
 #### Examples
 
@@ -67,7 +67,7 @@ Blueprints specify which override script to use through the `BP_NAME` field. The
 - **Blueprint File:** `blueprints/default/factorio.bp`
   ```sh
   # Unique name, lowercase with no spaces
-  BP_NAME=factorio
+  blueprint_name=factorio
   ```
 - **Override File:** `overrides/factorio.overrides.sh`
 
@@ -76,7 +76,7 @@ Blueprints specify which override script to use through the `BP_NAME` field. The
 - **Blueprint File:** `blueprints/my-factorio-server.bp`
   ```sh
   # Unique name, lowercase with no spaces
-  BP_NAME=factorio
+  blueprint_name=factorio
   ```
 - **Override File:** `overrides/factorio.overrides.sh`
 
@@ -85,7 +85,7 @@ Blueprints specify which override script to use through the `BP_NAME` field. The
 - **Blueprint File:** `blueprints/7dtd-custom03.bp`
   ```sh
   # Unique name, lowercase with no spaces
-  BP_NAME=7dtd-custom03
+  blueprint_name=7dtd-custom03
   ```
 - **Override File:** `overrides/7dtd-custom03.overrides.sh`
 
@@ -97,7 +97,7 @@ To create a new override script:
 2. Uncomment and implement only the required functions.
 3. Save the file using the following naming convention:
 ```
-BP_NAME.overrides.sh
+blueprint_name.overrides.sh
 ```
 For example, for a blueprint `valheim.bp`, the override file should be named `valheim.overrides.sh`.
 

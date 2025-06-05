@@ -1,8 +1,10 @@
 version: "3.8"
 
+# This Docker Compose file is for setting up The Forest server container.
 services:
   theforest:
 
+    # Docker image for The Forest server
     image: ghcr.io/thekrystalship/theforest:latest
 
     # Dynamic container name
@@ -18,11 +20,14 @@ services:
       - "27016:27016/udp"
 
     volumes:
+      # Local directory : Container directory
       - "${INSTANCE_WORKING_DIR:-.}:/opt/theforest"
 
     environment:
+      # Environment variables for Steam authentication
       STEAM_USERNAME: "${STEAM_USERNAME}"
       STEAM_PASSWORD: "${STEAM_PASSWORD}"
 
+    # Restart policy to keep the container running
     restart: unless-stopped
 

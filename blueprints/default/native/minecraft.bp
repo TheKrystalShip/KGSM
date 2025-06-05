@@ -6,36 +6,36 @@
 # The name of the new file can be the same as this one, acting as an override.
 
 # Unique name, lowercase with no spaces
-BP_NAME=starmade
+name=minecraft
 
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='4242/tcp|4242/udp'
+ports='25565/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-BP_APP_ID=335180
+steam_app_id=0
 
-# (Optional) Only applicable if BP_APP_ID != 0
+# (Optional) Only applicable if steam_app_id != 0
 # Values: 0 for anonymous, 1 for account required
 # Default: 0
-BP_STEAM_AUTH_LEVEL=1
+is_steam_account_required=0
 
 # Name of the executable that will start the service
 # Values: start.sh / my_game.x86_64 / start_server
-BP_LAUNCH_BIN=java
+executable_file=java
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-BP_LEVEL_NAME=default
+level_name=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
-# Values: Relative path from inside install directory: /bin
-BP_INSTALL_SUBDIRECTORY=StarMade
+# Values: Relative path from inside install directory: $INSTALL_DIR/bin
+executable_subdirectory=
 
 # Any args passed onto the executable
 # Availble vars that can be used:
@@ -48,10 +48,10 @@ BP_INSTALL_SUBDIRECTORY=StarMade
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-BP_LAUNCH_ARGS="-Xms4G -Xmx4G -jar StarMade.jar -server"
+executable_arguments="-Xmx4096M -Xms4096M -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -jar release.jar nogui"
 
 # (Optional) Stop command sent to the input socket
-BP_STOP_COMMAND=
+stop_command=/stop
 
 # (Optional) Save command sent to the input socket
-BP_SAVE_COMMAND=
+save_command=/save-all

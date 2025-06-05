@@ -52,36 +52,36 @@ Below is an example of the default blueprint file for `7 Days to Die`. It includ
 # The name of the new file can be the same as this one, acting as an override.
 
 # Unique name, lowercase with no spaces
-BP_NAME=7dtd
+blueprint_name=7dtd
 
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-BP_PORT='26900:26903/tcp|26900:26903/udp'
+blueprint_ports='26900:26903/tcp|26900:26903/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise
 # Default: 0
-BP_APP_ID=294420
+blueprint_steam_app_id=294420
 
 # (Optional)
-# Only used if BP_APP_ID != 0
+# Only used if blueprint_steam_app_id != 0
 # Values: 0 for anonymous, 1 for account required
-BP_STEAM_AUTH_LEVEL=0
+blueprint_is_steam_account_required=0
 
 # Name of the executable that will start the server
 # Values: start.sh / my_game.x86_64 / start_server
-BP_LAUNCH_BIN=7DaysToDieServer.x86_64
+blueprint_executable_file=7DaysToDieServer.x86_64
 
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
-BP_LEVEL_NAME=default
+blueprint_level_name=default
 
 # (Optional)
 # If the executable happens to be in a subdirectory from the main install
 # and needs to be ran from inside that subdirectory
 # Values: Relative path from inside install directory: $INSTALL_DIR/bin
-BP_INSTALL_SUBDIRECTORY=
+blueprint_executable_subdirectory=
 
 # Any args passed onto the executable
 # Available vars that can be used:
@@ -93,15 +93,15 @@ BP_INSTALL_SUBDIRECTORY=
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-BP_LAUNCH_ARGS="-quit -batchmode -nographics -headless -dedicated -configfile=$INSTANCE_INSTALL_DIR/serverconfig.xml"
+blueprint_executable_arguments="-quit -batchmode -nographics -headless -dedicated -configfile=$INSTANCE_INSTALL_DIR/serverconfig.xml"
 
 # (Optional)
 # Stop command sent to the input socket
-BP_STOP_COMMAND=
+blueprint_stop_command=
 
 # (Optional)
 # Save command sent to the input socket
-BP_SAVE_COMMAND=
+blueprint_save_command=
 ```
 
 ## Creating a new blueprint

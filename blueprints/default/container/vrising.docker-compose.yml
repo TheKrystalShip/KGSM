@@ -1,14 +1,16 @@
 version: "3.8"
 
+# This Docker Compose file is for setting up a V Rising server container.
 services:
   vrising:
 
+    # Docker image for V Rising server
     image: ghcr.io/thekrystalship/vrising:latest
 
     # Dynamic container name
     container_name: "${INSTANCE_FULL_NAME}"
 
-    # Use the host’s network stack directly
+    # Use the host’s network stack directly.
     network_mode: host
 
     # Ensure these ports are forwarded to allow external access
@@ -19,11 +21,14 @@ services:
       - "27016:27016/udp"
 
     volumes:
+      # Local directory : Container directory
       - "${INSTANCE_WORKING_DIR:-.}:/opt/vrising"
 
     environment:
+      # Environment variables for Steam authentication
       STEAM_USERNAME: "${STEAM_USERNAME}"
       STEAM_PASSWORD: "${STEAM_PASSWORD}"
 
+    # Restart policy to keep the container running
     restart: unless-stopped
 
