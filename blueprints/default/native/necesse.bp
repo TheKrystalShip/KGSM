@@ -1,9 +1,14 @@
-#!/bin/bash
-
+# KGSM Blueprint for Necesse (necesse)
+#
+# Author: Cristian Moraru <cristian.moraru@live.com>
+# Version: 2.0
+#
+# Copyright (c) 2025 The Krystal Ship
+# Licensed under the GNU General Public License v3.0
+# https://www.gnu.org/licenses/gpl-3.0.en.html
+#
 # DO NOT MODIFY THIS FILE
-# Instead, make a copy of it in the blueprints directory and change all the
-# desired parameters there.
-# The name of the new file can be the same as this one, acting as an override.
+# Instead, copy it to the custom blueprints directory and modify it there
 
 # Unique name, lowercase with no spaces
 name=necesse
@@ -18,11 +23,6 @@ ports='14159/tcp|14159/udp'
 # Default: 0
 steam_app_id=1169370
 
-# (Optional)
-# Only used if steam_app_id != 0
-# Values: 0 for anonymous, 1 for account required
-is_steam_account_required=0
-
 # Name of the executable that will start the server
 # Values: start.sh / my_game.x86_64 / start_server
 executable_file=StartServer-nogui.sh
@@ -30,12 +30,6 @@ executable_file=StartServer-nogui.sh
 # Savefile name or world name, level, whichever is applicable
 # Values: my_world / de_dust2 / my_cool_factorio_map
 level_name=default
-
-# (Optional)
-# If the executable happens to be in a subdirectory from the main install
-# and needs to be ran from inside that subdirectory
-# Values: Relative path from inside install directory: $INSTALL_DIR/bin
-executable_subdirectory=
 
 # Any args passed onto the executable
 # Availble vars that can be used:
@@ -48,11 +42,3 @@ executable_subdirectory=
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
 executable_arguments="-world $INSTANCE_LEVEL_NAME -localdir"
-
-# (Optional)
-# Stop command sent to the input socket
-stop_command=
-
-# (Optional)
-# Save command sent to the input socket
-save_command=
