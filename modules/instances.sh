@@ -59,8 +59,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -70,12 +70,12 @@ fi
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  *)
+    break
+    ;;
   esac
 done
 
@@ -101,7 +101,7 @@ fi
 function _generate_unique_instance_name() {
   local blueprint_name="$1"
   local instance_id
-  local instance_full_name
+  local instance_id
 
   # If no instance with the same name as the blueprint exists, then don't
   # create a name with a numbered id, just use the same name as the blueprint
@@ -110,11 +110,11 @@ function _generate_unique_instance_name() {
   fi
 
   while :; do
-    instance_id=$(tr -dc 0-9 < /dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-2}")
-    instance_full_name="${blueprint_name}-${instance_id}"
+    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-2}")
+    instance_id="${blueprint_name}-${instance_id}"
 
-    if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_full_name}.ini" ]]; then
-      echo "$instance_full_name" && return
+    if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_id}.ini" ]]; then
+      echo "$instance_id" && return
     fi
   done
 }
@@ -151,7 +151,7 @@ function __instance_config_file_exists() {
   fi
 }
 
-# Create an instance config file for the given instance full name and blueprint
+# Create an instance config file for the given instance id and blueprint
 # Returns the path to the instance config file.
 function _create_instance_config_file() {
   local instance_id="$1"
@@ -167,82 +167,70 @@ function _create_instance_config_file() {
     return $EC_INVALID_ARG
   fi
 
+  # Remove any trailing extension from $blueprints (.bp, .docker-compose.yml, .yaml)
+  local blueprint_name
+  blueprint_name="${blueprint%.bp}"
+  blueprint_name="${blueprint_name%.docker-compose.yml}"
+  blueprint_name="${blueprint_name%.yaml}"
+
   # Create the instance directory if it doesn't exist
-  local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint}"
-  if [ ! -d "$instance_dir_path" ]; then
-    __create_dir "$instance_dir_path"
-  fi
+  local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint_name}"
+  __create_dir "$instance_dir_path"
 
   # Create the instance config file
   local instance_config_file="${instance_dir_path}/${instance_id}.ini"
-  if [[ -f "$instance_config_file" ]]; then
-    __create_file "$instance_config_file"
-  fi
+  __create_file "$instance_config_file"
 
   # Return the instance config file path
   echo "$instance_config_file"
-}
-
-function __create_native_instance() {
-
-  # Temp file with some instance information needed to create the rest
-  # of the instance files
-  local temp_file_with_data="$1"
-  local blueprint_abs_path="$2"
-
-  echo "$blueprint_abs_path"
-}
-
-function __create_container_instance() {
-
-  # Temp file with some instance information needed to create the rest
-  # of the instance files
-  local temp_file_with_data="$1"
-  local blueprint_abs_path="$2"
-
-  # The docker-compose.yml file will contain placeholders that need to be
-  # replaced with their corresponding values.
-  # Some of these could be paths, ports, names, etc.
-  # We need to treat the blueprint file as a template, load it, render it
-  # and then saved the rendered file to the instances directory.
-
-  echo "$blueprint_abs_path"
 }
 
 # Create a base instance configuration file with common variables
 function __create_base_instance() {
   local instance_config_file="$1"
   local instance_id="$2"
-  local blueprint_name="$3"
+  local blueprint_abs_path="$3"
   local install_dir="$4"
 
   local instance_working_dir="${install_dir}/${instance_id}"
-  local instance_version_file="${instance_working_dir}/${instance_id}.version"
-
-  # Set instance_runtime to either native or docker, depending if the
-  # instance_launch_bin is set to docker or not.
-  local instance_runtime
-  [[ "$instance_launch_bin" == "docker" ]] && instance_runtime="container" || instance_runtime="native"
+  local instance_version_file="${instance_working_dir}/.${instance_id}.version"
 
   local instance_lifecycle_manager
   [[ "$USE_SYSTEMD" -eq 0 ]] && instance_lifecycle_manager="standalone" || instance_lifecycle_manager="systemd"
 
+  local instance_systemd_service_file="${SYSTEMD_DIR}/${INSTANCE_ID}.service"
+  local instance_systemd_socket_file="${SYSTEMD_DIR}/${INSTANCE_ID}.socket"
+
+  local instance_ufw_file="${UFW_RULES_DIR}/kgsm-${instance_id}"
+
   local instance_install_datetime
   instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 
-  local instance_manage_file="${install_dir}/${instance_id}.manage.sh"
+  local instance_manage_file="${instance_working_dir}/${instance_id}.manage.sh"
 
+  # Write configuration to file with a single redirect
+  # This avoids multiple file descriptor opens and is more efficient
   {
-    echo "INSTANCE_ID=$instance_id"
-    echo "INSTANCE_WORKING_DIR=$instance_working_dir"
-    echo "INSTANCE_VERSION_FILE=$instance_version_file"
-    echo "INSTANCE_RUNTIME=$instance_runtime"
-    echo "INSTANCE_LIFECYCLE_MANAGER=$instance_lifecycle_manager"
-    echo "INSTANCE_INSTALL_DATETIME=$instance_install_datetime"
-    echo "INSTANCE_MANAGE_FILE=$instance_manage_file"
+    echo "INSTANCE_ID=\"$instance_id\""
+    echo "INSTANCE_BLUEPRINT_FILE=\"$blueprint_abs_path\""
+    echo "INSTANCE_WORKING_DIR=\"$instance_working_dir\""
+    echo "INSTANCE_INSTALL_DATETIME=\"$instance_install_datetime\""
+    echo "INSTANCE_VERSION_FILE=\"$instance_version_file\""
+    echo "INSTANCE_LIFECYCLE_MANAGER=\"$instance_lifecycle_manager\""
+    echo "INSTANCE_MANAGE_FILE=\"$instance_manage_file\""
 
-  } >> "$instance_config_file"
+    [[ "$USE_SYSTEMD" -eq 1 ]] && {
+      echo "INSTANCE_SYSTEMD_SERVICE_FILE=\"$instance_systemd_service_file\""
+      echo "INSTANCE_SYSTEMD_SOCKET_FILE=\"$instance_systemd_socket_file\""
+    }
 
+    [[ "$USE_UFW" -eq 1 ]] && {
+      echo "INSTANCE_UFW_FILE=\"$instance_ufw_file\""
+    }
+
+  } >>"$instance_config_file"
+
+  return 0
 }
 
 # IMPORTANT: This function cannot echo or print anything to stdout
@@ -255,6 +243,18 @@ function _create_instance() {
   local blueprint_abs_path
   blueprint_abs_path=$(__find_blueprint "$blueprint")
 
+  # Extract the blueprint name from the path (remove extension and directory)
+  local blueprint_name
+  blueprint_name=$(basename "$blueprint_abs_path" .bp)
+  # Handle docker-compose.yml extension as well
+  if [[ "$blueprint_name" == "$blueprint_abs_path" ]]; then
+    blueprint_name=$(basename "$blueprint_abs_path" .docker-compose.yml)
+  fi
+  # Handle .yaml extension as well
+  if [[ "$blueprint_name" == "$blueprint_abs_path" ]]; then
+    blueprint_name=$(basename "$blueprint_abs_path" .yaml)
+  fi
+
   local instance_id
   instance_id=$identifier
 
@@ -262,7 +262,6 @@ function _create_instance() {
   if [[ -z "$instance_id" ]]; then
     # If no identifier is provided, we generate a unique instance name
     instance_id=$(_generate_unique_instance_name "$blueprint_name")
-
     export instance_id
   else
     # If an identifier is provided, we use it as the instance_id
@@ -275,253 +274,47 @@ function _create_instance() {
 
   # Temporary instance config file, we build from here until it's ready
   local instance_config_file
-  instance_config_file=$(_create_instance_config_file "$instance_id" "$blueprint_abs_path")
+  instance_config_file="$(_create_instance_config_file "$instance_id" "$blueprint_name")"
 
   # All common instance variables are set in this function
-  __create_base_instance "$instance_config_file" "$instance_id" "$blueprint" "$install_dir"
+  __create_base_instance "$instance_config_file" "$instance_id" "$blueprint_abs_path" "$install_dir"
+
+  # Determine which specialized module to use for instance creation
+  local instance_module=""
+  local instance_type=""
 
   # $blueprint_abs_path is the absolute path to the blueprint file
-  # We need to check if the file ends with docker-compose.yml, because that
-  # makes it a container blueprint and those are handled differently.
+  # We need to check the extension to determine instance type
   if [[ "$blueprint_abs_path" == *.bp ]]; then
-    # If the blueprint is a native instance, we need to create the instance
-    # using the native instance creation function.
-    __create_native_instance "$instance_config_file" "$blueprint_abs_path"
+    # Native instance
+    instance_module="$(__find_module instances.native.sh)"
+    instance_type="native"
   elif [[ "$blueprint_abs_path" == *.docker-compose.yml ]] || [[ "$blueprint_abs_path" == *.yaml ]]; then
-    # If the blueprint is a container instance, we need to create the instance
-    # using the container instance creation function.
-    __create_container_instance "$instance_config_file" "$blueprint_abs_path"
+    # Container instance
+    instance_module="$(__find_module instances.container.sh)"
+    instance_type="container"
   else
     __print_error "Invalid blueprint file: $blueprint_abs_path"
     return $EC_INVALID_BLUEPRINT
   fi
 
-  # Load the blueprint file and prefix all variables with "blueprint_"
-  # shellcheck disable=SC1090
-  __source_blueprint "$blueprint_abs_path"
-
-  export instance_port="$blueprint_ports"
-  export instance_blueprint_file=$blueprint_abs_path
-  local instance_launch_bin="$blueprint_executable_file"
-
-  # Servers launching with global binaries
-  case "$instance_launch_bin" in
-    java | docker)
-      # Don't change since they are global
-      ;;
-    *)
-      # Prepend "./" for anything that's not global
-      instance_launch_bin="./${instance_launch_bin}"
-      ;;
-  esac
-
-  export instance_launch_bin
-
-  # Extract args without evaluating
-  local instance_launch_args
-  instance_launch_args="$(grep "blueprint_executable_arguments=" < "$blueprint_abs_path" | cut -d "=" -f2- | tr -d '"')"
-  export instance_launch_args
-
-  # Platform override for not linux-native game servers
-  export instance_platform="${blueprint_platform:-linux}"
-
-  export instance_level_name="${blueprint_level_name:-default}"
-
-  if [[ "${USE_SYSTEMD:-0}" -eq 1 ]]; then
-    [[ -z "$SYSTEMD_DIR" ]] && __print_error "USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" && return $EC_INVALID_CONFIG
-
-    export instance_systemd_service_file=${SYSTEMD_DIR}/${instance_full_name}.service
-    export instance_systemd_socket_file=${SYSTEMD_DIR}/${instance_full_name}.socket
+  # Ensure we found the appropriate module
+  if [[ -z "$instance_module" ]]; then
+    __print_error "Could not find module for $instance_type instances"
+    return $EC_FAILED_FIND_MODULE
   fi
 
-  if [[ "${USE_UFW:-0}" -eq 1 ]]; then
-    [[ -z "$UFW_RULES_DIR" ]] && __print_error "USE_UFW is enabled but UFW_RULES_DIR is not set" && return $EC_INVALID_CONFIG
-
-    export instance_ufw_file=$UFW_RULES_DIR/kgsm-$instance_full_name
+  # Delegate to the specialized module for instance creation
+  # Use the module to add the instance-type specific configuration
+  if ! "$instance_module" --create-instance-config "$instance_config_file" "$blueprint_abs_path"; then
+    __print_error "Failed to create instance configuration with specialized module"
+    return $EC_FAILED_INSTANCE_CREATION
   fi
 
-  export instance_save_command_timeout_s="${INSTANCE_SAVE_COMMAND_TIMEOUT_S:-5}"
-  export instance_stop_command_timeout_s="${INSTANCE_STOP_COMMAND_TIMEOUT_S:-30}"
+  # All done
+  __emit_instance_created "$instance_id" "$blueprint"
 
-  export instance_use_upnp="${USE_UPNP:-0}"
-  export instance_compress_backups="${COMPRESS_BACKUPS:-0}"
-
-  local instance_template_file
-  instance_template_file=$(__find_template instance.tp)
-
-  local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint_name}"
-  if [ ! -d "$instance_dir_path" ]; then
-    if ! mkdir -p "$instance_dir_path"; then
-      __print_error "Failed to create $instance_dir_path" && return $EC_FAILED_MKDIR
-    fi
-  fi
-
-  local instance_config_file="${INSTANCES_SOURCE_DIR}/${blueprint_name}/${instance_full_name}.ini"
-
-  # Instance config file is created at this point
-
-  if ! eval "cat <<EOF
-$(< "$instance_template_file")
-EOF
-" > "$instance_config_file" 2> /dev/null; then
-    __print_error "Could not create instance file $instance_config_file" && return $EC_FAILED_TEMPLATE
-  fi
-
-  local service_app_id="${blueprint_steam_app_id:-0}"
-  local is_steam_account_needed="${blueprint_is_steam_account_required:-0}"
-
-  if [[ $service_app_id -ne 0 ]]; then
-    if grep -q "INSTANCE_APP_ID=" < "$instance_config_file"; then
-      if ! sed -i "/INSTANCE_APP_ID=*/c\INSTANCE_APP_ID=$service_app_id" "$instance_config_file" > /dev/null; then
-        return $EC_FAILED_SED
-      fi
-    else
-      {
-        echo ""
-        echo "# Steam APP_ID"
-        echo "INSTANCE_APP_ID=$service_app_id"
-      } >> "$instance_config_file"
-    fi
-
-    if [[ -n "$is_steam_account_needed" ]]; then
-      if grep -q "INSTANCE_STEAM_ACCOUNT_NEEDED=" < "$instance_config_file"; then
-        if ! sed -i "/INSTANCE_STEAM_ACCOUNT_NEEDED=*/c\INSTANCE_STEAM_ACCOUNT_NEEDED=$is_steam_account_needed" "$instance_config_file" > /dev/null; then
-          return $EC_FAILED_SED
-        fi
-      else
-        {
-          echo ""
-          echo "# If a Steam account is needed for downloading"
-          echo "# Values:"
-          echo "#   0 (false)"
-          echo "#   1 (true)"
-          echo "INSTANCE_STEAM_ACCOUNT_NEEDED=$is_steam_account_needed"
-        } >> "$instance_config_file"
-      fi
-    fi
-  fi
-
-  export instance_stop_command="${blueprint_stop_command:-}"
-  if [[ -n "$instance_stop_command" ]]; then
-    if grep -q "INSTANCE_STOP_COMMAND=" < "$instance_config_file"; then
-      if ! sed -i "/INSTANCE_STOP_COMMAND=*/c\INSTANCE_STOP_COMMAND=$instance_stop_command" "$instance_config_file" > /dev/null; then
-        return $EC_FAILED_SED
-      fi
-    else
-      {
-        echo ""
-        echo "# Stop command sent to the console"
-        echo "INSTANCE_STOP_COMMAND=$instance_stop_command"
-      } >> "$instance_config_file"
-    fi
-  fi
-
-  export instance_save_command="${blueprint_save_command:-}"
-  if [[ -n "$instance_save_command" ]]; then
-    if grep -q "INSTANCE_SAVE_COMMAND=" < "$instance_config_file"; then
-      if ! sed -i "/INSTANCE_SAVE_COMMAND=*/c\INSTANCE_SAVE_COMMAND=$instance_save_command" "$instance_config_file" > /dev/null; then
-        return $EC_FAILED_SED
-      fi
-    else
-      {
-        echo ""
-        echo "# Save command sent to the console"
-        echo "INSTANCE_SAVE_COMMAND=$instance_save_command"
-      } >> "$instance_config_file"
-    fi
-  fi
-
-  # UPnP
-  local instance_upnp_ports=()
-  if ! instance_upnp_ports=($(__parse_ufw_to_upnp_ports "$instance_port")); then
-    __print_warning "Failed to generate INSTANCE_UPNP_PORTS. Disabling UPnP for instance $instance_full_name"
-    export USE_UPNP=0
-  fi
-
-  if grep -q "INSTANCE_UPNP_PORTS=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_UPNP_PORTS=*/c\INSTANCE_UPNP_PORTS=(${instance_upnp_ports[*]})" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# UPnP ports definition"
-      echo "INSTANCE_UPNP_PORTS=(${instance_upnp_ports[*]})"
-    } >> "$instance_config_file"
-  fi
-
-  # Docker specific stuff
-  local instance_docker_image="${BP_DOCKER_IMAGE:-}"
-  if [[ -n "$instance_docker_image" ]]; then
-    if grep -q "INSTANCE_DOCKER_IMAGE=" < "$instance_config_file"; then
-      sed -i "/INSTANCE_DOCKER_IMAGE=*/c\INSTANCE_DOCKER_IMAGE=\"$instance_docker_image\"" "$instance_config_file" > /dev/null
-    else
-      {
-        echo ""
-        echo "# Docker image"
-        echo "INSTANCE_DOCKER_IMAGE=\"$instance_docker_image\""
-      } >> "$instance_config_file"
-    fi
-    export INSTANCE_DOCKER_IMAGE="$instance_docker_image"
-
-    local instance_docker_ports=()
-    if instance_docker_ports=($(__parse_ufw_to_docker_ports "$instance_port")); then
-      if grep -q "INSTANCE_DOCKER_PORTS=" < "$instance_config_file"; then
-        sed -i "/INSTANCE_DOCKER_PORTS=*/c\INSTANCE_DOCKER_PORTS=(${instance_docker_ports[*]})" "$instance_config_file" > /dev/null
-      else
-        {
-          echo ""
-          echo "# Docker ports"
-          echo "INSTANCE_DOCKER_PORTS=(${instance_docker_ports[*]})"
-        } >> "$instance_config_file"
-      fi
-      export INSTANCE_DOCKER_PORTS=(${instance_docker_ports[*]})
-    else
-      __print_warning "Failed to parse instance ${instance_full_name} ports to docker, skipping"
-    fi
-  fi
-
-  local instance_socket_file="${instance_working_dir}/.${instance_full_name}.stdin"
-  if grep -q "INSTANCE_SOCKET_FILE=" < "$instance_config_file"; then
-    sed -i "/INSTANCE_SOCKET_FILE=*/c\INSTANCE_SOCKET_FILE=$instance_socket_file" "$instance_config_file" > /dev/null
-  else
-    {
-      echo ""
-      echo "# Path to the Unix Domain Socket"
-      echo "INSTANCE_SOCKET_FILE=$instance_socket_file"
-    } >> "$instance_config_file"
-  fi
-
-  # Standalone instances track their own PID so we save the file paths to the config file
-  if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
-    # Stores PID of the game server
-    export INSTANCE_PID_FILE="$instance_working_dir/.${instance_full_name}.pid"
-
-    # Add it to the instance config file
-    if grep -q "INSTANCE_PID_FILE=" < "$instance_config_file"; then
-      sed -i "/INSTANCE_PID_FILE=*/c\INSTANCE_PID_FILE=$INSTANCE_PID_FILE" "$instance_config_file" > /dev/null
-    else
-      {
-        echo ""
-        echo "# File where the instance process ID will be stored while the instance is running"
-        echo "INSTANCE_PID_FILE=$INSTANCE_PID_FILE"
-      } >> "$instance_config_file"
-    fi
-
-    # Stores PID of the dummy writer that keeps input socket alive
-    export TAIL_PID_FILE="$instance_working_dir/.${instance_full_name}.tail.pid"
-
-    if grep -q "TAIL_PID_FILE=" < "$instance_config_file"; then
-      sed -i "/TAIL_PID_FILE=*/c\TAIL_PID_FILE=$TAIL_PID_FILE" "$instance_config_file" > /dev/null
-    else
-      {
-        echo ""
-        echo "# PID of the dummy socker writer"
-        echo "TAIL_PID_FILE=$TAIL_PID_FILE"
-      } >> "$instance_config_file"
-    fi
-  fi
-
-  __emit_instance_created "$instance_full_name" "$blueprint"
-  echo "$instance_full_name"
+  echo "$instance_id"
 }
 
 function _remove() {
@@ -529,18 +322,21 @@ function _remove() {
   local instance_abs_path
   instance_abs_path="$(__find_instance_config "$instance")"
 
-  local instance_name
-  instance_name=$()
-  instance_name=$(grep "INSTANCE_NAME=" < "$instance_abs_path" | cut -d "=" -f2 | tr -d '"')
+  local instance_blueprint_file
+  instance_blueprint_file="$(grep "INSTANCE_BLUEPRINT_FILE=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')"
+  instance_blueprint_file="$(basename "$instance_blueprint_file")"
 
   # Remove instance config file
   if ! rm "$instance_abs_path"; then
-    __print_error "Failed to remove $instance_abs_path" && return $EC_FAILED_RM
+    __print_error "Failed to remove $instance_abs_path"
+    return $EC_FAILED_RM
   fi
 
   # Remove directory if no other instances are found
-  if [[ -z "$(ls -A "$INSTANCES_SOURCE_DIR/$instance_name")" ]]; then
-    rmdir "$INSTANCES_SOURCE_DIR/$instance_name"
+  local instances_dir
+  instances_dir="${INSTANCES_SOURCE_DIR}/${instance_blueprint_file}"
+  if [[ -z "$(ls -A "${instances_dir}")" ]]; then
+    rmdir "${instances_dir}"
   fi
 
   __emit_instance_removed "${instance%.ini}"
@@ -550,8 +346,7 @@ function _remove() {
 function _print_info() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
 
   {
     echo "Name:                $INSTANCE_ID"
@@ -763,114 +558,114 @@ if [[ $@ =~ "--json" ]]; then
   for a; do
     shift
     case $a in
-      --json) continue ;;
-      *) set -- "$@" "$a" ;;
+    --json) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --list)
+  --list)
+    shift
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+      --detailed)
+        detailed=1
+        ;;
+      *)
+        blueprint=$1
+        ;;
+      esac
       shift
-      while [[ $# -gt 0 ]]; do
+    done
+    if [[ -z "$json_format" ]]; then
+      _list_instances "$blueprint" "$detailed"
+      exit $?
+    else
+      _list_instances_json "$blueprint" "$detailed"
+      exit $?
+    fi
+    ;;
+  --generate-id)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
+    _generate_unique_instance_name "$1"
+    exit $?
+    ;;
+  --input)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    instance=$1
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
+    command=$1
+    _send_input_to_instance "$instance" "$command"
+    exit $?
+    ;;
+  --create)
+    blueprint=
+    install_dir=
+    identifier=
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
+    blueprint=$1
+    shift
+    if [[ -n "$1" ]]; then
+      while [[ $# -ne 0 ]]; do
         case "$1" in
-          --detailed)
-            detailed=1
-            ;;
-          *)
-            blueprint=$1
-            ;;
+        --install-dir)
+          shift
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
+          install_dir=$1
+          ;;
+        --id)
+          shift
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
+          identifier=$1
+          ;;
+        *)
+          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          ;;
         esac
         shift
       done
-      if [[ -z "$json_format" ]]; then
-        _list_instances "$blueprint" "$detailed"
-        exit $?
-      else
-        _list_instances_json "$blueprint" "$detailed"
-        exit $?
-      fi
-      ;;
-    --generate-id)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
-      _generate_unique_instance_name "$1"
-      exit $?
-      ;;
-    --input)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      instance=$1
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
-      command=$1
-      _send_input_to_instance "$instance" "$command"
-      exit $?
-      ;;
-    --create)
-      blueprint=
-      install_dir=
-      identifier=
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
-      blueprint=$1
-      shift
-      if [[ -n "$1" ]]; then
-        while [[ $# -ne 0 ]]; do
-          case "$1" in
-            --install-dir)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
-              install_dir=$1
-              ;;
-            --id)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
-              identifier=$1
-              ;;
-            *)
-              __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-              ;;
-          esac
-          shift
-        done
-      fi
-      _create_instance "$blueprint" "$install_dir" $identifier
-      exit $?
-      ;;
-    --status)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      _get_instance_status "$1"
-      exit $?
-      ;;
-    --save)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      _send_save_to_instance "$1"
-      exit $?
-      ;;
-    --remove)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      _remove "$1"
-      exit $?
-      ;;
-    --info)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      instance=$1
-      if [[ -z "$json_format" ]]; then
-        _print_info "$instance"
-      else
-        _print_info_json "$instance"
-      fi
-      exit $?
-      ;;
-    *)
-      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-      ;;
+    fi
+    _create_instance "$blueprint" "$install_dir" $identifier
+    exit $?
+    ;;
+  --status)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _get_instance_status "$1"
+    exit $?
+    ;;
+  --save)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _send_save_to_instance "$1"
+    exit $?
+    ;;
+  --remove)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _remove "$1"
+    exit $?
+    ;;
+  --info)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    instance=$1
+    if [[ -z "$json_format" ]]; then
+      _print_info "$instance"
+    else
+      _print_info_json "$instance"
+    fi
+    exit $?
+    ;;
+  *)
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+    ;;
   esac
   shift
 done

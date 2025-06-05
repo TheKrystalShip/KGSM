@@ -103,7 +103,7 @@ function _create() {
 
     local current_dir="${DIR_ARRAY[$dir]}"
 
-    _create_dir "$current_dir"
+    __create_dir "$current_dir"
 
     __add_or_update_config "$instance_config_file" "$dir" "$current_dir" "INSTANCE_WORKING_DIR" || {
       __print_error "Failed to add or update $dir in $instance_config_file"

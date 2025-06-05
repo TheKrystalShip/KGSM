@@ -8,13 +8,18 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-function _create_dir() {
+function __create_dir() {
   local dir="$1"
   local permissions="${2:-755}" # Default to 755 if no permissions are specified
 
   if [[ -z "$dir" ]]; then
     __print_error "No directory specified for creation."
     exit $EC_INVALID_ARG
+  fi
+
+  # If directory already exists, there's nothing to do
+  if [[ -d "$dir" ]]; then
+    return 0
   fi
 
   # Create the directory with appropriate permissions
@@ -30,9 +35,9 @@ function _create_dir() {
   }
 }
 
-export -f _create_dir
+export -f __create_dir
 
-function _source() {
+function __source() {
   local file="$1"
   if [[ -z "$file" ]]; then
     __print_error "No file specified for sourcing."
@@ -59,16 +64,21 @@ function _source() {
   }
 }
 
-export -f _source
+export -f __source
 
 # Function to create a file with specific permissions
-function _create_file() {
+function __create_file() {
   local file="$1"
   local permissions="${2:-644}" # Default to 644 if no permissions are specified
 
   if [[ -z "$file" ]]; then
     __print_error "No file specified for creation."
     exit $EC_INVALID_ARG
+  fi
+
+  # If file already exists, there's nothing to do
+  if [[ -f "$file" ]]; then
+    return 0
   fi
 
   # Create the file with appropriate permissions
@@ -84,6 +94,6 @@ function _create_file() {
   }
 }
 
-export -f _create_file
+export -f __create_file
 
 export KGSM_SYSTEM_LOADED=1

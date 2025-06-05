@@ -51,7 +51,7 @@ function __find_or_fail() {
   file_path="$(find "$source" -type f -name "$file_name" -print -quit)"
 
   if [[ -z "$file_path" ]]; then
-    __print_error "Could not find $file_name"
+    __print_error "Could not find $file_name in $source"
     exit $EC_FILE_NOT_FOUND
   fi
 
@@ -137,8 +137,18 @@ export -f __find_custom_blueprint
 # This function needs to look in both the native blueprints directory
 # and the container blueprints directory and return the first match,
 # or if there is a match in each directory, return the native one.
+# It will return the absolute path to the blueprint file.
+# Usage: __find_blueprint <blueprint_name>
+# The blueprint name can be either an absolute path or just the name.
 function __find_blueprint() {
   local blueprint=$1
+
+  # $blueprint can be either an absolute path, or simply the blueprint name.
+  # If it's an absolute path, we extract the name from it.
+  if [[ "$blueprint" == /* ]]; then
+    # If it's an absolute path, we just use the basename
+    blueprint=$(basename "$blueprint")
+  fi
 
   # Load the blueprint file in this order:
   # 1. Custom native blueprint
@@ -148,11 +158,11 @@ function __find_blueprint() {
 
   # First try to find a custom blueprint
   local loaded_blueprint
-  loaded_blueprint=$(__find_custom_blueprint "$blueprint")
+  loaded_blueprint=$(__find_custom_blueprint "$blueprint" 2>/dev/null)
 
   # If no custom blueprint is found, try to find the default blueprint
   if [[ -z "$loaded_blueprint" ]]; then
-    loaded_blueprint=$(__find_default_blueprint "$blueprint")
+    loaded_blueprint=$(__find_default_blueprint "$blueprint" 2>/dev/null)
   fi
 
   # If no blueprint is found, we print an error and exit
@@ -243,17 +253,17 @@ function __source_blueprint() {
 
   # Use the __find_blueprint function to find the blueprint file.
   # This gives the absolute path to the blueprint file.
-  local loaded_blueprint
-  loaded_blueprint=$(__find_blueprint "$blueprint_file")
+  local blueprint_absolute_path
+  blueprint_absolute_path=$(__find_blueprint "$blueprint_file")
 
   # Check if the blueprint file was found
-  if [[ -z "$loaded_blueprint" ]]; then
+  if [[ -z "$blueprint_absolute_path" ]]; then
     __print_error "Blueprint file '$blueprint_file' not found."
     exit $EC_FILE_NOT_FOUND
   fi
 
   # Check if the blueprint file is readable
-  if [[ ! -r "$loaded_blueprint" ]]; then
+  if [[ ! -r "$blueprint_absolute_path" ]]; then
     __print_error "Blueprint file '$blueprint_file' is not readable."
     exit $EC_PERMISSION
   fi
@@ -271,9 +281,44 @@ function __source_blueprint() {
     value="${value%\'}"
     value="${value#\'}"
     eval "${prefix}${key}=\"${value}\""
-  done < <(grep -v '^[[:space:]]*$' "$loaded_blueprint" | grep -v '^[[:space:]]*#')
+  done < <(grep -v '^[[:space:]]*$' "$blueprint_absolute_path" | grep -v '^[[:space:]]*#')
 }
 
 export -f __source_blueprint
+
+# Source the instance config file for a specific instance.
+# This function expects the instance ID as the first argument.
+# Usage: __source_instance <instance_id>
+# The instance ID can be either an absolute path or just the instance ID.
+function __source_instance() {
+  local instance_id="$1"
+
+  if [[ -z "$instance_id" ]]; then
+    __print_error "No instance ID specified."
+    exit $EC_INVALID_ARG
+  fi
+
+  # $instance_id can be either an absolute path, or simply the instance ID.
+  # If it's an absolute path, we extract the name from it.
+  if [[ "$instance_id" == /* ]]; then
+    # If it's an absolute path, we just use the basename
+    instance_id=$(basename "$instance_id")
+  fi
+
+  # Locate the instance config file
+  local instance_config_file
+  instance_config_file=$(__find_instance_config "$instance_id")
+
+  if [[ -z "$instance_config_file" ]]; then
+    __print_error "Instance config file for '$instance_id' not found."
+    exit $EC_FILE_NOT_FOUND
+  fi
+
+  # Source the instance config file
+  # shellcheck disable=SC1090
+  source "$instance_config_file"
+}
+
+export -f __source_instance
 
 export KGSM_LOADER_LOADED=1

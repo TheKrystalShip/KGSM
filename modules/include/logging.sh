@@ -56,7 +56,7 @@ function __log_message() {
   local printable_log_entry="[${colored_log_level}${log_level}${COLOR_END}] $message"
   local log_entry="[$timestamp] [$log_level] $message"
 
-  _create_dir "$LOGS_SOURCE_DIR"
+  __create_dir "$LOGS_SOURCE_DIR"
 
   # Rotate log file if it reaches the size limit
   if [[ -f "$LOG_FILE" ]] && [[ "$(stat --format=%s "$LOG_FILE")" -ge "$LOG_FILE_MAX_SIZE" ]]; then
