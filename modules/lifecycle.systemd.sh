@@ -24,7 +24,8 @@ Usage:
 Options:
   -h, --help                      Prints this message
 
-  --logs <instance>               Prints a constant output of an instance's logs
+  --logs <instance>               Prints the last few lines of an instance's logs
+    [--follow]                   Continuously follow the log output
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
   --stop <instance>               Stop the instance.
@@ -105,8 +106,13 @@ function _is_instance_active() {
 
 function _get_logs() {
   local instance=$1
+  local follow=$2
 
-  journalctl -fu "${instance%.ini}"
+  if [[ "$follow" == "--follow" ]]; then
+    journalctl -fu "${instance%.ini}"
+  else
+    journalctl -n 10 -u "${instance%.ini}" --no-pager
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -114,7 +120,13 @@ while [[ $# -gt 0 ]]; do
   --logs)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _get_logs "$1"; exit $?
+    instance="$1"
+    shift
+    follow=""
+    if [[ "$1" == "--follow" ]]; then
+      follow="--follow"
+    fi
+    _get_logs "$instance" "$follow"; exit $?
     ;;
   --is-active)
     shift

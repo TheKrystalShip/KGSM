@@ -383,14 +383,8 @@ function _print_logs() {
   local follow=${1:-}
   local latest_log_file
 
-  if ! command -v inotifywait &>/dev/null; then
-    __print_error "inotifywait is required to read logs, please install it"
-    return 1
-  fi
-
   # Without follow, just print the last few lines of the latest file
-  if [[ -z "$follow" ]]; then
-
+  if [[ "$follow" != "--follow" ]]; then
     latest_log_file="$(ls -t "$INSTANCE_LOGS_DIR" | head -1)"
 
     if [[ -z "$latest_log_file" ]]; then
@@ -398,11 +392,15 @@ function _print_logs() {
       return 0
     fi
 
-    tail "$latest_log_file"
+    tail "$INSTANCE_LOGS_DIR/$latest_log_file"
     return $?
 
   # With follow, keep the logs live even through file changes
   else
+    if ! command -v inotifywait &>/dev/null; then
+      __print_error "inotifywait is required to follow logs, please install it"
+      return 1
+    fi
     while true; do
       latest_log_file="$(ls -t "$INSTANCE_LOGS_DIR" | head -1)"
 
@@ -847,17 +845,11 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --logs)
-    follow=false
     shift
-    case "$1" in
-    -f | --follow)
-      follow=true
-      ;;
-    *)
-      __print_error "Invalid argument $1"
-      exit 1
-      ;;
-    esac
+    follow=""
+    if [[ "$1" == "-f" ]] || [[ "$1" == "--follow" ]]; then
+      follow="--follow"
+    fi
     _print_logs $follow
     exit $?
     ;;

@@ -121,7 +121,13 @@ function is_active() {
 }
 
 function print_logs() {
-  return
+  local follow=$1
+
+  if [[ "$follow" == "--follow" ]]; then
+    docker logs -f "$INSTANCE_FULL_NAME"
+  else
+    docker logs -n 10 "$INSTANCE_FULL_NAME"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -167,18 +173,12 @@ while [[ $# -gt 0 ]]; do
     ;;
   --logs)
     shift
-    if [[ -z "$1" ]]; then
-      print_logs
-      exit $?
+    follow=""
+    if [[ "$1" == "-f" ]] || [[ "$1" == "--follow" ]]; then
+      follow="--follow"
     fi
-    case "$1" in
-    -f | --follow)
-      print_logs
-      ;;
-    *)
-      echo "$self ERROR: Invalid argument $1" >&2 && exit 1
-      ;;
-    esac
+    print_logs $follow
+    exit $?
     ;;
   --enable-upnp)
     enable_upnp

@@ -24,7 +24,8 @@ Usage:
 Options:
   -h, --help                      Prints this message
 
-  --logs <instance>               Prints a constant output of an instance's logs
+  --logs <instance>               Prints the last few lines of an instance's logs
+    [--follow]                   Continuously follow the log output
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
   --stop <instance>               Stop the instance.
@@ -107,10 +108,11 @@ function _is_instance_active() {
 
 function _get_logs() {
   local instance=$1
+  local follow=$2
 
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
-  "$INSTANCE_MANAGE_FILE" --logs $debug
+  "$INSTANCE_MANAGE_FILE" --logs $follow $debug
 }
 
 while [[ $# -gt 0 ]]; do
@@ -122,7 +124,11 @@ while [[ $# -gt 0 ]]; do
       instance=$1
       case "$command" in
         --logs)
-          _get_logs "$instance"
+          follow=""
+          if [[ "$@" =~ "--follow" ]]; then
+            follow="--follow"
+          fi
+          _get_logs "$instance" "$follow"
           ;;
         --is-active)
           _is_instance_active "$instance"

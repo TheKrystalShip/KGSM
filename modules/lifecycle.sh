@@ -28,7 +28,8 @@ Usage:
 Options:
   -h, --help                      Prints this message
 
-  --logs <instance>               Prints a constant output of an instance's logs
+  --logs <instance>               Prints the last few lines of an instance's log
+    [--follow]                   Continuously follow the log output
   --is-active <instance>          Check if the instance is active.
   --start <instance>              Start the instance.
   --stop <instance>               Stop the instance.
@@ -96,7 +97,11 @@ while [[ $# -gt 0 ]]; do
       lifecycle_manager="$(_get_lifecycle_manager "$instance")"
       case "$command" in
         --logs)
-          "$lifecycle_manager" --logs "$instance" $debug
+          follow=""
+          if [[ "$@" =~ "--follow" ]]; then
+            follow="--follow"
+          fi
+          "$lifecycle_manager" --logs "$instance" $follow $debug
           ;;
         --is-active)
           "$lifecycle_manager" --is-active "$instance" $debug
