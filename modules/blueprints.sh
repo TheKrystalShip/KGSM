@@ -134,7 +134,7 @@ function _print_blueprint() {
   local blueprint=$1
 
   local blueprint_path
-  blueprint_path=$(__load_blueprint "$blueprint")
+  blueprint_path=$(__find_blueprint "$blueprint")
 
   if [[ -z "$json_format" ]]; then
     cat "$blueprint_path"
@@ -142,28 +142,28 @@ function _print_blueprint() {
   fi
 
   # shellcheck disable=SC1090
-  source "$blueprint_path" || return "$EC_FAILED_SOURCE"
+  __source_blueprint "$blueprint" || return $EC_FAILED_SOURCE
 
   jq -n \
-    --arg name "$BP_NAME" \
-    --arg port "$BP_PORT" \
-    --arg app_id "$BP_APP_ID" \
-    --arg steam_auth_level $BP_STEAM_AUTH_LEVEL \
-    --arg launch_bin "$BP_LAUNCH_BIN" \
-    --arg level_name "$BP_LEVEL_NAME" \
-    --arg install_subdirectory "$BP_INSTALL_SUBDIRECTORY" \
-    --arg launch_args "$BP_LAUNCH_ARGS" \
-    --arg stop_command "$BP_STOP_COMMAND" \
-    --arg save_command "$BP_SAVE_COMMAND" \
+    --arg name "$blueprint_name" \
+    --arg ports "$blueprint_ports" \
+    --arg steam_app_id "$blueprint_steam_app_id" \
+    --arg is_steam_account_required $blueprint_is_steam_account_required \
+    --arg executable_file "$blueprint_executable_file" \
+    --arg level_name "$blueprint_level_name" \
+    --arg executable_subdirectory "$blueprint_executable_subdirectory" \
+    --arg executable_arguments "$blueprint_executable_arguments" \
+    --arg stop_command "$blueprint_stop_command" \
+    --arg save_command "$blueprint_save_command" \
     '{
       Name: $name,
-      Port: $port,
-      AppId: $app_id,
-      SteamAccountRequired: $steam_auth_level,
-      LaunchBin: $launch_bin,
+      Ports: $ports,
+      SteamAppId: $steam_app_id,
+      IsSteamAccountRequired: $is_steam_account_required,
+      ExecutableFile: $executable_file,
       LevelName: $level_name,
-      InstallSubdirectory: $install_subdirectory,
-      LaunchArgs: $launch_args,
+      ExecutableSubdirectory: $executable_subdirectory,
+      ExecutableArguments: $executable_arguments,
       StopCommand: $stop_command,
       SaveCommand: $save_command
     }'

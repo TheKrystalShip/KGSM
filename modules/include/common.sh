@@ -34,37 +34,37 @@ fi
 # System
 if [[ -z "$KGSM_SYSTEM_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module system.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module system.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # Error codes and definitions
 if [[ ! "$KGSM_ERRORS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module errors.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module errors.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # User config.ini
 if [[ ! "$KGSM_CONFIG_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module config.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module config.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # File logging
 if [[ ! "$KGSM_LOGGING_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module logging.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module logging.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # KGSM Socket events
 if [[ ! "$KGSM_EVENTS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module events.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module events.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # Parser
 if [[ -z "$KGSM_PARSER_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__load_module parser.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_module parser.sh)" || exit $EC_FAILED_SOURCE
 fi
 
 # Export this to check before loading this file again

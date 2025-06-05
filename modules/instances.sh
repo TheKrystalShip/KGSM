@@ -119,6 +119,132 @@ function _generate_unique_instance_name() {
   done
 }
 
+# Function to check if an instance config file exists
+function __instance_config_file_exists() {
+  local instance_id="$1"
+  local blueprint="$2"
+
+  if [[ -z "$instance_id" ]]; then
+    __print_error "Instance ID is not set"
+    return $EC_INVALID_ARG
+  fi
+
+  if [[ -z "$blueprint" ]]; then
+    __print_error "Blueprint is not set"
+    return $EC_INVALID_ARG
+  fi
+
+  # If $instance_id doesn't end in .ini, append it
+  if [[ ! "$instance_id" =~ \.ini$ ]]; then
+    instance_id="${instance_id}.ini"
+  fi
+
+  # Path to the instance config file
+  local instance_config_file="${INSTANCES_SOURCE_DIR}/${blueprint}/${instance_id}.ini"
+
+  # Check if the instance config file exists
+  # If it does, return 0 (success), otherwise return 1 (failure)
+  if [[ -f "$instance_config_file" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Create an instance config file for the given instance full name and blueprint
+# Returns the path to the instance config file.
+function _create_instance_config_file() {
+  local instance_id="$1"
+  local blueprint="$2"
+
+  if [[ -z "$instance_id" ]]; then
+    __print_error "Instance ID name is not set"
+    return $EC_INVALID_ARG
+  fi
+
+  if [[ -z "$blueprint" ]]; then
+    __print_error "Blueprint is not set"
+    return $EC_INVALID_ARG
+  fi
+
+  # Create the instance directory if it doesn't exist
+  local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint}"
+  if [ ! -d "$instance_dir_path" ]; then
+    __create_dir "$instance_dir_path"
+  fi
+
+  # Create the instance config file
+  local instance_config_file="${instance_dir_path}/${instance_id}.ini"
+  if [[ -f "$instance_config_file" ]]; then
+    __create_file "$instance_config_file"
+  fi
+
+  # Return the instance config file path
+  echo "$instance_config_file"
+}
+
+function __create_native_instance() {
+
+  # Temp file with some instance information needed to create the rest
+  # of the instance files
+  local temp_file_with_data="$1"
+  local blueprint_abs_path="$2"
+
+  echo "$blueprint_abs_path"
+}
+
+function __create_container_instance() {
+
+  # Temp file with some instance information needed to create the rest
+  # of the instance files
+  local temp_file_with_data="$1"
+  local blueprint_abs_path="$2"
+
+  # The docker-compose.yml file will contain placeholders that need to be
+  # replaced with their corresponding values.
+  # Some of these could be paths, ports, names, etc.
+  # We need to treat the blueprint file as a template, load it, render it
+  # and then saved the rendered file to the instances directory.
+
+  echo "$blueprint_abs_path"
+}
+
+# Create a base instance configuration file with common variables
+function __create_base_instance() {
+  local instance_config_file="$1"
+  local instance_id="$2"
+  local blueprint_name="$3"
+  local install_dir="$4"
+
+  local instance_working_dir="${install_dir}/${instance_id}"
+  local instance_version_file="${instance_working_dir}/${instance_id}.version"
+
+  # Set instance_runtime to either native or docker, depending if the
+  # instance_launch_bin is set to docker or not.
+  local instance_runtime
+  [[ "$instance_launch_bin" == "docker" ]] && instance_runtime="container" || instance_runtime="native"
+
+  local instance_lifecycle_manager
+  [[ "$USE_SYSTEMD" -eq 0 ]] && instance_lifecycle_manager="standalone" || instance_lifecycle_manager="systemd"
+
+  local instance_install_datetime
+  instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
+
+  local instance_manage_file="${install_dir}/${instance_id}.manage.sh"
+
+  {
+    echo "INSTANCE_ID=$instance_id"
+    echo "INSTANCE_WORKING_DIR=$instance_working_dir"
+    echo "INSTANCE_VERSION_FILE=$instance_version_file"
+    echo "INSTANCE_RUNTIME=$instance_runtime"
+    echo "INSTANCE_LIFECYCLE_MANAGER=$instance_lifecycle_manager"
+    echo "INSTANCE_INSTALL_DATETIME=$instance_install_datetime"
+    echo "INSTANCE_MANAGE_FILE=$instance_manage_file"
+
+  } >> "$instance_config_file"
+
+}
+
 # IMPORTANT: This function cannot echo or print anything to stdout
 # other than the final instance file path.
 function _create_instance() {
@@ -127,33 +253,56 @@ function _create_instance() {
   local identifier=${3:-}
 
   local blueprint_abs_path
-  blueprint_abs_path=$(__load_blueprint "$blueprint")
+  blueprint_abs_path=$(__find_blueprint "$blueprint")
 
-  # shellcheck disable=SC1090
-  source "$blueprint_abs_path"
+  local instance_id
+  instance_id=$identifier
 
-  local blueprint_name="$BP_NAME"
+  # Ensure instance_id is unique
+  if [[ -z "$instance_id" ]]; then
+    # If no identifier is provided, we generate a unique instance name
+    instance_id=$(_generate_unique_instance_name "$blueprint_name")
 
-  export instance_name=$blueprint_name
-
-  instance_full_name=$identifier
-  if [[ -z "$instance_full_name" ]]; then
-    instance_full_name=$(_generate_unique_instance_name "$blueprint_name")
-
-    export instance_id=${instance_full_name##*-}
+    export instance_id
   else
-    if [[ -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_full_name}.ini" ]]; then
-      __print_error "Instance with id \"$identifier\" already exists" && return $EC_GENERAL
+    # If an identifier is provided, we use it as the instance_id
+    # We also need to ensure that the identifier is valid
+    if __instance_config_file_exists "$instance_id" "$blueprint_name"; then
+      __print_error "Instance with id \"$instance_id\" already exists for blueprint \"$blueprint_name\""
+      return $EC_INVALID_INSTANCE
     fi
-
-    instance_full_name="${identifier}"
   fi
 
-  export instance_full_name
+  # Temporary instance config file, we build from here until it's ready
+  local instance_config_file
+  instance_config_file=$(_create_instance_config_file "$instance_id" "$blueprint_abs_path")
 
-  export instance_port="$BP_PORT"
+  # All common instance variables are set in this function
+  __create_base_instance "$instance_config_file" "$instance_id" "$blueprint" "$install_dir"
+
+  # $blueprint_abs_path is the absolute path to the blueprint file
+  # We need to check if the file ends with docker-compose.yml, because that
+  # makes it a container blueprint and those are handled differently.
+  if [[ "$blueprint_abs_path" == *.bp ]]; then
+    # If the blueprint is a native instance, we need to create the instance
+    # using the native instance creation function.
+    __create_native_instance "$instance_config_file" "$blueprint_abs_path"
+  elif [[ "$blueprint_abs_path" == *.docker-compose.yml ]] || [[ "$blueprint_abs_path" == *.yaml ]]; then
+    # If the blueprint is a container instance, we need to create the instance
+    # using the container instance creation function.
+    __create_container_instance "$instance_config_file" "$blueprint_abs_path"
+  else
+    __print_error "Invalid blueprint file: $blueprint_abs_path"
+    return $EC_INVALID_BLUEPRINT
+  fi
+
+  # Load the blueprint file and prefix all variables with "blueprint_"
+  # shellcheck disable=SC1090
+  __source_blueprint "$blueprint_abs_path"
+
+  export instance_port="$blueprint_ports"
   export instance_blueprint_file=$blueprint_abs_path
-  local instance_launch_bin="$BP_LAUNCH_BIN"
+  local instance_launch_bin="$blueprint_executable_file"
 
   # Servers launching with global binaries
   case "$instance_launch_bin" in
@@ -170,30 +319,13 @@ function _create_instance() {
 
   # Extract args without evaluating
   local instance_launch_args
-  instance_launch_args="$(grep "BP_LAUNCH_ARGS=" < "$blueprint_abs_path" | cut -d "=" -f2- | tr -d '"')"
+  instance_launch_args="$(grep "blueprint_executable_arguments=" < "$blueprint_abs_path" | cut -d "=" -f2- | tr -d '"')"
   export instance_launch_args
 
-  export instance_level_name="${BP_LEVEL_NAME:-default}"
-  export instance_working_dir=$install_dir/$instance_full_name
-  export instance_version_file=$install_dir/".${instance_full_name}.version"
+  # Platform override for not linux-native game servers
+  export instance_platform="${blueprint_platform:-linux}"
 
-  local instance_runtime="native"
-  local instance_lifecycle_manager="standalone"
-
-  if [[ "${USE_SYSTEMD:-0}" -eq 1 ]]; then
-    instance_lifecycle_manager="systemd"
-  fi
-
-  if [[ "$instance_launch_bin" == "docker" ]]; then
-    instance_runtime="docker"
-  fi
-
-  export instance_runtime
-  export instance_lifecycle_manager
-
-  # shellcheck disable=SC2155
-  export instance_install_datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
-  export instance_manage_file=$install_dir/$instance_full_name/$instance_full_name.manage.sh
+  export instance_level_name="${blueprint_level_name:-default}"
 
   if [[ "${USE_SYSTEMD:-0}" -eq 1 ]]; then
     [[ -z "$SYSTEMD_DIR" ]] && __print_error "USE_SYSTEMD is enabled but SYSTEMD_DIR is not set" && return $EC_INVALID_CONFIG
@@ -215,7 +347,7 @@ function _create_instance() {
   export instance_compress_backups="${COMPRESS_BACKUPS:-0}"
 
   local instance_template_file
-  instance_template_file=$(__load_template instance.tp)
+  instance_template_file=$(__find_template instance.tp)
 
   local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint_name}"
   if [ ! -d "$instance_dir_path" ]; then
@@ -235,8 +367,8 @@ EOF
     __print_error "Could not create instance file $instance_config_file" && return $EC_FAILED_TEMPLATE
   fi
 
-  local service_app_id="${BP_APP_ID:-0}"
-  local is_steam_account_needed="${BP_STEAM_AUTH_LEVEL:-0}"
+  local service_app_id="${blueprint_steam_app_id:-0}"
+  local is_steam_account_needed="${blueprint_is_steam_account_required:-0}"
 
   if [[ $service_app_id -ne 0 ]]; then
     if grep -q "INSTANCE_APP_ID=" < "$instance_config_file"; then
@@ -269,7 +401,7 @@ EOF
     fi
   fi
 
-  export instance_stop_command="${BP_STOP_COMMAND:-}"
+  export instance_stop_command="${blueprint_stop_command:-}"
   if [[ -n "$instance_stop_command" ]]; then
     if grep -q "INSTANCE_STOP_COMMAND=" < "$instance_config_file"; then
       if ! sed -i "/INSTANCE_STOP_COMMAND=*/c\INSTANCE_STOP_COMMAND=$instance_stop_command" "$instance_config_file" > /dev/null; then
@@ -284,7 +416,7 @@ EOF
     fi
   fi
 
-  export instance_save_command="${BP_SAVE_COMMAND:-}"
+  export instance_save_command="${blueprint_save_command:-}"
   if [[ -n "$instance_save_command" ]]; then
     if grep -q "INSTANCE_SAVE_COMMAND=" < "$instance_config_file"; then
       if ! sed -i "/INSTANCE_SAVE_COMMAND=*/c\INSTANCE_SAVE_COMMAND=$instance_save_command" "$instance_config_file" > /dev/null; then
@@ -395,9 +527,10 @@ EOF
 function _remove() {
   local instance=$1
   local instance_abs_path
-  instance_abs_path="$(__load_instance "$instance")"
+  instance_abs_path="$(__find_instance_config "$instance")"
 
   local instance_name
+  instance_name=$()
   instance_name=$(grep "INSTANCE_NAME=" < "$instance_abs_path" | cut -d "=" -f2 | tr -d '"')
 
   # Remove instance config file
@@ -418,7 +551,7 @@ function _print_info() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
+  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   {
     echo "Name:                $INSTANCE_FULL_NAME"
@@ -474,7 +607,7 @@ function _print_info_json() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
+  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   local status=""
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
@@ -592,7 +725,7 @@ function _get_instance_status() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
+  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
     # systemctl status doesn't require sudo
@@ -609,7 +742,7 @@ function _send_save_to_instance() {
   local instance=$1
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
+  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   "$INSTANCE_MANAGE_FILE" --save $debug
 }
@@ -619,7 +752,7 @@ function _send_input_to_instance() {
   local command=$2
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return "$EC_FAILED_SOURCE"
+  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   "$INSTANCE_MANAGE_FILE" --input "$command" $debug
 }

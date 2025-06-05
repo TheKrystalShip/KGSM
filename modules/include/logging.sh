@@ -6,7 +6,7 @@ if test -t 1; then
   ncolors=0
 
   # Check for availability of tput
-  if command -v tput >/dev/null 2>&1; then
+  if command -v tput > /dev/null 2>&1; then
     ncolors="$(tput colors)"
   fi
 
@@ -31,12 +31,18 @@ export LOG_FILE="$LOGS_SOURCE_DIR/kgsm.log"
 # Don't call directly, use the __print_* functions instead
 function __log_message() {
   local log_level="$1"
+
+  # $message should contain as much information about the caller as possible,
+  # so we can trace back the error or log entry.
+  # BASH_SOURCE[-1] gives us the name of the script that called this function,
+  # BASH_LINENO[1] gives us the line number in that script where this function was called.
   local message="${BASH_SOURCE[-1]##*/}:${BASH_LINENO[1]} $2"
+
   local timestamp
   timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
   # This works if declared in here but not if declared outside
-  # of the function why?
+  # of the function... why?
   declare -A LOG_LEVEL_COLOR_MAP=(
     ["$LOG_LEVEL_SUCCESS"]="$COLOR_GREEN"
     ["$LOG_LEVEL_INFO"]="$COLOR_BLUE"

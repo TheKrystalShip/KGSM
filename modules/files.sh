@@ -93,7 +93,7 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-instance_config_file=$(__load_instance "$instance")
+instance_config_file=$(__find_instance_config "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
@@ -104,7 +104,7 @@ function __inject_native_management_variables() {
   export USE_UPNP
 
   # shellcheck disable=SC2155
-  local instance_install_subdir=$(grep "BP_INSTALL_SUBDIRECTORY=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
+  local instance_install_subdir=$(grep "blueprint_executable_subdirectory=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
 
   INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR"
   if [[ -n "$instance_install_subdir" ]]; then
@@ -168,7 +168,7 @@ EOF
       d
   }" "$INSTANCE_MANAGE_FILE" <<< "$injected_config"; then
     __print_error "Failed to inject config into $INSTANCE_MANAGE_FILE"
-    return $EC_FAILED_TEMPLATE
+    exit $EC_FAILED_TEMPLATE
   fi
 
   return 0
@@ -177,7 +177,7 @@ EOF
 function _inject_management_overrides() {
   # shellcheck disable=SC1090
 
-  source "$(__load_module overrides.sh)" "$instance" || {
+  source "$(__find_module overrides.sh)" "$instance" || {
     __print_error "Failed to source module overrides.sh"
     return 1
   }
@@ -250,7 +250,7 @@ function _create_manage_file() {
   __print_info "Generating management file..."
 
   # Choose appropriate template based on runtime
-  if ! manage_template_file="$(__load_template "manage.${INSTANCE_RUNTIME}")"; then
+  if ! manage_template_file="$(__find_template "manage.${INSTANCE_RUNTIME}")"; then
     __print_error "Failed to manage template for $INSTANCE_FULL_NAME"
     return $EC_FILE_NOT_FOUND
   fi
@@ -378,8 +378,8 @@ function _systemd_install() {
 
   local service_template_file
   local socket_template_file
-  service_template_file="$(__load_template service.tp)"
-  socket_template_file="$(__load_template socket.tp)"
+  service_template_file="$(__find_template service.tp)"
+  socket_template_file="$(__find_template socket.tp)"
 
   local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.service
   local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_FULL_NAME}.socket
@@ -561,7 +561,7 @@ function _ufw_install() {
   fi
 
   # shellcheck disable=SC2155
-  local ufw_template_file="$(__load_template ufw.tp)"
+  local ufw_template_file="$(__find_template ufw.tp)"
 
   __print_info "Creating UFW rule definition file"
   # Create firewall rule file from template

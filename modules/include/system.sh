@@ -4,23 +4,29 @@
 # Things like directories existence, file permissions, and other system-related tasks.
 # It is loaded by the main script and should not be run directly.
 
+# Disabling SC2086 globally:
+# Exit code variables are guaranteed to be numeric and safe for unquoted use.
+# shellcheck disable=SC2086
+
 function _create_dir() {
   local dir="$1"
+  local permissions="${2:-755}" # Default to 755 if no permissions are specified
+
   if [[ -z "$dir" ]]; then
     __print_error "No directory specified for creation."
-    return $EC_INVALID_ARG
+    exit $EC_INVALID_ARG
   fi
 
   # Create the directory with appropriate permissions
   mkdir -p "$dir" || {
     __print_error "Failed to create directory '$dir'."
-    return $EC_FAILED_MKDIR
+    exit $EC_FAILED_MKDIR
   }
 
   # Set permissions to 755
-  chmod 755 "$dir" || {
+  chmod $permissions "$dir" || {
     __print_error "Failed to set permissions for '$dir'."
-    return $EC_PERMISSION
+    exit $EC_PERMISSION
   }
 }
 
@@ -30,29 +36,54 @@ function _source() {
   local file="$1"
   if [[ -z "$file" ]]; then
     __print_error "No file specified for sourcing."
-    return $EC_INVALID_ARG
+    exit $EC_INVALID_ARG
   fi
 
   # Check if the file is readable
   if [[ ! -r "$file" ]]; then
     __print_error "File '$file' is not readable."
-    return $EC_PERMISSION
+    exit $EC_PERMISSION
   fi
 
   # Check if the file exists
   if [[ ! -f "$file" ]]; then
     __print_error "File '$file' does not exist."
-    return $EC_FILE_NOT_FOUND
+    exit $EC_FILE_NOT_FOUND
   fi
 
   # Source the file
   # shellcheck disable=SC1090
   source "$file" || {
     __print_error "Failed to source file '$file'."
-    return $EC_FAILED_SOURCE
+    exit $EC_FAILED_SOURCE
   }
 }
 
 export -f _source
+
+# Function to create a file with specific permissions
+function _create_file() {
+  local file="$1"
+  local permissions="${2:-644}" # Default to 644 if no permissions are specified
+
+  if [[ -z "$file" ]]; then
+    __print_error "No file specified for creation."
+    exit $EC_INVALID_ARG
+  fi
+
+  # Create the file with appropriate permissions
+  touch "$file" || {
+    __print_error "Failed to create file '$file'."
+    exit $EC_FAILED_TOUCH
+  }
+
+  # Set permissions to 644
+  chmod $permissions "$file" || {
+    __print_error "Failed to set permissions for '$file'."
+    exit $EC_PERMISSION
+  }
+}
+
+export -f _create_file
 
 export KGSM_SYSTEM_LOADED=1

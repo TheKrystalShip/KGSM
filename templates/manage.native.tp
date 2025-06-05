@@ -715,8 +715,9 @@ function _download() {
     username="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
 
+  # shellcheck disable=SC2086
   steamcmd \
-    +@sSteamCmdForcePlatformType linux \
+    +@sSteamCmdForcePlatformType "${INSTANCE_PLATFORM:-linux}" \
     +force_install_dir "$dest" \
     +login $username \
     +app_update "$app_id" \

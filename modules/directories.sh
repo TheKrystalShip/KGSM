@@ -71,7 +71,7 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-instance_config_file=$(__load_instance "$instance")
+instance_config_file=$(__find_instance_config "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
 

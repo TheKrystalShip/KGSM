@@ -40,7 +40,7 @@ if [[ -z "$KGSM_CONFIG_LOADED" ]]; then
     if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
     # Export each key-value pair
     export "${line?}"
-  done <"$CONFIG_FILE"
+  done < "$CONFIG_FILE"
 
   export KGSM_CONFIG_LOADED=1
 fi
@@ -150,16 +150,16 @@ function __add_or_update_config() {
   # Check if the key already exists in the config filee
   if grep -q "^$key=" "$config_file"; then
     # If it exists, modify in-place
-    if ! sed -i "/^$key=/c$key=$value" "$config_file" >/dev/null; then
+    if ! sed -i "/^$key=/c$key=$value" "$config_file" > /dev/null; then
       __print_error "Failed to update key '$key' in '$config_file'."
       return $EC_FAILED_SED
     fi
   else
     # If it doesn't exist, append after the specified key or at the end
-    if [[ -n "$after_key" && $(grep -q "^$after_key=" "$config_file") ]]; then
+    if [[ -n "$after_key" ]] && grep -q "^$after_key=" "$config_file"; then
       sed -i "/^$after_key=/a$key=$value" "$config_file"
     else
-      echo "$key=$value" >>"$config_file"
+      echo "$key=$value" >> "$config_file"
     fi
   fi
 }
@@ -201,7 +201,7 @@ function __remove_config() {
   fi
 
   # Remove the key from the config file
-  if ! sed -i "/^$key=/d" "$config_file" >/dev/null; then
+  if ! sed -i "/^$key=/d" "$config_file" > /dev/null; then
     __print_error "Failed to remove key '$key' from '$config_file'."
     return $EC_FAILED_SED
   fi
@@ -210,3 +210,37 @@ function __remove_config() {
 }
 
 export -f __remove_config
+
+# Extract the value from a config file, given a key and a path to the config file
+function __get_config_value() {
+  local config_file="$1"
+  local key="$2"
+
+  # Verify that the config file and key are provided
+  if [[ -z "$config_file" ]]; then
+    __print_error "Config file must be provided to extract value."
+    return $EC_INVALID_ARG
+  fi
+  if [[ -z "$key" ]]; then
+    __print_error "Key must be provided to extract value."
+    return $EC_INVALID_ARG
+  fi
+
+  # Check if the config file exists
+  if [[ ! -f "$config_file" ]]; then
+    __print_error "Config file '$config_file' does not exist."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Extract the value using grep and cut
+  local value
+  value=$(grep -m 1 "^$key=" "$config_file" | cut -d '=' -f2 | tr -d '"')
+
+  # Check if the key was found
+  if [[ -z "$value" ]]; then
+    __print_error "Key '$key' not found in '$config_file'."
+    return $EC_KEY_NOT_FOUND
+  fi
+
+  echo "$value"
+}

@@ -237,11 +237,11 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-module_blueprints=$(__load_module blueprints.sh)
-module_directories=$(__load_module directories.sh)
-module_files=$(__load_module files.sh)
-module_instance=$(__load_module instances.sh)
-module_lifecycle=$(__load_module lifecycle.sh)
+module_blueprints=$(__find_module blueprints.sh)
+module_directories=$(__find_module directories.sh)
+module_files=$(__find_module files.sh)
+module_instance=$(__find_module instances.sh)
+module_lifecycle=$(__find_module lifecycle.sh)
 
 function _install() {
   local blueprint=$1
@@ -251,10 +251,6 @@ function _install() {
   local identifier=${4:-}
 
   __print_info "Installing $blueprint in $install_dir"
-
-  if [[ "$blueprint" != *.bp ]]; then
-    blueprint="${blueprint}.bp"
-  fi
 
   local instance
 
@@ -266,7 +262,8 @@ function _install() {
     "$module_instance" \
       --create "$blueprint" \
       --install-dir "$install_dir" \
-      ${identifier:+--id $identifier}
+      ${identifier:+--id $identifier} \
+      $debug
   )"
 
   __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
@@ -280,7 +277,7 @@ function _install() {
   # the next installation steps.
 
   # shellcheck disable=SC1090
-  source "$(__load_instance "$instance")" || return $EC_FAILED_SOURCE
+  source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
   if [[ "$version" == 0 ]]; then
     version=$("$INSTANCE_MANAGE_FILE" --version --latest)
   fi
@@ -491,7 +488,7 @@ KGSM - Interactive menu
       local mod_action
 
       local instance_config_file
-      instance_config_file=$(__load_instance "$blueprint_or_instance")
+      instance_config_file=$(__find_instance_config "$blueprint_or_instance")
 
       if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" < "$instance_config_file"; then
         modify_options+=("Remove systemd")
@@ -685,7 +682,7 @@ while [[ "$#" -gt 0 ]]; do
       instance=$1
 
       # shellcheck disable=SC1090
-      source "$(__load_instance "$instance")" || exit $EC_FAILED_SOURCE
+      source "$(__find_instance_config "$instance")" || exit $EC_FAILED_SOURCE
       shift
       [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
       case "$1" in

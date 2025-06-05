@@ -26,7 +26,7 @@ module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
 # shellcheck disable=SC1090
 source "$module_common" || exit "$EC_FAILED_SOURCE"
 
-instance_overrides_file=$(__load_override "$instance")
+instance_overrides_file=$(__find_override "$instance")
 
 # Check if the overrides file exists
 if [[ ! -f "$instance_overrides_file" ]]; then

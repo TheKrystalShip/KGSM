@@ -1,7 +1,7 @@
 # Unique identifier
 INSTANCE_ID="$instance_id"
 
-# Instance name, same as blueprint BP_NAME
+# Instance name, same as blueprint name
 INSTANCE_NAME="$instance_name"
 
 # Full name, INSTANCE_NAME + INSTANCE_ID
@@ -33,6 +33,14 @@ INSTANCE_LAUNCH_BIN="$instance_launch_bin"
 
 # The arguments passed to the INSTANCE_LAUNCH_BIN
 INSTANCE_LAUNCH_ARGS="$instance_launch_args"
+
+# Operating system platform
+# Values:
+#  - linux
+#  - windows
+#  - macos
+# Defaults to linux
+INSTANCE_PLATFORM="$instance_platform"
 
 # Who's in charge of managing the lifecycle of the instance
 # Values:
