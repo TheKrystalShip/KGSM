@@ -99,8 +99,8 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function _generate_unique_instance_name() {
-  local blueprint_name="$1"
-  local instance_id
+  local blueprint_name
+  blueprint_name="$(__extract_blueprint_name $1)"
   local instance_id
 
   # If no instance with the same name as the blueprint exists, then don't
@@ -167,11 +167,8 @@ function _create_instance_config_file() {
     return $EC_INVALID_ARG
   fi
 
-  # Remove any trailing extension from $blueprints (.bp, .docker-compose.yml, .yaml)
   local blueprint_name
-  blueprint_name="${blueprint%.bp}"
-  blueprint_name="${blueprint_name%.docker-compose.yml}"
-  blueprint_name="${blueprint_name%.yaml}"
+  blueprint_name="$(__extract_blueprint_name "$blueprint")"
 
   # Create the instance directory if it doesn't exist
   local instance_dir_path="${INSTANCES_SOURCE_DIR}/${blueprint_name}"
@@ -241,19 +238,11 @@ function _create_instance() {
   local identifier=${3:-}
 
   local blueprint_abs_path
-  blueprint_abs_path=$(__find_blueprint "$blueprint")
+  blueprint_abs_path="$(__find_blueprint "$blueprint")"
 
   # Extract the blueprint name from the path (remove extension and directory)
   local blueprint_name
-  blueprint_name=$(basename "$blueprint_abs_path" .bp)
-  # Handle docker-compose.yml extension as well
-  if [[ "$blueprint_name" == "$blueprint_abs_path" ]]; then
-    blueprint_name=$(basename "$blueprint_abs_path" .docker-compose.yml)
-  fi
-  # Handle .yaml extension as well
-  if [[ "$blueprint_name" == "$blueprint_abs_path" ]]; then
-    blueprint_name=$(basename "$blueprint_abs_path" .yaml)
-  fi
+  blueprint_name="$(__extract_blueprint_name "$blueprint_abs_path")"
 
   local instance_id
   instance_id=$identifier
@@ -261,7 +250,7 @@ function _create_instance() {
   # Ensure instance_id is unique
   if [[ -z "$instance_id" ]]; then
     # If no identifier is provided, we generate a unique instance name
-    instance_id=$(_generate_unique_instance_name "$blueprint_name")
+    instance_id="$(_generate_unique_instance_name "$blueprint_name")"
     export instance_id
   else
     # If an identifier is provided, we use it as the instance_id
@@ -306,7 +295,7 @@ function _create_instance() {
 
   # Delegate to the specialized module for instance creation
   # Use the module to add the instance-type specific configuration
-  if ! "$instance_module" --create-instance-config "$instance_config_file" "$blueprint_abs_path"; then
+  if ! "$instance_module" --create-instance-config "$instance_config_file" "$blueprint_abs_path" $debug; then
     __print_error "Failed to create instance configuration with specialized module"
     return $EC_FAILED_INSTANCE_CREATION
   fi
@@ -324,7 +313,7 @@ function _remove() {
 
   local instance_blueprint_file
   instance_blueprint_file="$(grep "INSTANCE_BLUEPRINT_FILE=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')"
-  instance_blueprint_file="$(basename "$instance_blueprint_file")"
+  instance_blueprint_file="$(__extract_blueprint_name "$instance_blueprint_file")"
 
   # Remove instance config file
   if ! rm "$instance_abs_path"; then

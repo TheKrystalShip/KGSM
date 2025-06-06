@@ -4,51 +4,6 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-function usage() {
-  echo "Manages instance creation and gathers information post-creation
-
-Usage:
-  $(basename "$0") OPTION
-
-Options:
-  -h, --help                      Prints this message
-
-  --list [blueprint]              Prints a list of all instances.
-  --list --detailed [blueprint]   Print a list with detailed information about
-                                  instances.
-  --list --json [blueprint]       Prints a JSON formatted list of instances
-  --list --json --detailed        Print a list with detailed information of
-      [blueprint]                 instances.
-                                  Optionally a blueprint name can be provided
-                                  to show only instances of that blueprint.
-  --status <instance>             Return a detailed running status.
-  --save <instance>               Issue the save command to the instance.
-  --input <command>               Issue a command to the instance if it has an
-                                  interactive console. Displays the last 10
-                                  lines of the instance log after issuing the
-                                  command.
-  --create <blueprint>
-    --install-dir <install_dir>   Creates a new instance for the given blueprint
-                                  and returns the name of the instance config
-                                  file.
-                                  <blueprint> The blueprint file to create an
-                                  instance from.
-                                  <install_dir> Directory where the instance
-                                  will be created.
-    --id <identifier>             Optional: Specify an instance identifier
-                                  instead of using an auto-generated one.
-  --remove <instance>             Remove an instance's configuration
-  --info <instance>               Print a detailed description of an instance
-  --info <instance> --json        Print a detailed description of an instance in
-                                  JSON format.
-
-Examples:
-  $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
-  $(basename "$0") --status factorio-01
-  $(basename "$0") --list --detailed factorio.bp
-"
-}
-
 debug=
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -58,25 +13,11 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
-
-[[ $# -eq 0 ]] && usage && exit 1
-
-# Read the argument values
-while [[ "$#" -gt 0 ]]; do
-  case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    *)
-      break
-      ;;
-  esac
-done
 
 SELF_PATH="$(dirname "$(readlink -f "$0")")"
 
@@ -97,18 +38,102 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function __create_container_instance() {
+function usage() {
+  echo "Manages containerized game server instance creation and management
 
-  # Temp file with some instance information needed to create the rest
-  # of the instance files
-  local temp_file_with_data="$1"
+Usage:
+  $(basename "$0") OPTION
+
+Options:
+  -h, --help                      Prints this message
+
+  --create-instance-config        Internal use: Creates additional configuration
+    <config-file> <compose-file>  for a container instance.
+                                  <config-file> Path to the instance configuration file
+                                  <compose-file> Path to the docker-compose.yml file
+                                  This function extracts port configurations from the
+                                  docker-compose file and adds them to the instance
+                                  configuration.
+
+Command Interface:
+  This module is designed to be used by the main instances.sh module and
+  provides container-specific implementation for Docker-based game servers.
+  It supports Docker containers deployed via docker-compose files.
+
+Examples:
+  $(basename "$0") --create-instance-config /path/to/instance.ini /path/to/blueprint.docker-compose.yml
+"
+}
+
+[[ $# -eq 0 ]] && usage && exit 1
+
+# This function is meant to complement already existing instance configurations
+# for container instances. It will append necessary configuration to the
+# instance config file to ensure it can be managed correctly by KGSM.
+#
+# It expects the following variables to be set in the instance config file:
+# INSTANCE_ID
+# INSTANCE_WORKING_DIR
+# INSTANCE_VERSION_FILE
+# INSTANCE_RUNTIME
+# INSTANCE_LIFECYCLE_MANAGER
+# INSTANCE_INSTALL_DATETIME
+# INSTANCE_MANAGE_FILE
+#
+# It also expects the blueprint file path to be passed as the second argument.
+# The blueprint file should be a docker-compose.yml or docker-compose.yaml file.
+function __create_container_instance_config() {
+  local instance_config_file="$1"
   local blueprint_abs_path="$2"
 
-  # The docker-compose.yml file will contain placeholders that need to be
-  # replaced with their corresponding values.
-  # Some of these could be paths, ports, names, etc.
-  # We need to treat the blueprint file as a template, load it, render it
-  # and then saved the rendered file to the instances directory.
+  # Extract the blueprint name from the path (remove extension and directory)
+  local blueprint_name
+  blueprint_name=$(basename "$blueprint_abs_path" .docker-compose.yml)
+  # Handle .yaml extension as well
+  if [[ "$blueprint_name" == "$blueprint_abs_path" ]]; then
+    blueprint_name=$(basename "$blueprint_abs_path" .yaml)
+  fi
 
-  echo "$blueprint_abs_path"
+  set -x
+
+  # Grab ports from the docker-compose file and format them in the UFW format
+  local instance_ports
+  instance_ports=$(__parse_docker_compose_to_ufw_ports "$blueprint_abs_path")
+
+  if [[ $? -ne 0 ]]; then
+    __print_error "Failed to parse ports from the docker-compose file: $blueprint_abs_path"
+    return $EC_INVALID_ARG
+  fi
+
+  # Append the necessary variables to the instance config file
+  {
+    echo "INSTANCE_RUNTIME=\"container\""
+    [[ -n "${instance_ports[*]:-}" ]] && echo "INSTANCE_PORTS=\"${instance_ports:-}\""
+
+  } >>"$instance_config_file"
+
+  # Return success
+  return 0
 }
+
+# Read the argument values
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+  -h | --help)
+    usage && exit 0
+    ;;
+  --create-instance-config)
+    shift
+    if [[ $# -lt 2 ]]; then
+      __print_error "Missing arguments for --create-instance-config" && exit $EC_MISSING_ARG
+    fi
+    instance_config_file=$1
+    blueprint_abs_path=$2
+    __create_container_instance_config "$instance_config_file" "$blueprint_abs_path"
+    exit $?
+    ;;
+  *)
+    break
+    ;;
+  esac
+done

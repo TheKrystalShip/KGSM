@@ -41,7 +41,7 @@ fi
 [[ $# -eq 0 ]] && usage && exit 1
 
 function usage() {
-  echo "Manages instance creation and gathers information post-creation
+  echo "Manages native game server instance creation and management
 
 Usage:
   $(basename "$0") OPTION
@@ -49,39 +49,22 @@ Usage:
 Options:
   -h, --help                      Prints this message
 
-  --list [blueprint]              Prints a list of all instances.
-  --list --detailed [blueprint]   Print a list with detailed information about
-                                  instances.
-  --list --json [blueprint]       Prints a JSON formatted list of instances
-  --list --json --detailed        Print a list with detailed information of
-      [blueprint]                 instances.
-                                  Optionally a blueprint name can be provided
-                                  to show only instances of that blueprint.
-  --status <instance>             Return a detailed running status.
-  --save <instance>               Issue the save command to the instance.
-  --input <command>               Issue a command to the instance if it has an
-                                  interactive console. Displays the last 10
-                                  lines of the instance log after issuing the
-                                  command.
-  --create <blueprint>
-    --install-dir <install_dir>   Creates a new instance for the given blueprint
-                                  and returns the name of the instance config
-                                  file.
-                                  <blueprint> The blueprint file to create an
-                                  instance from.
-                                  <install_dir> Directory where the instance
-                                  will be created.
-    --id <identifier>             Optional: Specify an instance identifier
-                                  instead of using an auto-generated one.
-  --remove <instance>             Remove an instance's configuration
-  --info <instance>               Print a detailed description of an instance
-  --info <instance> --json        Print a detailed description of an instance in
-                                  JSON format.
+  --create-instance-config        Internal use: Creates additional configuration
+    <config-file> <blueprint-file> for a native game server instance.
+                                  <config-file> Path to the instance configuration file
+                                  <blueprint-file> Path to the blueprint (.bp) file
+                                  This function processes the blueprint file to
+                                  configure the native game server instance with
+                                  appropriate executables, arguments, and ports.
+
+Command Interface:
+  This module is designed to be used by the main instances.sh module and
+  provides native-specific implementation for game servers that run directly
+  on the host system (not in containers). It supports various game servers
+  defined by blueprint (.bp) files.
 
 Examples:
-  $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
-  $(basename "$0") --status factorio-01
-  $(basename "$0") --list --detailed factorio.bp
+  $(basename "$0") --create-instance-config /path/to/instance.ini /path/to/blueprint.bp
 "
 }
 
