@@ -64,7 +64,7 @@ if [ -z "$KGSM_ROOT" ]; then
 fi
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
   [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
