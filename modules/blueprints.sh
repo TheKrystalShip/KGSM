@@ -67,26 +67,50 @@ function __get_blueprint_list() {
 function _list_custom_blueprints() {
   shopt -s extglob nullglob
 
-  local -a custom_bps=("$BLUEPRINTS_SOURCE_DIR"/*.bp)
-  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_SOURCE_DIR/"}")
+  local -a custom_bps=("$BLUEPRINTS_CUSTOM_NATIVE_SOURCE_DIR"/*)
+  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_CUSTOM_NATIVE_SOURCE_DIR/"}")
+
+  custom_bps+=("$BLUEPRINTS_CUSTOM_CONTAINER_SOURCE_DIR"/*)
+  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_CUSTOM_CONTAINER_SOURCE_DIR/"}")
+
+  # Strip file extensions (.bp and .docker-compose.yml)
+  local -a stripped_bps=()
+  for bp in "${custom_bps[@]}"; do
+    local base_name
+    base_name="${bp%.bp}"
+    base_name="${base_name%.docker-compose.yml}"
+    stripped_bps+=("$base_name")
+  done
 
   if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${custom_bps[@]}"
+    printf "%s\n" "${stripped_bps[@]}"
   else
-    jq -n --argjson blueprints "$(printf '%s\n' "${custom_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
+    jq -n --argjson blueprints "$(printf '%s\n' "${stripped_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
   fi
 }
 
 function _list_default_blueprints() {
   shopt -s extglob nullglob
 
-  local -a default_bps=("$BLUEPRINTS_DEFAULT_SOURCE_DIR"/*.bp)
-  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_SOURCE_DIR/"}")
+  local -a default_bps=("$BLUEPRINTS_DEFAULT_NATIVE_SOURCE_DIR"/*)
+  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_NATIVE_SOURCE_DIR/"}")
+
+  default_bps+=("$BLUEPRINTS_DEFAULT_CONTAINER_SOURCE_DIR"/*)
+  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_CONTAINER_SOURCE_DIR/"}")
+
+  # Strip file extensions (.bp and .docker-compose.yml)
+  local -a stripped_bps=()
+  for bp in "${default_bps[@]}"; do
+    local base_name
+    base_name="${bp%.bp}"
+    base_name="${base_name%.docker-compose.yml}"
+    stripped_bps+=("$base_name")
+  done
 
   if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${default_bps[@]}"
+    printf "%s\n" "${stripped_bps[@]}"
   else
-    jq -n --argjson blueprints "$(printf '%s\n' "${default_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
+    jq -n --argjson blueprints "$(printf '%s\n' "${stripped_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
   fi
 }
 
@@ -141,14 +165,15 @@ function _print_blueprint() {
     return $?
   fi
 
-  # shellcheck disable=SC1090
   __source_blueprint "$blueprint" || return $EC_FAILED_SOURCE
 
+  # shellcheck disable=SC2154
+  # The $blueprint_* variables are created dynamically when sourcing the blueprint file
   jq -n \
     --arg name "$blueprint_name" \
     --arg ports "$blueprint_ports" \
     --arg steam_app_id "$blueprint_steam_app_id" \
-    --arg is_steam_account_required $blueprint_is_steam_account_required \
+    --arg is_steam_account_required "$blueprint_is_steam_account_required" \
     --arg executable_file "$blueprint_executable_file" \
     --arg level_name "$blueprint_level_name" \
     --arg executable_subdirectory "$blueprint_executable_subdirectory" \
