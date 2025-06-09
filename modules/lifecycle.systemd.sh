@@ -77,7 +77,7 @@ function _start_instance() {
 
   $SUDO systemctl start "${instance%.ini}" --no-pager
 
-  __emit_instance_started "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+  __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _stop_instance() {
@@ -85,7 +85,7 @@ function _stop_instance() {
 
   $SUDO systemctl stop "${instance%.ini}" --no-pager
 
-  __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+  __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _restart_instance() {

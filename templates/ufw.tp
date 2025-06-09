@@ -1,4 +1,4 @@
-[$INSTANCE_ID]
-title=$INSTANCE_ID
-description=$INSTANCE_ID
-ports=$INSTANCE_PORTS
+[$instance_name]
+title=$instance_name
+description=$instance_name
+ports=$instance_ports

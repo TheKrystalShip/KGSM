@@ -82,7 +82,7 @@ function _get_lifecycle_manager() {
   source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
 
   local lifecycle_manager
-  lifecycle_manager="$(__find_module "lifecycle.${INSTANCE_LIFECYCLE_MANAGER}.sh")"
+  lifecycle_manager="$(__find_module "lifecycle.${instance_lifecycle_manager}.sh")"
 
   echo "$lifecycle_manager"
 }

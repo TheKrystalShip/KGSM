@@ -33,15 +33,15 @@ level_name=default
 
 # Any args passed onto the executable
 # Availble vars that can be used:
-#   $INSTANCE_LAUNCH_DIR
-#   $INSTANCE_WORKING_DIR
-#   $INSTANCE_BACKUPS_DIR
-#   $INSTANCE_TEMP_DIR
-#   $INSTANCE_LOGS_DIR
-#   $INSTANCE_INSTALL_DIR
-#   $INSTANCE_SAVES_DIR
-#   $INSTANCE_LEVEL_NAME
-executable_arguments="+InternetServer/$INSTANCE_LEVEL_NAME"
+#   $instance_launch_dir
+#   $instance_working_dir
+#   $instance_backups_dir
+#   $instance_temp_dir
+#   $instance_logs_dir
+#   $instance_install_dir
+#   $instance_saves_dir
+#   $instance_level_name
+executable_arguments="+InternetServer/$instance_level_name"
 
 # (Optional)
 # Stop command sent to the input socket

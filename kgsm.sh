@@ -13,8 +13,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -96,8 +96,8 @@ ${UNDERLINE}Blueprints${END}
   --blueprints --json --detailed
                               Print a detailed JSON formatted Map with
                               information on all blueprints.
-  --install BLUEPRINT         Run the installation process for an existing
-                              blueprint.
+  --create BLUEPRINT          Create a new game server instance from an
+                              existing blueprint.
                               BLUEPRINT must be the name of a blueprint.
                               Run --blueprints to see available options.
     [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
@@ -105,8 +105,8 @@ ${UNDERLINE}Blueprints${END}
     [--version <version>]     WARNING: Not used by game servers that come from
                               steamcmd, only used by custom game servers.
                               Specific version to install.
-    [--id <id>]               Identifier for the instance as an alternative
-                              from letting KGSM generate one.
+    [--name <name>]           Custom name for the instance instead of letting
+                              KGSM generate one automatically.
 
 ${UNDERLINE}Instances${END}
   --uninstall <instance>      Run the uninstall process for an instance.
@@ -162,7 +162,7 @@ function usage_interactive() {
   echo -e "$DESCRIPTION"
 
   echo -e "Interactive mode menu options:
-  ${UNDERLINE}Install${END}            Run the installation process for a blueprint.
+  ${UNDERLINE}Install${END}            Create a new game server instance from a blueprint.
 
   ${UNDERLINE}List blueprints${END}    Display a list of all blueprints.
 
@@ -214,29 +214,29 @@ fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      shift
-      [[ -z "$1" ]] && usage && exit 0
-      case "$1" in
-        --interactive)
-          usage_interactive && exit 0
-          ;;
-        *)
-          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-          ;;
-      esac
-      ;;
-    --check-update)
-      check_for_update
-      exit $?
-      ;;
-    --update)
-      update_script
-      exit $?
+  -h | --help)
+    shift
+    [[ -z "$1" ]] && usage && exit 0
+    case "$1" in
+    --interactive)
+      usage_interactive && exit 0
       ;;
     *)
-      break
+      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
       ;;
+    esac
+    ;;
+  --check-update)
+    check_for_update
+    exit $?
+    ;;
+  --update)
+    update_script
+    exit $?
+    ;;
+  *)
+    break
+    ;;
   esac
   shift
 done
@@ -252,6 +252,7 @@ function _install() {
   local install_dir=$2
   # Value of 0 means get latest
   local version=$3
+  # Optional identifier for the instance, if not provided, KGSM will generate one
   local identifier=${4:-}
 
   __print_info "Installing $blueprint in $install_dir"
@@ -283,12 +284,12 @@ function _install() {
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
   if [[ "$version" == 0 ]]; then
-    version=$("$INSTANCE_MANAGE_FILE" --version --latest)
+    version=$("$instance_management_file" --version --latest)
   fi
 
-  "$INSTANCE_MANAGE_FILE" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
-  "$INSTANCE_MANAGE_FILE" --deploy $debug || return $EC_FAILED_DEPLOY
-  "$INSTANCE_MANAGE_FILE" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
+  "$instance_management_file" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
+  "$instance_management_file" --deploy $debug || return $EC_FAILED_DEPLOY
+  "$instance_management_file" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
 
   __emit_instance_installation_finished "${instance%.ini}" "${blueprint}"
 
@@ -356,7 +357,7 @@ KGSM - Interactive menu
   )
 
   declare -A arg_map=(
-    ["Install"]=--install
+    ["Install"]=--create
     ["List blueprints"]=--blueprints
     ["List instances"]=--instances
     ["Start"]=--start
@@ -390,32 +391,32 @@ KGSM - Interactive menu
   PS3="Choose an instance: "
 
   case "$action" in
-    --install)
-      # shellcheck disable=SC2178
-      # shellcheck disable=SC2207
-      blueprints_or_instances=($("$module_blueprints" --list | tr '\n' ' '))
-      PS3="Choose a blueprint: "
-      ;;
-    --blueprints)
-      exec $0 --blueprints
-      ;;
-    --instances)
-      exec $0 --instances
-      ;;
-    --help)
-      exec $0 --help --interactive
-      ;;
-    --status)
-      # shellcheck disable=SC2207
-      # shellcheck disable=SC2178
-      blueprints_or_instances=($("$module_instance" --list))
-      ;;
-    *)
-      # shellcheck disable=SC2207
-      # shellcheck disable=SC2178
-      blueprints_or_instances=($("$module_instance" --list))
-      "$module_instance" --list --detailed
-      ;;
+  --create)
+    # shellcheck disable=SC2178
+    # shellcheck disable=SC2207
+    blueprints_or_instances=($("$module_blueprints" --list | tr '\n' ' '))
+    PS3="Choose a blueprint: "
+    ;;
+  --blueprints)
+    exec $0 --blueprints
+    ;;
+  --instances)
+    exec $0 --instances
+    ;;
+  --help)
+    exec $0 --help --interactive
+    ;;
+  --status)
+    # shellcheck disable=SC2207
+    # shellcheck disable=SC2178
+    blueprints_or_instances=($("$module_instance" --list))
+    ;;
+  *)
+    # shellcheck disable=SC2207
+    # shellcheck disable=SC2178
+    blueprints_or_instances=($("$module_instance" --list))
+    "$module_instance" --list --detailed
+    ;;
   esac
 
   # If the user selected an action that requires a blueprint or instance,
@@ -439,96 +440,96 @@ KGSM - Interactive menu
   # Recursivelly call the script with the given params.
   # --install has a different arg order
   case "$action" in
-    --install)
+  --create)
     install_directory=${config_default_install_directory:-}
-      if [ -z "$install_directory" ]; then
+    if [ -z "$install_directory" ]; then
       echo "'default_install_directory' is not set in the configuration file, please specify an installation directory" >&2
-        read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit "$EC_INVALID_ARG"
-      fi
+      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit "$EC_INVALID_ARG"
+    fi
 
-      read -r -p "Version to install (leave empty for latest): " version
-      read -r -p "Instance identifier (leave empty for default): " identifier
+    read -r -p "Version to install (leave empty for latest): " version
+    read -r -p "Instance name (leave empty for default): " instance_name
 
-      echo "Creating an instance of $blueprint_or_instance..." >&2
-      # shellcheck disable=SC2086
-      "$0" \
-        $action $blueprint_or_instance \
-        --install-dir $install_directory \
-        ${version:+--version "$version"} \
-        ${identifier:+--id "$identifier"} \
-        $debug
-      ;;
-    --uninstall)
-      "$0" --uninstall "$blueprint_or_instance" $debug
-      ;;
-    --restore-backup)
-      # shellcheck disable=SC2207
-      backups_array=($("$INSTANCE_MANAGE_FILE" --list-backups))
-      [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
+    echo "Creating an instance of $blueprint_or_instance..." >&2
+    # shellcheck disable=SC2086
+    "$0" \
+      $action $blueprint_or_instance \
+      --install-dir $install_directory \
+      ${version:+--version "$version"} \
+      ${instance_name:+--name "$instance_name"} \
+      $debug
+    ;;
+  --uninstall)
+    "$0" --uninstall "$blueprint_or_instance" $debug
+    ;;
+  --restore-backup)
+    # shellcheck disable=SC2207
+    backups_array=($("$instance_management_file" --list-backups))
+    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
 
-      PS3="Choose a backup to restore: "
-      select backup in "${backups_array[@]}"; do
-        if [[ -z $backup ]]; then
-          echo "Didn't understand \"$REPLY\" " >&2
-          REPLY=
-        else
-          backup_to_restore="$backup"
-          break
-        fi
-      done
-      # shellcheck disable=SC2086
-      "$0" --instance $blueprint_or_instance $action $backup_to_restore $debug
-      ;;
-    --modify)
-      declare -a modify_options=()
-      declare -A modify_arg_map=(
-        ["Add systemd"]="--add systemd"
-        ["Remove systemd"]="--remove systemd"
-        ["Add ufw"]="--add ufw"
-        ["Remove ufw"]="--remove ufw"
-        ["Add symlink"]="--add symlink"
-        ["Remove symlink"]="--remove symlink"
-      )
-      local mod_action
-
-      local instance_config_file
-      instance_config_file=$(__find_instance_config "$blueprint_or_instance")
-
-      if grep -q "INSTANCE_SYSTEMD_SERVICE_FILE=" < "$instance_config_file"; then
-        modify_options+=("Remove systemd")
+    PS3="Choose a backup to restore: "
+    select backup in "${backups_array[@]}"; do
+      if [[ -z $backup ]]; then
+        echo "Didn't understand \"$REPLY\" " >&2
+        REPLY=
       else
-        modify_options+=("Add systemd")
+        backup_to_restore="$backup"
+        break
       fi
+    done
+    # shellcheck disable=SC2086
+    "$0" --instance $blueprint_or_instance $action $backup_to_restore $debug
+    ;;
+  --modify)
+    declare -a modify_options=()
+    declare -A modify_arg_map=(
+      ["Add systemd"]="--add systemd"
+      ["Remove systemd"]="--remove systemd"
+      ["Add ufw"]="--add ufw"
+      ["Remove ufw"]="--remove ufw"
+      ["Add symlink"]="--add symlink"
+      ["Remove symlink"]="--remove symlink"
+    )
+    local mod_action
 
-      if grep -q "INSTANCE_UFW_FILE=" < "$instance_config_file"; then
-        modify_options+=("Remove ufw")
+    local instance_config_file
+    instance_config_file=$(__find_instance_config "$blueprint_or_instance")
+
+    if grep -q "instance_systemd_service_file=" <"$instance_config_file"; then
+      modify_options+=("Remove systemd")
+    else
+      modify_options+=("Add systemd")
+    fi
+
+    if grep -q "instance_ufw_file=" <"$instance_config_file"; then
+      modify_options+=("Remove ufw")
+    else
+      modify_options+=("Add ufw")
+    fi
+
+    if grep -q "command_shortcuts_directory=" <"$instance_config_file"; then
+      modify_options+=("Remove symlink")
+    else
+      modify_options+=("Add symlink")
+    fi
+
+    select mod_arg in "${modify_options[@]}"; do
+      if [[ -z "$mod_arg" ]]; then
+        echo "Didn't understand \"$REPLY\"" >&2
+        REPLY=
       else
-        modify_options+=("Add ufw")
+        mod_action="${modify_arg_map[$mod_arg]}"
+        break
       fi
+    done
 
-      if grep -q "INSTANCE_SYMLINK=" < "$instance_config_file"; then
-        modify_options+=("Remove symlink")
-      else
-        modify_options+=("Add symlink")
-      fi
-
-      select mod_arg in "${modify_options[@]}"; do
-        if [[ -z "$mod_arg" ]]; then
-          echo "Didn't understand \"$REPLY\"" >&2
-          REPLY=
-        else
-          mod_action="${modify_arg_map[$mod_arg]}"
-          break
-        fi
-      done
-
-      # shellcheck disable=SC2086
-      "$0" --instance "$blueprint_or_instance" --modify $mod_action $debug
-      ;;
-    *)
-      # shellcheck disable=SC2086
-      $0 --instance $blueprint_or_instance $action $debug
-      ;;
+    # shellcheck disable=SC2086
+    "$0" --instance "$blueprint_or_instance" --modify $mod_action $debug
+    ;;
+  *)
+    # shellcheck disable=SC2086
+    $0 --instance $blueprint_or_instance $action $debug
+    ;;
   esac
 }
 
@@ -541,307 +542,307 @@ if [[ $@ =~ "--json" ]]; then
   for a; do
     shift
     case $a in
-      --json) continue ;;
-      *) set -- "$@" "$a" ;;
+    --json) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --create-blueprint)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing arguments" && exit "$EC_MISSING_ARG"
-      case "$1" in
-        -h | --help)
-          "$module_blueprints" --help $debug
-          exit $?
-          ;;
-        *)
-          # shellcheck disable=SC2068
-          "$module_blueprints" --create $@ $debug
-          exit $?
-          ;;
-      esac
-      ;;
-    --install)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
-      bp_to_install="$1"
-      bp_install_dir=$config_default_install_directory
-      bp_install_version=0
-      bp_id=
-      shift
-      if [ -n "$1" ]; then
-        while [[ $# -ne 0 ]]; do
-          case "$1" in
-            --install-dir)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
-              bp_install_dir="$1"
-              ;;
-            --version)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit "$EC_MISSING_ARG"
-              bp_install_version=$1
-              ;;
-            --id)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
-              bp_id=$1
-              ;;
-            *)
-              __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-              ;;
-          esac
-          shift
-        done
-      fi
-      [[ -z "$bp_install_dir" ]] && __print_error "Missing argument <dir>" && exit "$EC_MISSING_ARG"
-      _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id
+  --create-blueprint)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing arguments" && exit "$EC_MISSING_ARG"
+    case "$1" in
+    -h | --help)
+      "$module_blueprints" --help $debug
       exit $?
       ;;
-    --uninstall)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      _uninstall "$1"
+    *)
+      # shellcheck disable=SC2068
+      "$module_blueprints" --create $@ $debug
       exit $?
       ;;
-    --blueprints)
-      shift
-      if [[ -z "$1" ]]; then
-        "$module_blueprints" --list $debug
-        exit $?
-      else
-        while [[ $# -ne 0 ]]; do
-          case "$1" in
-            --detailed)
-              detailed=1
-              ;;
-            --json)
-              json_format=1
-              ;;
-            *)
-              __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-              ;;
-          esac
+    esac
+    ;;
+  --create)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
+    bp_to_install="$1"
+    bp_install_dir=$config_default_install_directory
+    bp_install_version=0
+    bp_id=
+    shift
+    if [ -n "$1" ]; then
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+        --install-dir)
           shift
-        done
-
-        "$module_blueprints" --list ${detailed:+--detailed} ${json_format:+--json} $debug
-        exit $?
-      fi
-      ;;
-    --ip)
-      if command -v wget > /dev/null 2>&1; then
-        wget -qO- https://icanhazip.com
-        exit $?
-      else
-        __print_error "wget is required but not installed" && exit "$EC_MISSING_DEPENDENCY"
-      fi
-      ;;
-    --config)
-      ${EDITOR:-vim} "$CONFIG_FILE" || {
-        __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
-        exit "$EC_GENERAL"
-      }
-      ;;
-    --update)
-      update_script "$@"
-      exit $?
-      ;;
-    --update-config)
-      __merge_user_config_with_default
-      exit $?
-      ;;
-    --instances)
-      shift
-      if [[ -z "$1" ]]; then
-        "$module_instance" --list $debug
-        exit $?
-      else
-        while [[ $# -ne 0 ]]; do
-          case "$1" in
-            --detailed)
-              detailed=1
-              ;;
-            --json)
-              json_format=1
-              ;;
-            --list) ;;
-            *)
-              blueprint=$1
-              ;;
-          esac
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
+          bp_install_dir="$1"
+          ;;
+        --version)
           shift
-        done
-
-        "$module_instance" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug
-        exit $?
-      fi
-      ;;
-    -i | --instance)
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-      instance=$1
-
-      # shellcheck disable=SC1090
-      source "$(__find_instance_config "$instance")" || exit $EC_FAILED_SOURCE
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
-      case "$1" in
-        --logs)
+          [[ -z "$1" ]] && __print_error "Missing argument <version>" && exit "$EC_MISSING_ARG"
+          bp_install_version=$1
+          ;;
+        --name)
           shift
-          follow=""
-          if [[ "$1" == "-f" ]] || [[ "$1" == "--follow" ]]; then
-            follow="--follow"
-          fi
-          "$module_lifecycle" --logs "$instance" $follow $debug
-          exit $?
-          ;;
-        --status)
-          "$module_instance" --status "$instance" $debug
-          exit $?
-          ;;
-        --info)
-          "$module_instance" --info "$instance" ${json_format:+--json} $debug
-          exit $?
-          ;;
-        --is-active)
-          # Inactive instances return exit code 1.
-          __disable_error_checking
-          "$module_lifecycle" --is-active "$instance" $debug
-          exit $?
-          ;;
-        --start)
-          "$module_lifecycle" --start "$instance" $debug
-          exit $?
-          ;;
-        --stop)
-          "$module_lifecycle" --stop "$instance" $debug
-          exit $?
-          ;;
-        --restart)
-          "$module_lifecycle" --restart "$instance" $debug
-          exit $?
-          ;;
-        --save)
-          "$INSTANCE_MANAGE_FILE" --save $debug
-          exit $?
-          ;;
-        --input)
-          shift
-          [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
-          "$module_instance" --input "$instance" "$1" $debug
-          exit $?
-          ;;
-        -v | --version)
-          shift
-          if [[ -z "$1" ]]; then
-            "$INSTANCE_MANAGE_FILE" --version --installed $debug
-            exit $?
-          fi
-          case "$1" in
-            --installed)
-              "$INSTANCE_MANAGE_FILE" --version --installed $debug
-              exit $?
-              ;;
-            --latest)
-              "$INSTANCE_MANAGE_FILE" --version --latest $debug
-              exit $?
-              ;;
-            *) __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG" ;;
-          esac
-          ;;
-        --check-update)
-          "$INSTANCE_MANAGE_FILE" --version --compare $debug
-          exit $?
-          ;;
-        --update)
-          "$INSTANCE_MANAGE_FILE" --update $debug
-          exit $?
-          ;;
-        --backups)
-          "$INSTANCE_MANAGE_FILE" --list-backups $debug
-          exit $?
-          ;;
-        --create-backup)
-          "$INSTANCE_MANAGE_FILE" --create-backup $debug
-          exit $?
-          ;;
-        --restore-backup)
-          [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit "$EC_MISSING_ARG"
-          "$INSTANCE_MANAGE_FILE" --restore-backup "$1" $debug
-          exit $?
-          ;;
-        --modify)
-          shift
-          [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
-          case "$1" in
-            --add)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
-              case "$1" in
-                ufw)
-                  "$module_files" -i "$instance" --create --ufw $debug
-                  exit $?
-                  ;;
-                systemd)
-                  "$module_files" -i "$instance" --create --systemd $debug
-                  exit $?
-                  ;;
-                symlink)
-                  "$module_files" -i "$instance" --create --symlink $debug
-                  exit $?
-                  ;;
-                *)
-                  __print_error "Invalid argument $1"
-                  exit "$EC_INVALID_ARG"
-                  ;;
-              esac
-              ;;
-            --remove)
-              shift
-              [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
-              case "$1" in
-                ufw)
-                  "$module_files" -i "$instance" --remove --ufw $debug
-                  exit $?
-                  ;;
-                systemd)
-                  "$module_files" -i "$instance" --remove --systemd $debug
-                  exit $?
-                  ;;
-                symlink)
-                  "$module_files" -i "$instance" --remove --symlink $debug
-                  exit $?
-                  ;;
-                *)
-                  __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-                  ;;
-              esac
-              ;;
-            *)
-              __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-              ;;
-          esac
+          [[ -z "$1" ]] && __print_error "Missing argument <name>" && exit "$EC_MISSING_ARG"
+          bp_id=$1
           ;;
         *)
           __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
           ;;
-      esac
+        esac
+        shift
+      done
+    fi
+    [[ -z "$bp_install_dir" ]] && __print_error "Missing argument <dir>" && exit "$EC_MISSING_ARG"
+    _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id
+    exit $?
+    ;;
+  --uninstall)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    _uninstall "$1"
+    exit $?
+    ;;
+  --blueprints)
+    shift
+    if [[ -z "$1" ]]; then
+      "$module_blueprints" --list $debug
+      exit $?
+    else
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+        --detailed)
+          detailed=1
+          ;;
+        --json)
+          json_format=1
+          ;;
+        *)
+          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          ;;
+        esac
+        shift
+      done
+
+      "$module_blueprints" --list ${detailed:+--detailed} ${json_format:+--json} $debug
+      exit $?
+    fi
+    ;;
+  --ip)
+    if command -v wget >/dev/null 2>&1; then
+      wget -qO- https://icanhazip.com
+      exit $?
+    else
+      __print_error "wget is required but not installed" && exit "$EC_MISSING_DEPENDENCY"
+    fi
+    ;;
+  --config)
+    ${EDITOR:-vim} "$CONFIG_FILE" || {
+      __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
+      exit "$EC_GENERAL"
+    }
+    ;;
+  --update)
+    update_script "$@"
+    exit $?
+    ;;
+  --update-config)
+    __merge_user_config_with_default
+    exit $?
+    ;;
+  --instances)
+    shift
+    if [[ -z "$1" ]]; then
+      "$module_instance" --list $debug
+      exit $?
+    else
+      while [[ $# -ne 0 ]]; do
+        case "$1" in
+        --detailed)
+          detailed=1
+          ;;
+        --json)
+          json_format=1
+          ;;
+        --list) ;;
+        *)
+          blueprint=$1
+          ;;
+        esac
+        shift
+      done
+
+      "$module_instance" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug
+      exit $?
+    fi
+    ;;
+  -i | --instance)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    instance=$1
+
+    # shellcheck disable=SC1090
+    source "$(__find_instance_config "$instance")" || exit $EC_FAILED_SOURCE
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument [OPTION]" && exit "$EC_MISSING_ARG"
+    case "$1" in
+    --logs)
+      shift
+      follow=""
+      if [[ "$1" == "-f" ]] || [[ "$1" == "--follow" ]]; then
+        follow="--follow"
+      fi
+      "$module_lifecycle" --logs "$instance" $follow $debug
+      exit $?
+      ;;
+    --status)
+      "$module_instance" --status "$instance" $debug
+      exit $?
+      ;;
+    --info)
+      "$module_instance" --info "$instance" ${json_format:+--json} $debug
+      exit $?
+      ;;
+    --is-active)
+      # Inactive instances return exit code 1.
+      __disable_error_checking
+      "$module_lifecycle" --is-active "$instance" $debug
+      exit $?
+      ;;
+    --start)
+      "$module_lifecycle" --start "$instance" $debug
+      exit $?
+      ;;
+    --stop)
+      "$module_lifecycle" --stop "$instance" $debug
+      exit $?
+      ;;
+    --restart)
+      "$module_lifecycle" --restart "$instance" $debug
+      exit $?
+      ;;
+    --save)
+      "$instance_management_file" --save $debug
+      exit $?
+      ;;
+    --input)
+      shift
+      [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
+      "$module_instance" --input "$instance" "$1" $debug
+      exit $?
       ;;
     -v | --version)
-      echo "KGSM, version $(get_version)
+      shift
+      if [[ -z "$1" ]]; then
+        "$instance_management_file" --version --installed $debug
+        exit $?
+      fi
+      case "$1" in
+      --installed)
+        "$instance_management_file" --version --installed $debug
+        exit $?
+        ;;
+      --latest)
+        "$instance_management_file" --version --latest $debug
+        exit $?
+        ;;
+      *) __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG" ;;
+      esac
+      ;;
+    --check-update)
+      "$instance_management_file" --version --compare $debug
+      exit $?
+      ;;
+    --update)
+      "$instance_management_file" --update $debug
+      exit $?
+      ;;
+    --backups)
+      "$instance_management_file" --list-backups $debug
+      exit $?
+      ;;
+    --create-backup)
+      "$instance_management_file" --create-backup $debug
+      exit $?
+      ;;
+    --restore-backup)
+      [[ -z "$1" ]] && __print_error "Missing argument <backup>" && exit "$EC_MISSING_ARG"
+      "$instance_management_file" --restore-backup "$1" $debug
+      exit $?
+      ;;
+    --modify)
+      shift
+      [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
+      case "$1" in
+      --add)
+        shift
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
+        case "$1" in
+        ufw)
+          "$module_files" -i "$instance" --create --ufw $debug
+          exit $?
+          ;;
+        systemd)
+          "$module_files" -i "$instance" --create --systemd $debug
+          exit $?
+          ;;
+        symlink)
+          "$module_files" -i "$instance" --create --symlink $debug
+          exit $?
+          ;;
+        *)
+          __print_error "Invalid argument $1"
+          exit "$EC_INVALID_ARG"
+          ;;
+        esac
+        ;;
+      --remove)
+        shift
+        [[ -z "$1" ]] && __print_error "Missing argument <option>" && exit "$EC_MISSING_ARG"
+        case "$1" in
+        ufw)
+          "$module_files" -i "$instance" --remove --ufw $debug
+          exit $?
+          ;;
+        systemd)
+          "$module_files" -i "$instance" --remove --systemd $debug
+          exit $?
+          ;;
+        symlink)
+          "$module_files" -i "$instance" --remove --symlink $debug
+          exit $?
+          ;;
+        *)
+          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          ;;
+        esac
+        ;;
+      *)
+        __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+        ;;
+      esac
+      ;;
+    *)
+      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+      ;;
+    esac
+    ;;
+  -v | --version)
+    echo "KGSM, version $(get_version)
 Copyright (C) 2024 TheKrystalShip
 License GPL-3.0: GNU GPL version 3 <https://www.gnu.org/licenses/gpl-3.0.en.html>
 
 This is free software; you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law." && exit 0
-      ;;
-    *)
-      __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
-      ;;
+    ;;
+  *)
+    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+    ;;
   esac
   shift
 done

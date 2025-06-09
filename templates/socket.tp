@@ -1,7 +1,7 @@
 [Unit]
-Description=Socket for $INSTANCE_ID
-PartOf=$INSTANCE_ID.service
+Description=Socket for $instance_name
+PartOf=$instance_name.service
 
 [Socket]
-ListenFIFO=$INSTANCE_SOCKET_FILE
+ListenFIFO=$instance_socket_file
 RemoveOnStop=true

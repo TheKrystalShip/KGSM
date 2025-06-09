@@ -1,123 +1,194 @@
 # KGSM - Krystal Game Server Manager
 
-Welcome! This is your go-to tool for setting up and managing game
-servers on Linux. If you're looking for a simple solution for setting up a few
-game servers, this is it. It takes care of the heavy lifting so you can focus
-on what really matters—playing games with your friends.
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
-KGSM makes it easy to install, update, and manage your game servers with minimal
-hassle. It's designed to be simple, efficient, and portable, perfect for someone
-who wants a quick and easy solution without having to spend hours reading
-documentation or watching tutorials.
+> A lightweight, powerful tool for managing game servers on Linux with minimal hassle.
 
-## Will it work for me?
+KGSM simplifies the process of setting up, managing, and maintaining game servers on Linux. Whether you're hosting a casual Minecraft server for friends or running a dedicated Valheim community, KGSM handles the technical details so you can focus on what matters—playing games and building communities.
 
-As much as I'd like for KGSM to work on every system, unfortunately I don't have
-that much free time to test everywhere and fix all the potential differences
-between distributions.
+## 🎮 Features
 
-In _theory_ it should work on most GNU/Linux systems as long as the dependencies
-are met.
+- **Simple Management**: Install, update, and manage multiple game servers through an intuitive interface
+- **Flexible Deployment**: Support for both native and Docker container-based installations
+- **Automation-Ready**: Full command-line support for scripting and automation
+- **Low Overhead**: Minimalist design keeps resource usage low
+- **Configuration Control**: Easy server customization with override files
+- **Integration Options**: Works with systemd and UFW for robust server management
 
-## What You'll Need
+## 🎯 Supported Game Servers
 
-Before diving in, make sure your system has the following packages:
+KGSM supports a wide range of popular game servers, including:
 
-### Required dependencies:
+### Native Installation
+- Minecraft, Valheim, Terraria, Project Zomboid
+- 7 Days to Die, ARK: Survival Evolved
+- Counter-Strike: Source, Garry's Mod
+- Left 4 Dead 1 & 2, Killing Floor 1 & 2
+- Don't Starve Together, Factorio
+- And many more!
 
-These are used throughout KGSM, without them it won't function.
-
-```sh
-grep jq wget unzip tar sed coreutils findutils steamcmd inotify-tools
-```
-
-### Optional dependencies:
-
-These are not required unless you want to enable some features through configuration.
-
-```sh
-ufw socat miniupnpc
-```
-
-- `ufw` is used only if `USE_UFW` is enabled in the `config.ini` file.
-- `socat` is used only if `USE_EVENTS` is enabled in the `config.ini` file.
-- `miniupnpc` is used only if `USE_UPNP` is enabled in the `config.ini` file.
+### Container-Based (Docker)
+- V Rising, Enshrouded, The Forest
+- Empyrion: Galactic Survival
+- Lords of the Rings: Return to Moria
+- Abiotic Factor
 
 > [!NOTE]
->
-> If [SteamCMD][1] isn't available through your distro’s package manager, you'll
-> need to set it up manually.
+> The list of supported game servers is constantly growing! New blueprints are added regularly to support more games. Check the `blueprints/default` directory for the latest additions or run `./kgsm.sh --blueprints` to see all currently available options.
 
-For an even smoother experience, you can integrate KGSM with `systemd` and
-[`ufw`][2] with just a few configuration tweaks.
+Contributions of new game server blueprints are enthusiastically welcomed! If you've set up a game server that isn't currently supported, consider contributing your blueprint to the project.
 
-## Getting Started
+## 💻 Compatibility
 
-There are a few ways to grab KGSM:
+KGSM is designed to work on most GNU/Linux distributions as long as the required dependencies are installed. While comprehensive testing on all distributions isn't possible, users have reported successful operation on:
 
-1. Clone the repository using `git`
-2. Download the latest [Release][3]
-3. Use this handy install script:
+- Ubuntu/Debian-based systems
+- Arch Linux and derivatives
 
+## 📋 Prerequisites
+
+### Required Dependencies
+
+The following packages must be installed for KGSM to function properly:
+
+```sh
+# Core utilities
+grep jq wget unzip tar sed coreutils findutils
+
+# Game server management
+steamcmd inotify-tools
+```
+
+### Optional Dependencies
+
+These packages enable additional features when configured:
+
+| Package | Purpose | Config Setting |
+|---------|---------|----------------|
+| `ufw` | Firewall management | `config_enable_firewall_management=true` |
+| `socat` | Event handling | `config_enable_event_broadcasting=true` |
+| `miniupnpc` | Port forwarding | `config_enable_port_forwarding=true` |
+
+> [!NOTE]
+> If [SteamCMD][1] isn't available through your distribution's package manager, you'll need to [install it manually](https://developer.valvesoftware.com/wiki/SteamCMD#Linux).
+
+### Recommended Setup
+
+For optimal performance and reliability, consider integrating KGSM with:
+- `systemd` for service management
+- [UFW][2] for simplified firewall configuration
+
+## 🚀 Getting Started
+
+### Installation Options
+
+Choose one of these methods to install KGSM:
+
+#### 1. One-Line Installer (Recommended)
 ```sh
 wget -qO - https://raw.githubusercontent.com/TheKrystalShip/KGSM/main/installer.sh | bash
 ```
 
-Everything will be contained in a subdirectory KGSM creates, keeping your
-system clean and organized.
+#### 2. Manual Installation
+```sh
+# Clone the repository
+git clone https://github.com/TheKrystalShip/KGSM.git
+cd KGSM
 
-## How to Use KGSM
+# OR download and extract the latest release
+wget https://github.com/TheKrystalShip/KGSM/releases/latest/download/kgsm.tar.gz
+tar -xzf kgsm.tar.gz
+cd kgsm
+```
 
-Once you've got KGSM, running it is simple. Just execute:
+All KGSM files are contained within a single directory, keeping your system organized.
+
+## 🎛️ Usage
+
+### Basic Operation
+
+Launch KGSM with:
 
 ```sh
 ./kgsm.sh
 ```
 
-The first time you run it, KGSM will create a `config.ini` file with default
-settings. Feel free to tweak this file to suit your needs. After that,
-running it again will take you into an interactive menu where you can choose
-what to do.
+On first run, a `config.ini` file will be created with default settings. After configuration, an interactive menu guides you through available operations.
 
-Need help? Either select the `Help` option in the menu or run:
+### Command-Line Options
 
-```sh
-./kgsm.sh --help --interactive
-```
-
-For those who love automation, KGSM supports named arguments for all its
-operations. For a full list of options just run:
+For automation or quick actions, use command-line arguments:
 
 ```sh
+# Get help information
 ./kgsm.sh --help
+
+# Interactive help menu
+./kgsm.sh --help --interactive
+
+# See available game servers
+./kgsm.sh --blueprints
+
+# Create a new game server instance
+./kgsm.sh --create minecraft --name myserver
 ```
 
-There's also [Documentation][4] for the project which explains how KGSM operates
-in case you need it.
+### Documentation
 
-## Keeping Up-to-Date
+For detailed information on KGSM's capabilities, check the [project documentation][4].
 
-Updating KGSM is a breeze. Just run:
+## 🔄 Maintenance
+
+### Updating KGSM
+
+Keep KGSM up-to-date with:
 
 ```sh
 ./kgsm.sh --update
 ```
 
-In case you run into issues or lose any files, you can try a repair with:
+### Troubleshooting
+
+If you encounter issues, use the repair option:
 
 ```sh
 ./kgsm.sh --update --force
 ```
 
-This will re-download all the KGSM-specific files while preserving your custom
-settings.
+This reinstalls KGSM while preserving your custom settings and server instances.
 
-## License
+## 🤝 Contributing
 
-KGSM is licensed under the terms of GPL-3.0, check the [LICENSE](LICENSE) file
-for more information.
+Contributions to KGSM are always welcome! Here are some ways you can help:
+
+### Game Server Blueprints
+
+The most valuable contributions are new game server blueprints. If you've successfully set up a game server that isn't currently supported by KGSM, consider sharing your work:
+
+1. Create a new blueprint file in `blueprints/custom/native/` or `blueprints/custom/container/`
+2. Test it thoroughly to ensure it works properly
+3. Submit a pull request to have it included in the main project
+
+For guidance on creating blueprints, run:
+```sh
+./kgsm.sh --create-blueprint --help
+```
+
+### Other Contributions
+
+- Report bugs and suggest features through [GitHub Issues][5]
+- Improve documentation
+- Add support for more distribution-specific integration options
+- Share your success stories and use cases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more detailed contribution guidelines.
+
+## 📄 License
+
+KGSM is licensed under the [GNU General Public License v3.0](LICENSE).
 
 [1]: https://developer.valvesoftware.com/wiki/SteamCMD
 [2]: https://en.wikipedia.org/wiki/Uncomplicated_Firewall
 [3]: https://github.com/TheKrystalShip/KGSM/releases
 [4]: https://github.com/TheKrystalShip/KGSM/tree/main/docs
+[5]: https://github.com/TheKrystalShip/KGSM/issues

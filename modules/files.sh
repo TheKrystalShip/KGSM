@@ -14,7 +14,7 @@ Manage necessary files for running a game server.
 Options:
   -h, --help                  Display this help and exit
   -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
-                              Equivalent to INSTANCE_ID in the config
+                              Equivalent to instance_name in the config
 
 Commands:
   --create                    Generate all required files:
@@ -104,11 +104,11 @@ function __inject_native_management_variables() {
   export config_enable_port_forwarding
 
   # shellcheck disable=SC2155
-  local instance_install_subdir=$(grep "blueprint_executable_subdirectory=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
+  local instance_install_subdir=$(grep "blueprint_executable_subdirectory=" < "$instance_blueprint_file" | cut -d "=" -f2 | tr -d '"')
 
-  INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR"
+  instance_launch_dir="$instance_install_dir"
   if [[ -n "$instance_install_subdir" ]]; then
-    INSTANCE_LAUNCH_DIR="$INSTANCE_INSTALL_DIR/$instance_install_subdir"
+    instance_launch_dir="$instance_install_dir/$instance_install_subdir"
   fi
 
   # Log redirection into file happens when the instance is launched
@@ -116,23 +116,23 @@ function __inject_native_management_variables() {
   # The log file is named after the instance and the current date/time.
   # It is stored in the instance logs directory.
   # shellcheck disable=SC2140
-  stdout_file="\$INSTANCE_LOGS_DIR/\$INSTANCE_ID-\$(date +"%Y-%m-%dT%H:%M:%S").log"
-  export INSTANCE_LOGS_REDIRECT="$stdout_file"
+  stdout_file="\$instance_logs_dir/\$instance_name-\$(date +"%Y-%m-%dT%H:%M:%S").log"
+  export instance_logs_redirect="$stdout_file"
 
-  # Avoid evaluating INSTANCE_EXECUTABLE_ARGUMENTS as it can contain variables that need
+  # Avoid evaluating instance_executable_arguments as it can contain variables that need
   # to just be passed along, not evaluated
   local instance_launch_args
-  instance_launch_args="$(grep "INSTANCE_EXECUTABLE_ARGUMENTS=" < "$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
+  instance_launch_args="$(grep "instance_executable_arguments=" < "$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
   export instance_launch_args
 
   local injected_config
   injected_config=$(
     cat << EOF
 # Log redirection into file
-INSTANCE_LOGS_REDIRECT="$INSTANCE_LOGS_REDIRECT"
+instance_logs_redirect="$instance_logs_redirect"
 
 # Directory from which to launch the instance binary
-INSTANCE_LAUNCH_DIR="$INSTANCE_LAUNCH_DIR"
+instance_launch_dir="$instance_launch_dir"
 
 $(< "$instance_config_file")
 EOF
@@ -144,8 +144,8 @@ EOF
   if ! sed -i "/${marker}/{
       r /dev/stdin
       d
-  }" "$INSTANCE_MANAGE_FILE" <<< "$injected_config"; then
-    __print_error "Failed to inject config into $INSTANCE_MANAGE_FILE"
+  }" "$instance_management_file" <<< "$injected_config"; then
+    __print_error "Failed to inject config into $instance_management_file"
     return $EC_FAILED_TEMPLATE
   fi
 
@@ -166,8 +166,8 @@ EOF
   if ! sed -i "/${marker}/{
       r /dev/stdin
       d
-  }" "$INSTANCE_MANAGE_FILE" <<< "$injected_config"; then
-    __print_error "Failed to inject config into $INSTANCE_MANAGE_FILE"
+  }" "$instance_management_file" <<< "$injected_config"; then
+    __print_error "Failed to inject config into $instance_management_file"
     exit $EC_FAILED_TEMPLATE
   fi
 
@@ -187,9 +187,9 @@ function _inject_management_overrides() {
 
   # Overrides are located in $KGSM_ROOT/overrides/${INSTANCE_BP_NAME}.overrides.sh
 
-  # $INSTANCE_BLUEPRINT_FILE is the absolute path to the blueprint file, we just need the name
+  # $instance_blueprint_file is the absolute path to the blueprint file, we just need the name
   local instance_bp_name
-  instance_bp_name=$(basename "$INSTANCE_BLUEPRINT_FILE" | sed 's/\.bp$//')
+  instance_bp_name=$(basename "$instance_blueprint_file" | sed 's/\.bp$//')
 
   local instance_overrides_file="${OVERRIDES_SOURCE_DIR}/${instance_bp_name}.overrides.sh"
   # Check if the overrides file exists
@@ -210,7 +210,7 @@ function _inject_management_overrides() {
 
     func_def=$(declare -f "${fn}")
 
-    __print_info "Found function '${fn}' in overrides file, injecting into ${INSTANCE_MANAGE_FILE}"
+    __print_info "Found function '${fn}' in overrides file, injecting into ${instance_management_file}"
 
     # Create a temporary file to hold the new function body
     tmp=$(mktemp)
@@ -224,16 +224,16 @@ function _inject_management_overrides() {
     sed -i \
       -e "/^function ${fn}[[:space:]]*(/ r ${tmp}" \
       -e "/^function ${fn}[[:space:]]*(/,/^}/ d" \
-      "${INSTANCE_MANAGE_FILE}"
+      "${instance_management_file}"
 
     # shellcheck disable=SC2181
     if [[ $? -ne 0 ]]; then
-      __print_error "Failed to inject function '${fn}' into ${INSTANCE_MANAGE_FILE}"
+      __print_error "Failed to inject function '${fn}' into ${instance_management_file}"
       rm -f "${tmp}" # Clean up the temporary file
       return $EC_FAILED_TEMPLATE
     fi
 
-    __print_success "Injected function '${fn}' into ${INSTANCE_MANAGE_FILE}"
+    __print_success "Injected function '${fn}' into ${instance_management_file}"
 
     # Clean up the temporary file
     rm -f "${tmp}"
@@ -250,58 +250,58 @@ function _create_manage_file() {
   __print_info "Generating management file..."
 
   # Choose appropriate template based on runtime
-  if ! manage_template_file="$(__find_template "manage.${INSTANCE_RUNTIME}")"; then
-    __print_error "Failed to manage template for $INSTANCE_ID"
+  if ! manage_template_file="$(__find_template "manage.${instance_runtime}")"; then
+    __print_error "Failed to manage template for $instance_name"
     return $EC_FILE_NOT_FOUND
   fi
 
   # Create the new management file
-  if ! cp -f "$manage_template_file" "$INSTANCE_MANAGE_FILE"; then
-    __print_error "Failed to generate management template for $INSTANCE_MANAGE_FILE"
+  if ! cp -f "$manage_template_file" "$instance_management_file"; then
+    __print_error "Failed to generate management template for $instance_management_file"
     return $EC_FAILED_TEMPLATE
   fi
 
   # Inject config
-  case "$INSTANCE_RUNTIME" in
+  case "$instance_runtime" in
     native)
       __inject_native_management_variables || {
-        __print_error "Failed to inject native management variables into $INSTANCE_MANAGE_FILE"
+        __print_error "Failed to inject native management variables into $instance_management_file"
         return $EC_FAILED_TEMPLATE
       }
       ;;
     docker)
       __inject_docker_management_variables || {
-        __print_error "Failed to inject docker management variables into $INSTANCE_MANAGE_FILE"
+        __print_error "Failed to inject docker management variables into $instance_management_file"
         return $EC_FAILED_TEMPLATE
       }
       ;;
     *)
-      __print_error "Invalid instance runtime: $INSTANCE_LIFECYCLE_MANAGER"
+      __print_error "Invalid instance runtime: $instance_runtime"
       return $EC_GENERAL
       ;;
   esac
 
   # Inject overrides
   _inject_management_overrides || {
-    __print_error "Failed to inject overrides into $INSTANCE_MANAGE_FILE"
+    __print_error "Failed to inject overrides into $instance_management_file"
     return $EC_FAILED_TEMPLATE
   }
 
   # File permissions
-  INSTANCE_USER=$USER
+  instance_user=$USER
   if [ "$EUID" -eq 0 ]; then
-    INSTANCE_USER=$SUDO_USER
+    instance_user=$SUDO_USER
   fi
 
   # Make sure file is owned by the user and not root
-  if ! chown "$INSTANCE_USER":"$INSTANCE_USER" "$INSTANCE_MANAGE_FILE"; then
-    __print_error "Failed to assing $INSTANCE_MANAGE_FILE to user $INSTANCE_USER"
+  if ! chown "$instance_user":"$instance_user" "$instance_management_file"; then
+    __print_error "Failed to assing $instance_management_file to user $instance_user"
     return $EC_PERMISSION
   fi
 
   # Make sure it's executable
-  if ! chmod +x "$INSTANCE_MANAGE_FILE"; then
-    __print_error "Failed to add +x permission to $INSTANCE_MANAGE_FILE"
+  if ! chmod +x "$instance_management_file"; then
+    __print_error "Failed to add +x permission to $instance_management_file"
     return $EC_PERMISSION
   fi
 
@@ -314,36 +314,40 @@ function _systemd_uninstall() {
 
   __print_info "Removing systemd integration..."
 
-  if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
+  if [[ -z "$instance_systemd_service_file" ]] && [[ -z "$instance_systemd_socket_file" ]]; then
     # Nothing to uninstall
     return 0
   fi
 
-  if systemctl is-active "$INSTANCE_ID" &> /dev/null; then
-    if ! $SUDO systemctl stop "$INSTANCE_ID" &> /dev/null; then
-      __print_error "Failed to stop $INSTANCE_ID before uninstalling systemd files" && return "$EC_SYSTEMD"
+  if systemctl is-active "$instance_name" &> /dev/null; then
+    if ! $SUDO systemctl stop "$instance_name" &> /dev/null; then
+      __print_error "Failed to stop $instance_name before uninstalling systemd files"
+      return $EC_SYSTEMD
     fi
   fi
 
-  if systemctl is-enabled "$INSTANCE_ID" &> /dev/null; then
-    if ! $SUDO systemctl disable "$INSTANCE_ID"; then
-      __print_warning "Failed to disable $INSTANCE_ID" && return "$EC_SYSTEMD"
+  if systemctl is-enabled "$instance_name" &> /dev/null; then
+    if ! $SUDO systemctl disable "$instance_name"; then
+      __print_warning "Failed to disable $instance_name"
+      return $EC_SYSTEMD
     fi
   fi
 
   # Remove service file
   # shellcheck disable=SC2153
-  if [ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]; then
-    if ! $SUDO rm "$INSTANCE_SYSTEMD_SERVICE_FILE"; then
-      __print_error "Failed to remove $INSTANCE_SYSTEMD_SERVICE_FILE" && return "$EC_FAILED_RM"
+  if [ -f "$instance_systemd_service_file" ]; then
+    if ! $SUDO rm "$instance_systemd_service_file"; then
+      __print_error "Failed to remove $instance_systemd_service_file"
+      return $EC_FAILED_RM
     fi
   fi
 
   # Remove socket file
   # shellcheck disable=SC2153
-  if [ -f "$INSTANCE_SYSTEMD_SOCKET_FILE" ]; then
-    if ! $SUDO rm "$INSTANCE_SYSTEMD_SOCKET_FILE"; then
-      __print_error "Failed to remove $INSTANCE_SYSTEMD_SOCKET_FILE" && return "$EC_FAILED_RM"
+  if [ -f "$instance_systemd_socket_file" ]; then
+    if ! $SUDO rm "$instance_systemd_socket_file"; then
+      __print_error "Failed to remove $instance_systemd_socket_file"
+      return $EC_FAILED_RM
     fi
   fi
 
@@ -355,13 +359,13 @@ function _systemd_uninstall() {
   fi
 
   # Remove entries from instance config file and management file
-  __remove_config "$instance_config_file" "INSTANCE_SYSTEMD_SERVICE_FILE"
-  __remove_config "$instance_config_file" "INSTANCE_SYSTEMD_SOCKET_FILE"
-  __remove_config "$INSTANCE_MANAGE_FILE" "INSTANCE_SYSTEMD_SERVICE_FILE"
-  __remove_config "$INSTANCE_MANAGE_FILE" "INSTANCE_SYSTEMD_SOCKET_FILE"
+  __remove_config "$instance_config_file" "instance_systemd_service_file"
+  __remove_config "$instance_config_file" "instance_systemd_socket_file"
+  __remove_config "$instance_management_file" "instance_systemd_service_file"
+  __remove_config "$instance_management_file" "instance_systemd_socket_file"
 
-  # Change the INSTANCE_LIFECYCLE_MANAGER to standalone
-  __add_or_update_config "$instance_config_file" "INSTANCE_LIFECYCLE_MANAGER" "standalone" || {
+  # Change the instance_lifecycle_manager to standalone
+  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "standalone" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
@@ -381,23 +385,23 @@ function _systemd_install() {
   service_template_file="$(__find_template service.tp)"
   socket_template_file="$(__find_template socket.tp)"
 
-  local instance_systemd_service_file=${config_systemd_files_dir}/${INSTANCE_ID}.service
-  local instance_systemd_socket_file=${config_systemd_files_dir}/${INSTANCE_ID}.socket
+  local instance_systemd_service_file=${config_systemd_files_dir}/${instance_name}.service
+  local instance_systemd_socket_file=${config_systemd_files_dir}/${instance_name}.socket
 
-  local temp_systemd_service_file=/tmp/${INSTANCE_ID}.service
-  local temp_systemd_socket_file=/tmp/${INSTANCE_ID}.socket
+  local temp_systemd_service_file=/tmp/${instance_name}.service
+  local temp_systemd_socket_file=/tmp/${instance_name}.socket
 
   local instance_bin_absolute_path
-  instance_bin_absolute_path="$INSTANCE_LAUNCH_DIR/$INSTANCE_EXECUTABLE_FILE"
+  instance_bin_absolute_path="$instance_launch_dir/$instance_executable_file"
 
   # Required by template
-  export INSTANCE_BIN_ABSOLUTE_PATH="$instance_bin_absolute_path"
-  export INSTANCE_SOCKET_FILE=${INSTANCE_WORKING_DIR}/.${INSTANCE_ID}.stdin
+  export instance_bin_absolute_path
+  export instance_socket_file=${instance_working_dir}/.${instance_name}.stdin
 
   # If service file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_service_file" ]]; then
-    if [[ -z "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
-      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $INSTANCE_ID"
+    if [[ -z "$instance_systemd_service_file" ]]; then
+      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $instance_name"
       return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
@@ -408,8 +412,8 @@ function _systemd_install() {
 
   # If socket file already exists, check that it belongs to the instance
   if [[ -f "$instance_systemd_socket_file" ]]; then
-    if [[ -z "$INSTANCE_SYSTEMD_SOCKET_FILE" ]]; then
-      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $INSTANCE_ID"
+    if [[ -z "$instance_systemd_socket_file" ]]; then
+      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $instance_name"
       return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
@@ -418,9 +422,9 @@ function _systemd_install() {
     fi
   fi
 
-  INSTANCE_USER=$USER
+  instance_user=$USER
   if [ "$EUID" -eq 0 ]; then
-    INSTANCE_USER=$SUDO_USER
+    instance_user=$SUDO_USER
   fi
 
   # Create the service file
@@ -472,12 +476,12 @@ EOF
   # Save new files into instance config file
 
   # Add the service file to the instance config file
-  __add_or_update_config "$instance_config_file" "INSTANCE_SYSTEMD_SERVICE_FILE" "$instance_systemd_service_file" || {
+  __add_or_update_config "$instance_config_file" "instance_systemd_service_file" "$instance_systemd_service_file" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
   # Add the socket file to the instance config file
-  __add_or_update_config "$instance_config_file" "INSTANCE_SYSTEMD_SOCKET_FILE" "$instance_systemd_socket_file" || {
+  __add_or_update_config "$instance_config_file" "instance_systemd_socket_file" "$instance_systemd_socket_file" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
@@ -485,22 +489,22 @@ EOF
   local marker="# === END INJECT CONFIG ==="
 
   # Add the service file to the management file
-  __add_or_update_config "$INSTANCE_MANAGE_FILE" "INSTANCE_SYSTEMD_SERVICE_FILE" "$instance_systemd_service_file" "$marker" || {
+  __add_or_update_config "$instance_management_file" "instance_systemd_service_file" "$instance_systemd_service_file" "$marker" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
   # Add the socket file to the management file
-  __add_or_update_config "$INSTANCE_MANAGE_FILE" "INSTANCE_SYSTEMD_SOCKET_FILE" "$instance_systemd_socket_file" "$marker" || {
+  __add_or_update_config "$instance_management_file" "instance_systemd_socket_file" "$instance_systemd_socket_file" "$marker" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  # Change the INSTANCE_LIFECYCLE_MANAGER to systemd
-  __add_or_update_config "$instance_config_file" "INSTANCE_LIFECYCLE_MANAGER" "systemd" || {
+  # Change the instance_lifecycle_manager to systemd
+  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "systemd" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  # Also change the INSTANCE_LIFECYCLE_MANAGER in the management file
-  __add_or_update_config "$INSTANCE_MANAGE_FILE" "INSTANCE_LIFECYCLE_MANAGER" "systemd" || {
+  # Also change the instance_lifecycle_manager in the management file
+  __add_or_update_config "$instance_management_file" "instance_lifecycle_manager" "systemd" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
@@ -514,28 +518,28 @@ function _ufw_uninstall() {
   __print_info "Removing UFW integration..."
 
   [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return "$EC_MISSING_ARG"
-  [[ -z "$INSTANCE_UFW_FILE" ]] && return 0
-  [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
+  [[ -z "$instance_ufw_file" ]] && return 0
+  [[ ! -f "$instance_ufw_file" ]] && return 0
 
   # Remove ufw rule
   __print_info "Deleting UFW rule"
-  if ! $SUDO ufw delete allow "$INSTANCE_ID" &> /dev/null; then
-    __print_error "Failed to remove UFW rule for $INSTANCE_ID"
+  if ! $SUDO ufw delete allow "$instance_name" &> /dev/null; then
+    __print_error "Failed to remove UFW rule for $instance_name"
     return $EC_UFW
   fi
 
-  if [ -f "$INSTANCE_UFW_FILE" ]; then
+  if [ -f "$instance_ufw_file" ]; then
     # Delete firewall rule file
     __print_info "Deleting rule definition file"
-    if ! $SUDO rm "$INSTANCE_UFW_FILE"; then
-      __print_error "Failed to remove $INSTANCE_UFW_FILE"
+    if ! $SUDO rm "$instance_ufw_file"; then
+      __print_error "Failed to remove $instance_ufw_file"
       return $EC_FAILED_RM
     fi
   fi
 
   # Remove UFW entries from the instance config file
-  __remove_config "$instance_config_file" "INSTANCE_UFW_FILE"
-  __remove_config "$INSTANCE_MANAGE_FILE" "INSTANCE_UFW_FILE"
+  __remove_config "$instance_config_file" "instance_ufw_file"
+  __remove_config "$instance_management_file" "instance_ufw_file"
 
   __print_success "UFW integration removed"
 
@@ -551,8 +555,8 @@ function _ufw_install() {
     return $EC_MISSING_ARG
   fi
 
-  local instance_ufw_file=${config_firewall_rules_dir}/kgsm-${INSTANCE_ID}
-  local temp_ufw_file=/tmp/kgsm-${INSTANCE_ID}
+  local instance_ufw_file=${config_firewall_rules_dir}/kgsm-${instance_name}
+  local temp_ufw_file=/tmp/kgsm-${instance_name}
 
   # If firewall rule file already exists, remove it
   if [[ -f "$instance_ufw_file" ]]; then
@@ -583,21 +587,21 @@ EOF
 
   # Enable firewall rule
   __print_info "Allowing UFW rule"
-  if ! $SUDO ufw allow "$INSTANCE_ID" &> /dev/null; then
-    __print_error "Failed to allow UFW rule for $INSTANCE_ID" && return "$EC_UFW"
+  if ! $SUDO ufw allow "$instance_name" &> /dev/null; then
+    __print_error "Failed to allow UFW rule for $instance_name" && return "$EC_UFW"
   fi
 
   # Save the UFW file into the instance config file
-  __add_or_update_config "$instance_config_file" "INSTANCE_UFW_FILE" "$instance_ufw_file" || {
+  __add_or_update_config "$instance_config_file" "instance_ufw_file" "$instance_ufw_file" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  # Update INSTANCE_MANAGE_FILE UFW definition
+  # Update instance_management_file UFW definition
 
   local marker="=== END INJECT CONFIG ==="
 
   # Add the UFW file to the management file
-  __add_or_update_config "$INSTANCE_MANAGE_FILE" "INSTANCE_UFW_FILE" "$instance_ufw_file" "$marker" || {
+  __add_or_update_config "$instance_management_file" "instance_ufw_file" "$instance_ufw_file" "$marker" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
@@ -617,7 +621,7 @@ function _symlink_uninstall() {
     return $EC_MISSING_ARG
   fi
 
-  local symlink_path="${config_command_shortcuts_directory}/${INSTANCE_ID}"
+  local symlink_path="${config_command_shortcuts_directory}/${instance_name}"
 
   # Check if the symlink exists
   if [[ -L "$symlink_path" ]]; then
@@ -633,17 +637,17 @@ function _symlink_uninstall() {
   # Remove the symlink entry from the instance config file
   __remove_config "$instance_config_file" "command_shortcuts_directory"
 
-  __print_success "Symlink for instance '$INSTANCE_ID' removed from $config_command_shortcuts_directory"
+  __print_success "Symlink for instance '$instance_name' removed from $config_command_shortcuts_directory"
 
   return 0
 }
 
 function _symlink_install() {
 
-  # Create a symlink from the $INSTANCE_MANAGE_FILE into one of the directories
+  # Create a symlink from the $instance_management_file into one of the directories
   # on the PATH, iso that the instance can be managed from anywhere.
 
-  __print_info "Creating symlink for instance '$INSTANCE_ID'..."
+  __print_info "Creating symlink for instance '$instance_name'..."
 
   # Check if the symlink directory is set
   if [[ -z "$config_command_shortcuts_directory" ]]; then
@@ -657,7 +661,7 @@ function _symlink_install() {
     return $EC_FILE_NOT_FOUND
   fi
 
-  local symlink_path="${config_command_shortcuts_directory}/${INSTANCE_ID}"
+  local symlink_path="${config_command_shortcuts_directory}/${instance_name}"
 
   # Check if the symlink already exists
   if [[ -L "$symlink_path" ]]; then
@@ -669,8 +673,8 @@ function _symlink_install() {
   fi
 
   # Create the symlink
-  if ! $SUDO ln -s "$INSTANCE_MANAGE_FILE" "$symlink_path"; then
-    __print_error "Failed to create symlink '$symlink_path' for $INSTANCE_MANAGE_FILE"
+  if ! $SUDO ln -s "$instance_management_file" "$symlink_path"; then
+    __print_error "Failed to create symlink '$symlink_path' for $instance_management_file"
     return $EC_FAILED_LN
   fi
 
@@ -679,7 +683,7 @@ function _symlink_install() {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  __print_success "Instance \"${INSTANCE_ID}\" symlink created in $config_command_shortcuts_directory"
+  __print_success "Instance \"${instance_name}\" symlink created in $config_command_shortcuts_directory"
 
   return 0
 }
@@ -687,7 +691,7 @@ function _symlink_install() {
 function _create() {
   _create_manage_file || return $?
 
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     _systemd_install || return $?
   fi
 
@@ -704,7 +708,7 @@ function _create() {
 }
 
 function _remove() {
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     _systemd_uninstall || return $?
   fi
 

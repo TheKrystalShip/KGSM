@@ -71,10 +71,10 @@ function __emit_instance_created() {
   local blueprint=$2
 
   __emit_event $EVENT_INSTANCE_CREATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg blueprint "$blueprint" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Blueprint: $blueprint
     }'
   )"
@@ -86,9 +86,9 @@ function __emit_instance_directories_created() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DIRECTORIES_CREATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -99,9 +99,9 @@ function __emit_instance_files_created() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_FILES_CREATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -112,9 +112,9 @@ function __emit_instance_download_started() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DOWNLOAD_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -125,9 +125,9 @@ function __emit_instance_download_finished() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DOWNLOAD_FINISHED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -138,9 +138,9 @@ function __emit_instance_downloaded() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DOWNLOADED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -151,9 +151,9 @@ function __emit_instance_deploy_started() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DEPLOY_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -164,9 +164,9 @@ function __emit_instance_deploy_finished() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DEPLOY_FINISHED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -177,9 +177,9 @@ function __emit_instance_deployed() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DEPLOYED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -190,9 +190,9 @@ function __emit_instance_update_started() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UPDATE_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -203,9 +203,9 @@ function __emit_instance_update_finished() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UPDATE_FINISHED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -216,9 +216,9 @@ function __emit_instance_updated() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UPDATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -231,11 +231,11 @@ function __emit_instance_version_updated() {
   local new_version=$3
 
   __emit_event $EVENT_INSTANCE_VERSION_UPDATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg oldVersion "$old_version" \
     --arg newVersion "$new_version" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       OldVersion: $oldVersion,
       NewVersion: $newVersion
     }'
@@ -249,10 +249,10 @@ function __emit_instance_installation_started() {
   local blueprint=$2
 
   __emit_event $EVENT_INSTANCE_INSTALLATION_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg blueprint "$blueprint" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Blueprint: $blueprint
     }'
   )"
@@ -265,10 +265,10 @@ function __emit_instance_installation_finished() {
   local blueprint=$2
 
   __emit_event $EVENT_INSTANCE_INSTALLATION_FINISHED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg blueprint "$blueprint" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Blueprint: $blueprint
     }'
   )"
@@ -281,10 +281,10 @@ function __emit_instance_installed() {
   local blueprint=$2
 
   __emit_event $EVENT_INSTANCE_INSTALLED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg blueprint "$blueprint" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Blueprint: $blueprint
     }'
   )"
@@ -294,8 +294,8 @@ function __emit_instance_started() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
-    '{ InstanceId: $instanceId }'
+    --arg instance_name "$instance" \
+    '{ InstanceName: $instance_name }'
   )"
 }
 
@@ -305,8 +305,8 @@ function __emit_instance_stopped() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_STOPPED "$(jq -n \
-    --arg instanceId "$instance" \
-    '{ InstanceId: $instanceId }'
+    --arg instance_name "$instance" \
+    '{ InstanceName: $instance_name }'
   )"
 }
 
@@ -318,11 +318,11 @@ function __emit_instance_backup_created() {
   local version=$3
 
   __emit_event $EVENT_INSTANCE_BACKUP_CREATED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg source "$source" \
     --arg version "$version" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Source: $source,
       Version: $version
     }'
@@ -337,11 +337,11 @@ function __emit_instance_backup_restored() {
   local version=$3
 
   __emit_event $EVENT_INSTANCE_BACKUP_RESTORED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     --arg source "$source" \
     --arg version "$version" \
     '{
-      InstanceId: $instanceId,
+      InstanceName: $instance_name,
       Source: $source,
       Version: $version
     }'
@@ -354,9 +354,9 @@ function __emit_instance_files_removed() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_FILES_REMOVED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -367,9 +367,9 @@ function __emit_instance_directories_removed() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_DIRECTORIES_REMOVED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -380,9 +380,9 @@ function __emit_instance_removed() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_REMOVED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -393,9 +393,9 @@ function __emit_instance_uninstall_started() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UNINSTALL_STARTED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -406,9 +406,9 @@ function __emit_instance_uninstall_finished() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UNINSTALL_FINISHED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }
@@ -419,9 +419,9 @@ function __emit_instance_uninstalled() {
   local instance=$1
 
   __emit_event $EVENT_INSTANCE_UNINSTALLED "$(jq -n \
-    --arg instanceId "$instance" \
+    --arg instance_name "$instance" \
     '{
-      InstanceId: $instanceId
+      InstanceName: $instance_name
     }'
   )"
 }

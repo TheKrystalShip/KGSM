@@ -8,14 +8,14 @@ log_header "Testing instances.sh module"
 
 # Test 1: Generate Instance ID
 log_info "Test: Generate instance ID"
-instance_id=$(./modules/instances.sh --generate-id factorio.bp)
-assert_true "[[ -n \"$instance_id\" ]]" "Should generate a valid instance ID"
-log_info "Generated instance ID: $instance_id"
+instance_name=$(./modules/instances.sh --generate-id factorio.bp)
+assert_true "[[ -n \"$instance_name\" ]]" "Should generate a valid instance ID"
+log_info "Generated instance ID: $instance_name"
 
 # Test 2: Create Instance Configuration
 log_info "Test: Create instance configuration"
 install_dir="$TEST_ENV_DIR/server_installs"
-instance_path=$(./modules/instances.sh --create factorio.bp --install-dir "$install_dir" --id "test-instance")
+instance_path=$(./modules/instances.sh --create factorio.bp --install-dir "$install_dir" --name "test-instance")
 assert_true "[[ -n \"$instance_path\" ]]" "Should create an instance and return its ID"
 log_info "Created instance: $instance_path"
 

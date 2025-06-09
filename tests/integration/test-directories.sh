@@ -9,13 +9,13 @@ log_header "Testing directories.sh module"
 # Create a test instance for directory testing
 log_info "Setting up test instance for directory operations"
 install_dir="$TEST_ENV_DIR/server_installs"
-instance_id=$(./modules/instances.sh --create factorio.bp --install-dir "$install_dir" --id "dir-test-instance")
-assert_true "[[ -n \"$instance_id\" ]]" "Should create an instance and return its ID"
-log_info "Created test instance: $instance_id"
+instance_name=$(./modules/instances.sh --create factorio.bp --install-dir "$install_dir" --name "dir-test-instance")
+assert_true "[[ -n \"$instance_name\" ]]" "Should create an instance and return its ID"
+log_info "Created test instance: $instance_name"
 
 # Test 1: Create Instance Directories
 log_info "Test: Create instance directories"
-dir_create_result=$(./modules/directories.sh -i "$instance_id" --create)
+dir_create_result=$(./modules/directories.sh -i "$instance_name" --create)
 assert_equals "$?" "0" "Directory creation should succeed"
 log_info "Directory creation completed"
 
@@ -29,7 +29,7 @@ log_info "Directory structure verified"
 
 # Test 3: Remove Instance Directories
 log_info "Test: Remove instance directories"
-dir_remove_result=$(./modules/directories.sh -i "$instance_id" --remove)
+dir_remove_result=$(./modules/directories.sh -i "$instance_name" --remove)
 assert_equals "$?" "0" "Directory removal should succeed"
 log_info "Directory removal completed"
 
@@ -39,7 +39,7 @@ log_info "Directory removal verified"
 
 # Clean up
 log_info "Cleaning up test instance"
-./modules/instances.sh --remove "$instance_id" > /dev/null
+./modules/instances.sh --remove "$instance_name" > /dev/null
 
 log_success "All directories.sh tests completed"
 

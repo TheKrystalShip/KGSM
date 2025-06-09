@@ -33,16 +33,32 @@ level_name="gm_construct"
 
 # Any args passed onto the executable
 # Availble vars that can be used:
-#   $INSTANCE_LAUNCH_DIR
-#   $INSTANCE_LEVEL_NAME
-#   $INSTANCE_WORKING_DIR
-#   $INSTANCE_BACKUPS_DIR
-#   $INSTANCE_TEMP_DIR
-#   $INSTANCE_LOGS_DIR
-#   $INSTANCE_INSTALL_DIR
-#   $INSTANCE_SAVES_DIR
-#   $INSTANCE_LEVEL_NAME
-executable_arguments="-console +gamemode sandbox +maxplayers 32 +map $INSTANCE_LEVEL_NAME"
+#  $instance_id
+#  $instance_blueprint_file
+#  $instance_working_dir
+#  $instance_install_datetime
+#  $instance_version_file
+#  $instance_lifecycle_manager
+#  $instance_manage_file
+#  $instance_runtime
+#  $instance_ports
+#  $instance_executable_file
+#  $instance_executable_arguments
+#  $instance_socket_file
+#  $instance_stop_command
+#  $instance_save_command
+#  $instance_pid_file
+#  $instance_tail_pid_file
+#  $instance_platform
+#  $instance_level_name
+#  $instance_steam_app_id
+#  $instance_is_steam_account_required
+#  $instance_save_command_timeout_seconds
+#  $instance_stop_command_timeout_seconds
+#  $instance_compress_backups
+#  $instance_use_upnp
+#  $instance_upnp_ports
+executable_arguments="-console +gamemode sandbox +maxplayers 32 +map $instance_level_name"
 
 # (Optional) Stop command sent to the input socket
 stop_command="exit"

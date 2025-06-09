@@ -18,7 +18,7 @@ services:
     image: ghcr.io/thekrystalship/enshrouded:latest
 
     # Dynamic container name
-    container_name: "${INSTANCE_ID}"
+    container_name: "${instance_name}"
 
     # Use the host’s network stack directly
     network_mode: host
@@ -31,7 +31,7 @@ services:
       - "27016:27016/udp"
 
     volumes:
-      - "${INSTANCE_WORKING_DIR:-.}:/opt/enshrouded"
+      - "${instance_working_dir:-.}:/opt/enshrouded"
 
     environment:
       STEAM_USERNAME: "${STEAM_USERNAME}"

@@ -1,32 +1,32 @@
 # Unique instance identifier
-INSTANCE_ID="$instance_id"
+instance_name="$instance_name"
 
 # Path to the instance.manage.sh script file"
-INSTANCE_MANAGE_FILE="$instance_manage_file"
+instance_management_file="$instance_manage_file"
 
 # Path to the instance version file
-INSTANCE_VERSION_FILE="$instance_version_file"
+instance_version_file="$instance_version_file"
 
 # Working directory where the instance is located
-INSTANCE_WORKING_DIR="$instance_working_dir"
+instance_working_dir="$instance_working_dir"
 
 # DateTime when instance was spawned
-INSTANCE_INSTALL_DATETIME="$instance_install_datetime"
+instance_install_datetime="$instance_install_datetime"
 
 # Path to the blueprints used to spawn the instance
-INSTANCE_BLUEPRINT_FILE="$instance_blueprint_file"
+instance_blueprint_file="$instance_blueprint_file"
 
 # Savefile name / world name / level, whichever is applicable
-INSTANCE_LEVEL_NAME="$instance_level_name"
+instance_level_name="$instance_level_name"
 
 # Network port
-INSTANCE_PORTS="$instance_port"
+instance_ports="$instance_port"
 
 # The executable in charge of starting the service
-INSTANCE_EXECUTABLE_FILE="$instance_launch_bin"
+instance_executable_file="$instance_launch_bin"
 
-# The arguments passed to the INSTANCE_EXECUTABLE_FILE
-INSTANCE_EXECUTABLE_ARGUMENTS="$instance_launch_args"
+# The arguments passed to the instance_executable_file
+instance_executable_arguments="$instance_launch_args"
 
 # Operating system platform
 # Values:
@@ -34,28 +34,28 @@ INSTANCE_EXECUTABLE_ARGUMENTS="$instance_launch_args"
 #  - windows
 #  - macos
 # Defaults to linux
-INSTANCE_PLATFORM="$instance_platform"
+instance_platform="$instance_platform"
 
 # Who's in charge of managing the lifecycle of the instance
 # Values:
 #   - standalone
 #   - systemd
-INSTANCE_LIFECYCLE_MANAGER="$instance_lifecycle_manager"
+instance_lifecycle_manager="$instance_lifecycle_manager"
 
 # The program in charge of actually launching the instance
 # Values:
 #   - native
 #   - docker
-INSTANCE_RUNTIME="$instance_runtime"
+instance_runtime="$instance_runtime"
 
 # Timeout for the "save" command
-INSTANCE_SAVE_COMMAND_TIMEOUT_S="$instance_save_command_timeout_s"
+instance_save_command_timeout_s="$instance_save_command_timeout_s"
 
 # Timeout for the "stop" command
-INSTANCE_STOP_COMMAND_TIMEOUT_S="$instance_stop_command_timeout_s"
+instance_stop_command_timeout_s="$instance_stop_command_timeout_s"
 
 # UPnP enabled/disabled
-INSTANCE_USE_UPNP="$instance_use_upnp"
+instance_use_upnp="$instance_use_upnp"
 
 # Backup file compression enabled/disabled
-INSTANCE_COMPRESS_BACKUPS="$instance_compress_backups"
+instance_compress_backups="$instance_compress_backups"

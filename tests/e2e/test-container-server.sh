@@ -36,7 +36,7 @@ log_info "Testing V Rising server installation in container"
 
 # Step 1: Install V Rising server
 log_info "Step 1: Installing V Rising server"
-install_cmd="./kgsm.sh --install vrising --id vrising"
+install_cmd="./kgsm.sh --create vrising --name vrising"
 
 log_info "Running command: $install_cmd"
 install_output=$(run_with_timeout 300 $install_cmd 2>&1)
@@ -55,12 +55,12 @@ log_success "V Rising server installed successfully"
 assert_true "./modules/instances.sh --list | grep -q 'vrising'" "V Rising instance should be listed"
 
 # Get instance ID
-instance_id=$(./modules/instances.sh --list | grep 'vrising')
-log_info "V Rising instance ID: $instance_id"
+instance_name=$(./modules/instances.sh --list | grep 'vrising')
+log_info "V Rising instance ID: $instance_name"
 
 # Step 2: Start the server
 log_info "Step 2: Starting V Rising server"
-start_cmd="./kgsm.sh --instance $instance_id --start"
+start_cmd="./kgsm.sh --instance $instance_name --start"
 
 log_info "Running command: $start_cmd"
 start_output=$(run_with_timeout 60 $start_cmd 2>&1)
@@ -80,7 +80,7 @@ sleep 5
 
 # Step 3: Check server status
 log_info "Step 3: Checking V Rising server status"
-status_cmd="./kgsm.sh --instance $instance_id --status"
+status_cmd="./kgsm.sh --instance $instance_name --status"
 
 log_info "Running command: $status_cmd"
 status_output=$(run_with_timeout 30 $status_cmd 2>&1)
@@ -99,7 +99,7 @@ log_success "V Rising server status check successful"
 
 # Step 4: Stop the server
 log_info "Step 4: Stopping V Rising server"
-stop_cmd="./kgsm.sh --instance $instance_id --stop"
+stop_cmd="./kgsm.sh --instance $instance_name --stop"
 
 log_info "Running command: $stop_cmd"
 stop_output=$(run_with_timeout 60 $stop_cmd 2>&1)
@@ -116,7 +116,7 @@ log_success "V Rising server stopped successfully"
 
 # Verify server is stopped
 sleep 2
-is_active_cmd="./modules/lifecycle.sh --is-active $instance_id"
+is_active_cmd="./modules/lifecycle.sh --is-active $instance_name"
 if $is_active_cmd &> /dev/null; then
   log_error "Server is still running when it should be stopped"
   exit 1
@@ -126,7 +126,7 @@ log_success "Verified server is stopped"
 
 # Step 5: Uninstall the server
 log_info "Step 5: Uninstalling V Rising server"
-uninstall_cmd="./kgsm.sh --uninstall $instance_id"
+uninstall_cmd="./kgsm.sh --uninstall $instance_name"
 
 log_info "Running command: $uninstall_cmd"
 uninstall_output=$(run_with_timeout 60 $uninstall_cmd 2>&1)

@@ -72,13 +72,13 @@ Examples:
 # instance config file to ensure it can be managed correctly by KGSM.
 #
 # It expects the following variables to be set in the instance config file:
-# INSTANCE_ID
-# INSTANCE_WORKING_DIR
-# INSTANCE_VERSION_FILE
-# INSTANCE_RUNTIME
-# INSTANCE_LIFECYCLE_MANAGER
-# INSTANCE_INSTALL_DATETIME
-# INSTANCE_MANAGE_FILE
+# instance_name
+# instance_working_dir
+# instance_version_file
+# instance_runtime
+# instance_lifecycle_manager
+# instance_install_datetime
+# instance_management_file
 #
 # It also expects the blueprint file path to be passed as the second argument.
 # The blueprint file should be a docker-compose.yml or docker-compose.yaml file.
@@ -107,8 +107,8 @@ function __create_container_instance_config() {
 
   # Append the necessary variables to the instance config file
   {
-    echo "INSTANCE_RUNTIME=\"container\""
-    [[ -n "${instance_ports[*]:-}" ]] && echo "INSTANCE_PORTS=\"${instance_ports:-}\""
+    echo "instance_runtime=\"container\""
+    [[ -n "${instance_ports[*]:-}" ]] && echo "instance_ports=\"${instance_ports:-}\""
 
   } >>"$instance_config_file"
 

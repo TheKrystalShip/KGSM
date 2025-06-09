@@ -29,7 +29,7 @@ log_info "Testing Necesse server installation from Steam"
 
 # Step 1: Install Necesse server
 log_info "Step 1: Installing Necesse server"
-install_cmd="./kgsm.sh --install necesse --id necesse"
+install_cmd="./kgsm.sh --create necesse --name necesse"
 
 log_info "Running command: $install_cmd"
 install_output=$(run_with_timeout 300 $install_cmd 2>&1)
@@ -48,12 +48,12 @@ log_success "Necesse server installed successfully"
 assert_true "./modules/instances.sh --list | grep -q 'necesse'" "Necesse instance should be listed"
 
 # Get instance ID
-instance_id=$(./modules/instances.sh --list | grep 'necesse')
-log_info "Necesse instance ID: $instance_id"
+instance_name=$(./modules/instances.sh --list | grep 'necesse')
+log_info "Necesse instance ID: $instance_name"
 
 # Step 2: Start the server
 log_info "Step 2: Starting Necesse server"
-start_cmd="./kgsm.sh --instance $instance_id --start"
+start_cmd="./kgsm.sh --instance $instance_name --start"
 
 log_info "Running command: $start_cmd"
 start_output=$(run_with_timeout 60 $start_cmd 2>&1)
@@ -73,7 +73,7 @@ sleep 5
 
 # Step 3: Check server status
 log_info "Step 3: Checking Necesse server status"
-status_cmd="./kgsm.sh --instance $instance_id --status"
+status_cmd="./kgsm.sh --instance $instance_name --status"
 
 log_info "Running command: $status_cmd"
 status_output=$(run_with_timeout 30 $status_cmd 2>&1)
@@ -92,7 +92,7 @@ log_success "Necesse server status check successful"
 
 # Step 4: Stop the server
 log_info "Step 4: Stopping Necesse server"
-stop_cmd="./kgsm.sh --instance $instance_id --stop"
+stop_cmd="./kgsm.sh --instance $instance_name --stop"
 
 log_info "Running command: $stop_cmd"
 stop_output=$(run_with_timeout 60 $stop_cmd 2>&1)
@@ -109,7 +109,7 @@ log_success "Necesse server stopped successfully"
 
 # Verify server is stopped
 sleep 5
-is_active_cmd="./modules/lifecycle.sh --is-active $instance_id"
+is_active_cmd="./modules/lifecycle.sh --is-active $instance_name"
 status_check_output=$($is_active_cmd 2>&1)
 if ! echo "$status_check_output" | grep -q "inactive"; then
   log_error "Server is still running when it should be stopped"
@@ -120,7 +120,7 @@ log_success "Verified server is stopped"
 
 # Step 5: Uninstall the server
 log_info "Step 5: Uninstalling Necesse server"
-uninstall_cmd="./kgsm.sh --uninstall $instance_id"
+uninstall_cmd="./kgsm.sh --uninstall $instance_name"
 
 log_info "Running command: $uninstall_cmd"
 uninstall_output=$(run_with_timeout 60 $uninstall_cmd 2>&1)

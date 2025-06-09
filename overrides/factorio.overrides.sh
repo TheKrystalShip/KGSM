@@ -41,30 +41,28 @@
 #
 # Available global vars:
 #
-# INSTANCE_ID
-# INSTANCE_WORKING_DIR
-# INSTANCE_INSTALL_DIR
-# INSTANCE_SAVES_DIR
-# INSTANCE_TEMP_DIR
-# INSTANCE_BACKUPS_DIR
-# INSTANCE_LOGS_DIR
-# INSTANCE_INSTALL_DATETIME
-# INSTANCE_BLUEPRINT_FILE
-# INSTANCE_LEVEL_NAME
-# INSTANCE_PORTS
-# INSTANCE_EXECUTABLE_FILE
-# INSTANCE_EXECUTABLE_ARGUMENTS
-# INSTANCE_LIFECYCLE_MANAGER
-# INSTANCE_MANAGE_FILE
-# INSTANCE_INSTALLED_VERSION
+# instance_name
+# instance_working_dir
+# instance_install_dir
+# instance_saves_dir
+# instance_temp_dir
+# instance_backups_dir
+# instance_logs_dir
+# instance_install_datetime
+# instance_blueprint_file
+# instance_level_name
+# instance_ports
+# instance_executable_file
+# instance_executable_arguments
+# instance_lifecycle_manager
+# instance_management_file
 #
-# (Optional) INSTANCE_STOP_COMMAND
-# (Optional) INSTANCE_SAVE_COMMAND
-# (Optional) INSTANCE_PID_FILE
-# (Optional) INSTANCE_OVERRIDES_FILE
-# (Optional) INSTANCE_UFW_FILE
-# (Optional) INSTANCE_SYSTEMD_SERVICE_FILE
-# (Optional) INSTANCE_SYSTEMD_SOCKET_FILE
+# (Optional) instance_stop_command
+# (Optional) instance_save_command
+# (Optional) instance_pid_file
+# (Optional) instance_ufw_file
+# (Optional) instance_systemd_service_file
+# (Optional) instance_systemd_socket_file
 ################################################################################
 
 # INPUT:
@@ -88,7 +86,7 @@ function _get_latest_version() {
 function _download() {
   # shellcheck disable=SC2034
   local version=$1
-  local dest=$INSTANCE_TEMP_DIR
+  local dest=$instance_temp_dir
 
   # Download new version in $dest
   local download_url="https://factorio.com/get-download/${version}/headless/linux64"
@@ -122,8 +120,8 @@ function _download() {
 # - 0: Success
 # - 1: Error
 function _deploy() {
-  local source=$INSTANCE_TEMP_DIR
-  local dest=$INSTANCE_INSTALL_DIR
+  local source=$instance_temp_dir
+  local dest=$instance_install_dir
 
   if ! cp -r "$source"/* "$dest"; then
     __print_error "Failed copy contents from $source into $dest"
@@ -136,10 +134,10 @@ function _deploy() {
 
   # Check if savefile exists, factorio needs to boot with an existing
   # save otherwise it fails to start. Create a savefile at this stage
-  if [[ ! -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]]; then
-    cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
-    if ! "$INSTANCE_EXECUTABLE_FILE" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" &> /dev/null; then
-      __print_error "Failed to create savefile $INSTANCE_LEVEL_NAME, server won't be able to start without it"
+  if [[ ! -f "$instance_saves_dir/$instance_level_name" ]]; then
+    cd "$instance_install_dir/bin/x64" || return 1
+    if ! "$instance_executable_file" --create "$instance_saves_dir/$instance_level_name" &> /dev/null; then
+      __print_error "Failed to create savefile $instance_level_name, server won't be able to start without it"
       return 1
     fi
   fi

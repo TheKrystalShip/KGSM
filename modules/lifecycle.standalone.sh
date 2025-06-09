@@ -76,9 +76,9 @@ function _start_instance() {
 
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
-  "$INSTANCE_MANAGE_FILE" --start --background $debug
+  "$instance_management_file" --start --background $debug
 
-  __emit_instance_started "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+  __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _stop_instance() {
@@ -86,9 +86,9 @@ function _stop_instance() {
 
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
-  "$INSTANCE_MANAGE_FILE" --stop $debug
+  "$instance_management_file" --stop $debug
 
-  __emit_instance_stopped "${instance%.ini}" "$INSTANCE_LIFECYCLE_MANAGER"
+  __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _restart_instance() {
@@ -103,7 +103,7 @@ function _is_instance_active() {
 
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
-  "$INSTANCE_MANAGE_FILE" --is-active
+  "$instance_management_file" --is-active
 }
 
 function _get_logs() {
@@ -112,7 +112,7 @@ function _get_logs() {
 
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
-  "$INSTANCE_MANAGE_FILE" --logs $follow $debug
+  "$instance_management_file" --logs $follow $debug
 }
 
 while [[ $# -gt 0 ]]; do

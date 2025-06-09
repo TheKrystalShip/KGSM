@@ -36,7 +36,7 @@ Options:
                                   instance from.
                                   <install_dir> Directory where the instance
                                   will be created.
-    --id <identifier>             Optional: Specify an instance identifier
+    --name <name>                 Optional: Specify an instance identifier
                                   instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
   --info <instance>               Print a detailed description of an instance
@@ -101,7 +101,7 @@ fi
 function _generate_unique_instance_name() {
   local blueprint_name
   blueprint_name="$(__extract_blueprint_name $1)"
-  local instance_id
+  local instance_name
 
   # If no instance with the same name as the blueprint exists, then don't
   # create a name with a numbered id, just use the same name as the blueprint
@@ -110,21 +110,21 @@ function _generate_unique_instance_name() {
   fi
 
   while :; do
-    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${config_instance_suffix_length:-2}")
-    instance_id="${blueprint_name}-${instance_id}"
+    instance_name=$(tr -dc 0-9 </dev/urandom | head -c "${config_instance_suffix_length:-2}")
+    instance_name="${blueprint_name}-${instance_name}"
 
-    if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_id}.ini" ]]; then
-      echo "$instance_id" && return
+    if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_name}.ini" ]]; then
+      echo "$instance_name" && return
     fi
   done
 }
 
 # Function to check if an instance config file exists
 function __instance_config_file_exists() {
-  local instance_id="$1"
+  local instance_name="$1"
   local blueprint="$2"
 
-  if [[ -z "$instance_id" ]]; then
+  if [[ -z "$instance_name" ]]; then
     __print_error "Instance ID is not set"
     return $EC_INVALID_ARG
   fi
@@ -134,13 +134,13 @@ function __instance_config_file_exists() {
     return $EC_INVALID_ARG
   fi
 
-  # If $instance_id doesn't end in .ini, append it
-  if [[ ! "$instance_id" =~ \.ini$ ]]; then
-    instance_id="${instance_id}.ini"
+  # If $instance_name doesn't end in .ini, append it
+  if [[ ! "$instance_name" =~ \.ini$ ]]; then
+    instance_name="${instance_name}.ini"
   fi
 
   # Path to the instance config file
-  local instance_config_file="${INSTANCES_SOURCE_DIR}/${blueprint}/${instance_id}.ini"
+  local instance_config_file="${INSTANCES_SOURCE_DIR}/${blueprint}/${instance_name}.ini"
 
   # Check if the instance config file exists
   # If it does, return 0 (success), otherwise return 1 (failure)
@@ -154,10 +154,10 @@ function __instance_config_file_exists() {
 # Create an instance config file for the given instance id and blueprint
 # Returns the path to the instance config file.
 function _create_instance_config_file() {
-  local instance_id="$1"
+  local instance_name="$1"
   local blueprint="$2"
 
-  if [[ -z "$instance_id" ]]; then
+  if [[ -z "$instance_name" ]]; then
     __print_error "Instance ID name is not set"
     return $EC_INVALID_ARG
   fi
@@ -175,7 +175,7 @@ function _create_instance_config_file() {
   __create_dir "$instance_dir_path"
 
   # Create the instance config file
-  local instance_config_file="${instance_dir_path}/${instance_id}.ini"
+  local instance_config_file="${instance_dir_path}/${instance_name}.ini"
   __create_file "$instance_config_file"
 
   # Return the instance config file path
@@ -185,46 +185,46 @@ function _create_instance_config_file() {
 # Create a base instance configuration file with common variables
 function __create_base_instance() {
   local instance_config_file="$1"
-  local instance_id="$2"
+  local instance_name="$2"
   local blueprint_abs_path="$3"
   local install_dir="$4"
 
-  local instance_working_dir="${install_dir}/${instance_id}"
-  local instance_version_file="${instance_working_dir}/.${instance_id}.version"
+  local instance_working_dir="${install_dir}/${instance_name}"
+  local instance_version_file="${instance_working_dir}/.${instance_name}.version"
 
   local instance_lifecycle_manager
-  [[ "$config_enable_systemd" == "true" ]] && instance_lifecycle_manager="standalone" || instance_lifecycle_manager="systemd"
+  [[ "$config_enable_systemd" == "true" ]] && instance_lifecycle_manager="systemd" || instance_lifecycle_manager="standalone"
 
   # shellcheck disable=SC2154
-  local instance_systemd_service_file="${config_systemd_files_dir}/${INSTANCE_ID}.service"
-  local instance_systemd_socket_file="${config_systemd_files_dir}/${INSTANCE_ID}.socket"
+  local instance_systemd_service_file="${config_systemd_files_dir}/${instance_name}.service"
+  local instance_systemd_socket_file="${config_systemd_files_dir}/${instance_name}.socket"
 
   # shellcheck disable=SC2154
-  local instance_ufw_file="${config_firewall_rules_dir}/kgsm-${instance_id}"
+  local instance_ufw_file="${config_firewall_rules_dir}/kgsm-${instance_name}"
 
   local instance_install_datetime
   instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
 
-  local instance_manage_file="${instance_working_dir}/${instance_id}.manage.sh"
+  local instance_manage_file="${instance_working_dir}/${instance_name}.manage.sh"
 
   # Write configuration to file with a single redirect
   # This avoids multiple file descriptor opens and is more efficient
   {
-    echo "INSTANCE_ID=\"$instance_id\""
-    echo "INSTANCE_BLUEPRINT_FILE=\"$blueprint_abs_path\""
-    echo "INSTANCE_WORKING_DIR=\"$instance_working_dir\""
-    echo "INSTANCE_INSTALL_DATETIME=\"$instance_install_datetime\""
-    echo "INSTANCE_VERSION_FILE=\"$instance_version_file\""
-    echo "INSTANCE_LIFECYCLE_MANAGER=\"$instance_lifecycle_manager\""
-    echo "INSTANCE_MANAGE_FILE=\"$instance_manage_file\""
+    echo "instance_name=\"$instance_name\""
+    echo "instance_blueprint_file=\"$blueprint_abs_path\""
+    echo "instance_working_dir=\"$instance_working_dir\""
+    echo "instance_install_datetime=\"$instance_install_datetime\""
+    echo "instance_version_file=\"$instance_version_file\""
+    echo "instance_lifecycle_manager=\"$instance_lifecycle_manager\""
+    echo "instance_management_file=\"$instance_manage_file\""
 
     [[ "$config_enable_systemd" == "true" ]] && {
-      echo "INSTANCE_SYSTEMD_SERVICE_FILE=\"$instance_systemd_service_file\""
-      echo "INSTANCE_SYSTEMD_SOCKET_FILE=\"$instance_systemd_socket_file\""
+      echo "instance_systemd_service_file=\"$instance_systemd_service_file\""
+      echo "instance_systemd_socket_file=\"$instance_systemd_socket_file\""
     }
 
     [[ "$config_enable_firewall_management" == "true" ]] && {
-      echo "INSTANCE_UFW_FILE=\"$instance_ufw_file\""
+      echo "instance_ufw_file=\"$instance_ufw_file\""
     }
 
   } >>"$instance_config_file"
@@ -246,29 +246,29 @@ function _create_instance() {
   local blueprint_name
   blueprint_name="$(__extract_blueprint_name "$blueprint_abs_path")"
 
-  local instance_id
-  instance_id=$identifier
+  local instance_name
+  instance_name=$identifier
 
-  # Ensure instance_id is unique
-  if [[ -z "$instance_id" ]]; then
+  # Ensure instance_name is unique
+  if [[ -z "$instance_name" ]]; then
     # If no identifier is provided, we generate a unique instance name
-    instance_id="$(_generate_unique_instance_name "$blueprint_name")"
-    export instance_id
+    instance_name="$(_generate_unique_instance_name "$blueprint_name")"
+    export instance_name
   else
-    # If an identifier is provided, we use it as the instance_id
+    # If an identifier is provided, we use it as the instance_name
     # We also need to ensure that the identifier is valid
-    if __instance_config_file_exists "$instance_id" "$blueprint_name"; then
-      __print_error "Instance with id \"$instance_id\" already exists for blueprint \"$blueprint_name\""
+    if __instance_config_file_exists "$instance_name" "$blueprint_name"; then
+      __print_error "Instance with id \"$instance_name\" already exists for blueprint \"$blueprint_name\""
       return $EC_INVALID_INSTANCE
     fi
   fi
 
   # Temporary instance config file, we build from here until it's ready
   local instance_config_file
-  instance_config_file="$(_create_instance_config_file "$instance_id" "$blueprint_name")"
+  instance_config_file="$(_create_instance_config_file "$instance_name" "$blueprint_name")"
 
   # All common instance variables are set in this function
-  __create_base_instance "$instance_config_file" "$instance_id" "$blueprint_abs_path" "$install_dir"
+  __create_base_instance "$instance_config_file" "$instance_name" "$blueprint_abs_path" "$install_dir"
 
   # Determine which specialized module to use for instance creation
   local instance_module=""
@@ -303,9 +303,9 @@ function _create_instance() {
   fi
 
   # All done
-  __emit_instance_created "$instance_id" "$blueprint"
+  __emit_instance_created "$instance_name" "$blueprint"
 
-  echo "$instance_id"
+  echo "$instance_name"
 }
 
 function _remove() {
@@ -314,7 +314,7 @@ function _remove() {
   instance_abs_path="$(__find_instance_config "$instance")"
 
   local instance_blueprint_file
-  instance_blueprint_file="$(grep "INSTANCE_BLUEPRINT_FILE=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')"
+  instance_blueprint_file="$(grep "instance_blueprint_file=" <"$instance_abs_path" | cut -d "=" -f2 | tr -d '"')"
   instance_blueprint_file="$(__extract_blueprint_name "$instance_blueprint_file")"
 
   # Remove instance config file
@@ -340,48 +340,48 @@ function _print_info() {
   __source_instance "$instance"
 
   {
-    echo "Name:                $INSTANCE_ID"
-    echo "Lifecycle manager:   $INSTANCE_LIFECYCLE_MANAGER"
+    echo "Name:                $instance_name"
+    echo "Lifecycle manager:   $instance_lifecycle_manager"
 
     local status=""
-    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+    if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
       # systemctl return exit code 3 but it gives correct response
       if [[ $(type -t __disable_error_checking) == function ]]; then
         __disable_error_checking
       fi
-      status="$(systemctl is-active "$INSTANCE_ID")"
+      status="$(systemctl is-active "$instance_name")"
       if [[ $(type -t __enable_error_checking) == function ]]; then
         __enable_error_checking
       fi
     else
-      status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
+      status="$([[ -f "$instance_pid_file" ]] && echo "active" || echo "inactive")"
     fi
 
     echo "Status:              $status"
 
-    if [[ -f "$INSTANCE_PID_FILE" ]]; then
-      echo "PID:                 $(cat "$INSTANCE_PID_FILE")"
+    if [[ -f "$instance_pid_file" ]]; then
+      echo "PID:                 $(cat "$instance_pid_file")"
     fi
-    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "standalone" ]]; then
-      echo "Logs directory:      $INSTANCE_LOGS_DIR"
+    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
+      echo "Logs directory:      $instance_logs_dir"
     fi
-    echo "Directory:           $INSTANCE_WORKING_DIR"
-    echo "Installation date:   $INSTANCE_INSTALL_DATETIME"
-    echo "Version:             $($INSTANCE_MANAGE_FILE --version)"
-    echo "Blueprint:           $INSTANCE_BLUEPRINT_FILE"
+    echo "Directory:           $instance_working_dir"
+    echo "Installation date:   $instance_install_datetime"
+    echo "Version:             $($instance_management_file --version)"
+    echo "Blueprint:           $instance_blueprint_file"
 
-    if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
-      if [[ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]]; then
-        echo "Service file:        $INSTANCE_SYSTEMD_SERVICE_FILE"
+    if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+      if [[ -f "$instance_systemd_service_file" ]]; then
+        echo "Service file:        $instance_systemd_service_file"
       fi
-      if [[ -n "$INSTANCE_SOCKET_FILE" ]]; then
-        echo "Socket file:         $INSTANCE_SOCKET_FILE"
+      if [[ -n "$instance_socket_file" ]]; then
+        echo "Socket file:         $instance_socket_file"
       fi
     fi
 
     if [[ "$config_enable_firewall_management" == "true" ]]; then
-      if [[ -f "$INSTANCE_UFW_FILE" ]]; then
-        echo "Firewall rule:       $INSTANCE_UFW_FILE"
+      if [[ -f "$instance_ufw_file" ]]; then
+        echo "Firewall rule:       $instance_ufw_file"
       fi
     fi
 
@@ -396,35 +396,35 @@ function _print_info_json() {
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
   local status=""
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     __disable_error_checking
-    status="$(systemctl is-active "$INSTANCE_ID")"
+    status="$(systemctl is-active "$instance_name")"
     __enable_error_checking
   else
-    status="$([[ -f "$INSTANCE_PID_FILE" ]] && echo "active" || echo "inactive")"
+    status="$([[ -f "$instance_pid_file" ]] && echo "active" || echo "inactive")"
   fi
 
   local pid
-  pid=$([[ -f "$INSTANCE_PID_FILE" ]] && cat "$INSTANCE_PID_FILE" || echo "None")
+  pid=$([[ -f "$instance_pid_file" ]] && cat "$instance_pid_file" || echo "None")
   local logs_dir
-  logs_dir=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "standalone" ]] && echo "$INSTANCE_LOGS_DIR" || echo "None")
+  logs_dir=$([[ "$instance_lifecycle_manager" == "standalone" ]] && echo "$instance_logs_dir" || echo "None")
   local service_file
-  service_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]] && [[ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "$INSTANCE_SYSTEMD_SERVICE_FILE" || echo "")
+  service_file=$([[ "$instance_lifecycle_manager" == "systemd" ]] && [[ -f "$instance_systemd_service_file" ]] && echo "$instance_systemd_service_file" || echo "")
   local socket_file
-  socket_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]] && [[ -n "$INSTANCE_SOCKET_FILE" ]] && echo "$INSTANCE_SOCKET_FILE" || echo "")
+  socket_file=$([[ "$instance_lifecycle_manager" == "systemd" ]] && [[ -n "$instance_socket_file" ]] && echo "$instance_socket_file" || echo "")
   local firewall_rule
-  firewall_rule=$([[ "$config_enable_firewall_management" == "true" ]] && [[ -f "$INSTANCE_UFW_FILE" ]] && echo "$INSTANCE_UFW_FILE" || echo "")
+  firewall_rule=$([[ "$config_enable_firewall_management" == "true" ]] && [[ -f "$instance_ufw_file" ]] && echo "$instance_ufw_file" || echo "")
 
   jq -n \
-    --arg instance "$INSTANCE_ID" \
-    --arg lifecycleManager "$INSTANCE_LIFECYCLE_MANAGER" \
+    --arg instance "$instance_name" \
+    --arg lifecycleManager "$instance_lifecycle_manager" \
     --arg status "$status" \
     --arg pid "$pid" \
     --arg logsDir "$logs_dir" \
-    --arg directory "$INSTANCE_WORKING_DIR" \
-    --arg installDate "$INSTANCE_INSTALL_DATETIME" \
+    --arg directory "$instance_working_dir" \
+    --arg installDate "$instance_install_datetime" \
     --arg version "$INSTANCE_INSTALLED_VERSION" \
-    --arg blueprint "$INSTANCE_BLUEPRINT_FILE" \
+    --arg blueprint "$instance_blueprint_file" \
     --arg serviceFile "$service_file" \
     --arg socketFile "$socket_file" \
     --arg firewallRule "$firewall_rule" \
@@ -513,7 +513,7 @@ function _get_instance_status() {
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
-  if [[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]]; then
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     # systemctl status doesn't require sudo
     systemctl status "${instance%.ini}" --no-pager
     # systemctl status returns exit code 3, but it prints everything we need
@@ -530,7 +530,7 @@ function _send_save_to_instance() {
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
-  "$INSTANCE_MANAGE_FILE" --save $debug
+  "$instance_management_file" --save $debug
 }
 
 function _send_input_to_instance() {
@@ -540,7 +540,7 @@ function _send_input_to_instance() {
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
 
-  "$INSTANCE_MANAGE_FILE" --input "$command" $debug
+  "$instance_management_file" --input "$command" $debug
 }
 
 # shellcheck disable=SC2199
@@ -610,7 +610,7 @@ while [[ $# -gt 0 ]]; do
           [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
           install_dir=$1
           ;;
-        --id)
+        --name)
           shift
           [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
           identifier=$1

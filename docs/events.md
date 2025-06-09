@@ -22,14 +22,14 @@ Each event is transmitted as a JSON object with the following format:
 {
     "EventType": "<event_name>",
     "Data": { 
-        "InstanceId": "<instance_name>",
+        "InstanceName": "<instance_name>",
         ...other event-specific data
     }
 }
 ```
 
 - `EventType`: A string identifying the event type (e.g., `instance_started`)
-- `Data`: An object containing event-specific information, always including at least the `InstanceId`
+- `Data`: An object containing event-specific information, always including at least the `InstanceName`
 
 ### Example Event
 
@@ -37,7 +37,7 @@ Each event is transmitted as a JSON object with the following format:
 {
     "EventType": "instance_started",
     "Data": {
-        "InstanceId": "minecraft_survival",
+        "InstanceName": "minecraft_survival",
         "Blueprint": "minecraft"
     }
 }
@@ -164,12 +164,12 @@ def listen_for_events():
 
 def process_event(event):
     event_type = event['EventType']
-    instance_id = event['Data']['InstanceId']
+    instance_name = event['Data']['InstanceName']
     
     if event_type == 'instance_started':
-        print(f"Server {instance_id} has started!")
+        print(f"Server {instance_name} has started!")
     elif event_type == 'instance_stopped':
-        print(f"Server {instance_id} has stopped!")
+        print(f"Server {instance_name} has stopped!")
     # Handle other event types as needed
 ```
 

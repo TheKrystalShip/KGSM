@@ -20,7 +20,7 @@ services:
     image: ghcr.io/thekrystalship/theforest:latest
 
     # Dynamic container name
-    container_name: "${INSTANCE_ID}"
+    container_name: "${instance_name}"
 
     # Use the host’s network stack directly
     network_mode: host
@@ -33,7 +33,7 @@ services:
 
     volumes:
       # Local directory : Container directory
-      - "${INSTANCE_WORKING_DIR:-.}:/opt/theforest"
+      - "${instance_working_dir:-.}:/opt/theforest"
 
     environment:
       # Environment variables for Steam authentication

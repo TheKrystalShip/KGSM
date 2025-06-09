@@ -145,9 +145,9 @@ function _enable_upnp() {
 
   __print_info "Enabling UPnP..."
 
-  if ! output=$(upnpc -e "$INSTANCE_ID" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -e "$instance_name" -r "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to enable UPnP ports"
-    __print_info "To stop these message, set USE_UPNP to 0 in $0"
+    __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
     __print_error "${output}"
   fi
 
@@ -159,9 +159,9 @@ function _disable_upnp() {
 
   __print_info "Disabling UPnP..."
 
-  if ! output=$(upnpc -f "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to disable UPnP ports"
-    __print_info "To stop these message, set USE_UPNP to 0 in $0"
+    __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
     __print_error "${output}"
   fi
 
@@ -171,23 +171,23 @@ function _disable_upnp() {
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${USE_UPNP:-0}" -eq 1 ]] && _disable_upnp' INT TERM
+trap '[[ "${enable_port_forwarding:-0}" -eq 1 ]] && _disable_upnp' INT TERM
 
 # Start the server in the current terminal
 function _start() {
   __print_info "Starting $self in the current terminal"
 
-  if [[ "$INSTANCE_USE_UPNP" -eq 1 ]]; then
+  if [[ "$instance_use_upnp" -eq 1 ]]; then
     _enable_upnp
   fi
 
-  cd "$INSTANCE_LAUNCH_DIR" || {
-    __print_error "Failed to move into $INSTANCE_LAUNCH_DIR, exiting"
+  cd "$instance_launch_dir" || {
+    __print_error "Failed to move into $instance_launch_dir, exiting"
     return 1
   }
 
   # shellcheck disable=SC2086
-  exec $INSTANCE_EXECUTABLE_FILE $INSTANCE_EXECUTABLE_ARGUMENTS
+  exec $instance_executable_file $instance_executable_arguments
 }
 
 # Start the server in the background
@@ -196,28 +196,28 @@ function _start() {
 function _start_background() {
   __print_info "Starting $self in the background"
 
-  if [[ "$INSTANCE_USE_UPNP" -eq 1 ]]; then
+  if [[ "$instance_use_upnp" -eq 1 ]]; then
     _enable_upnp
   fi
 
-  cd "$INSTANCE_LAUNCH_DIR" || {
-    __print_error "Failed to move into $INSTANCE_LAUNCH_DIR, exiting"
+  cd "$instance_launch_dir" || {
+    __print_error "Failed to move into $instance_launch_dir, exiting"
     return 1
   }
 
-  [[ -p "$INSTANCE_SOCKET_FILE" ]] && rm "$INSTANCE_SOCKET_FILE"
+  [[ -p "$instance_socket_file" ]] && rm "$instance_socket_file"
 
-  mkfifo "$INSTANCE_SOCKET_FILE"
+  mkfifo "$instance_socket_file"
 
   # Launch the existing _start in a subshell:
-  (_start) <"$INSTANCE_SOCKET_FILE" &>$INSTANCE_LOGS_REDIRECT &
+  (_start) <"$instance_socket_file" &>$instance_logs_redirect &
 
   local server_pid=$!
-  echo "$server_pid" >"$INSTANCE_PID_FILE"
-  __print_success "Instance $INSTANCE_ID started with PID $server_pid, saved to $INSTANCE_PID_FILE"
+  echo "$server_pid" >"$instance_pid_file"
+  __print_success "Instance $instance_name started with PID $server_pid, saved to $instance_pid_file"
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
-  tail -f /dev/null >"$INSTANCE_SOCKET_FILE" &
+  tail -f /dev/null >"$instance_socket_file" &
   echo $! >"$TAIL_PID_FILE"
 }
 
@@ -234,14 +234,14 @@ function _kill_all_processes() {
     fi
   fi
 
-  if [[ ! -f "$INSTANCE_PID_FILE" ]]; then
-    __print_error "No PID file found for $INSTANCE_ID."
+  if [[ ! -f "$instance_pid_file" ]]; then
+    __print_error "No PID file found for $instance_name."
     __print_error "If this is unexpected, check running processes to ensure the instance is not running uncontrolled"
     return 1
   fi
 
   local server_pid
-  server_pid=$(<"$INSTANCE_PID_FILE")
+  server_pid=$(<"$instance_pid_file")
 
   # Find all child processes of the server PID
   local output
@@ -277,7 +277,7 @@ function _stop_server() {
   __print_info "Stopping $self"
 
   if ! _is_active &>/dev/null; then
-    __print_error "Instance $INSTANCE_ID is not running"
+    __print_error "Instance '$instance_name' is not running"
     return 0
   fi
 
@@ -299,24 +299,24 @@ function _stop_server() {
 
   if [[ ! "$no_graceful" ]]; then
     # Send stop command to socket
-    if [[ -p "$INSTANCE_SOCKET_FILE" ]]; then
-      if [[ -n "$INSTANCE_STOP_COMMAND" ]]; then
-        echo "$INSTANCE_STOP_COMMAND" >"$INSTANCE_SOCKET_FILE"
+    if [[ -p "$instance_socket_file" ]]; then
+      if [[ -n "$instance_stop_command" ]]; then
+        echo "$instance_stop_command" >"$instance_socket_file"
       fi
     fi
   fi
 
   _kill_all_processes
 
-  [[ -f "$INSTANCE_PID_FILE" ]] && rm -f "$INSTANCE_PID_FILE"
-  [[ -p "$INSTANCE_SOCKET_FILE" ]] && rm -f "$INSTANCE_SOCKET_FILE"
+  [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
+  [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
   [[ -f "$TAIL_PID_FILE" ]] && rm -f "$TAIL_PID_FILE"
 
-  if [[ "$INSTANCE_USE_UPNP" -eq 1 ]]; then
+  if [[ "$instance_use_upnp" -eq 1 ]]; then
     _disable_upnp
   fi
 
-  __print_success "Instance $INSTANCE_ID stopped"
+  __print_success "Instance '$instance_name' stopped"
 }
 
 # This function is used to stop the server gracefully with a timeout
@@ -326,7 +326,7 @@ function _timed_stop() {
   local no_graceful=$2
 
   # UPnP can take a few seconds, so to avoid preemptive timeout we wait longer
-  if ! timeout "$INSTANCE_STOP_COMMAND_TIMEOUT_S" "$0" --internal-stop ${no_save:+--no-save} ${no_graceful:+--no-graceful} $debug; then
+  if ! timeout "$instance_stop_command_timeout_seconds" "$0" --internal-stop ${no_save:+--no-save} ${no_graceful:+--no-graceful} $debug; then
     __print_error "Timeout reached, killing instance"
     exec "$0" --kill $debug
   fi
@@ -336,12 +336,12 @@ function _timed_stop() {
 # It will send the save command to the server through the named pipe
 function _send_save_command() {
   # Check if socket file exists and is a named pipe
-  if [[ -p "${INSTANCE_SOCKET_FILE}" ]]; then
+  if [[ -p "${instance_socket_file}" ]]; then
     # Check if save command is defined
-    if [[ -n "${INSTANCE_SAVE_COMMAND}" ]]; then
-      echo "${INSTANCE_SAVE_COMMAND}" >>"${INSTANCE_SOCKET_FILE}"
+    if [[ -n "${instance_save_command}" ]]; then
+      echo "${instance_save_command}" >>"${instance_socket_file}"
       # Sleep to give the server time to process the save command
-      sleep "${INSTANCE_SAVE_COMMAND_TIMEOUT_S:-5}"
+      sleep "${config_save_command_timeout_seconds:-5}"
       return 0
     fi
   else
@@ -353,8 +353,8 @@ function _send_save_command() {
 # This function is used to send input commands to the server through
 # the named pipe
 function _send_input() {
-  if [[ -p "$INSTANCE_SOCKET_FILE" ]]; then
-    echo "$1" >>"$INSTANCE_SOCKET_FILE"
+  if [[ -p "$instance_socket_file" ]]; then
+    echo "$1" >>"$instance_socket_file"
   else
     __print_error "Input failed: No active server found."
     return 1
@@ -365,16 +365,16 @@ function _send_input() {
 # and verifying if the process with that PID is still running
 # If the PID file is empty or does not exist, it will return inactive
 function _is_active() {
-  if [[ ! -f "$INSTANCE_PID_FILE" ]]; then
+  if [[ ! -f "$instance_pid_file" ]]; then
     __print_info "Inactive" && return 1
   fi
 
   local server_pid
-  server_pid=$(<"$INSTANCE_PID_FILE")
+  server_pid=$(<"$instance_pid_file")
 
   if [[ -z "$server_pid" ]]; then
     __print_error "Instance PID file present but empty, removing"
-    rm -rf "$INSTANCE_PID_FILE"
+    rm -rf "$instance_pid_file"
 
     __print_info "Inactive" && return 1
   fi
@@ -409,14 +409,14 @@ function _print_logs() {
 
   # Without follow, just print the last few lines of the latest file
   if [[ "$follow" != "--follow" ]]; then
-    latest_log_file="$(ls -t "$INSTANCE_LOGS_DIR" | head -1)"
+    latest_log_file="$(ls -t "$instance_logs_dir" | head -1)"
 
     if [[ -z "$latest_log_file" ]]; then
       __print_info "No log files found"
       return 0
     fi
 
-    tail "$INSTANCE_LOGS_DIR/$latest_log_file"
+    tail "$instance_logs_dir/$latest_log_file"
     return $?
 
   # With follow, keep the logs live even through file changes
@@ -426,7 +426,7 @@ function _print_logs() {
       return 1
     fi
     while true; do
-      latest_log_file="$(ls -t "$INSTANCE_LOGS_DIR" | head -1)"
+      latest_log_file="$(ls -t "$instance_logs_dir" | head -1)"
 
       # This is busy waiting, but don't have a better solution atm.
       if [[ -z "$latest_log_file" ]]; then
@@ -436,11 +436,11 @@ function _print_logs() {
 
       __print_info "Following logs from $latest_log_file"
 
-      tail -F "$INSTANCE_LOGS_DIR/$latest_log_file" &
+      tail -F "$instance_logs_dir/$latest_log_file" &
       tail_pid=$!
 
       # Wait for tail process to finish or the log file to be replaced
-      inotifywait -e create -e moved_to "$INSTANCE_LOGS_DIR"
+      inotifywait -e create -e moved_to "$instance_logs_dir"
 
       # New log file detected; kill current tail and loop back to follow the new file
       kill "$tail_pid"
@@ -505,16 +505,16 @@ function _create_backup() {
   __print_info "Creating backup..."
 
   # Check if install directory exists
-  if [[ ! -d "${INSTANCE_INSTALL_DIR}" ]]; then
-    __print_error "Install directory ${INSTANCE_INSTALL_DIR} does not exist"
+  if [[ ! -d "${instance_install_dir}" ]]; then
+    __print_error "Install directory ${instance_install_dir} does not exist"
     return 1
   fi
 
   # Check for content inside the install directory before attempting to
   # create a backup. If empty, skip
-  if [ -z "$(ls -A "${INSTANCE_INSTALL_DIR}")" ]; then
+  if [ -z "$(ls -A "${instance_install_dir}")" ]; then
     # Source directory is empty, nothing to back up
-    __print_warning "${INSTANCE_INSTALL_DIR} is empty, skipping backup"
+    __print_warning "${instance_install_dir} is empty, skipping backup"
     return 0
   fi
 
@@ -525,9 +525,9 @@ function _create_backup() {
   fi
 
   # Ensure backup directory exists
-  if [[ ! -d "${INSTANCE_BACKUPS_DIR}" ]]; then
-    mkdir -p "${INSTANCE_BACKUPS_DIR}" || {
-      __print_error "Failed to create backup directory ${INSTANCE_BACKUPS_DIR}"
+  if [[ ! -d "${instance_backups_dir}" ]]; then
+    mkdir -p "${instance_backups_dir}" || {
+      __print_error "Failed to create backup directory ${instance_backups_dir}"
       return 1
     }
   fi
@@ -537,9 +537,9 @@ function _create_backup() {
   datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
   local installed_version
   installed_version=$(_get_installed_version)
-  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_ID}-${installed_version:-unknown}-${datetime}.backup"
+  local output="${instance_backups_dir}/${instance_name}-${installed_version:-unknown}-${datetime}.backup"
 
-  if [[ "$INSTANCE_COMPRESS_BACKUPS" == 1 ]]; then
+  if [[ "$instance_compress_backups" == "true" ]]; then
     output="${output}.tar.gz"
 
     if ! touch "$output"; then
@@ -547,7 +547,7 @@ function _create_backup() {
       return 1
     fi
 
-    cd "$INSTANCE_INSTALL_DIR" || return 1
+    cd "$instance_install_dir" || return 1
 
     if ! tar -czf "$output" .; then
       __print_error "Failed to compress $output"
@@ -563,7 +563,7 @@ function _create_backup() {
     fi
 
     # Copy everything from the install directory into a backup folder
-    if ! cp -r "$INSTANCE_INSTALL_DIR"/* "$output"/; then
+    if ! cp -r "$instance_install_dir"/* "$output"/; then
       __print_error "Failed to create backup $output"
       rm -rf "${output:?}"
       return 1
@@ -576,7 +576,7 @@ function _create_backup() {
 }
 
 function _restore_backup() {
-  local source="$INSTANCE_BACKUPS_DIR/$1"
+  local source="$instance_backups_dir/$1"
   local backup_version
 
   __print_info "Restoring ${source}..."
@@ -587,37 +587,37 @@ function _restore_backup() {
   fi
 
   # Get version number from $source
-  IFS='-' read -ra backup_name <<<"${source#"$INSTANCE_BACKUPS_DIR/"}"
+  IFS='-' read -ra backup_name <<<"${source#"$instance_backups_dir/"}"
   backup_version="${backup_name[2]}"
   unset IFS
 
-  if [ -n "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
-    # $INSTANCE_INSTALL_DIR is not empty, create new backup before proceeding
+  if [ -n "$(ls -A "$instance_install_dir")" ]; then
+    # $instance_install_dir is not empty, create new backup before proceeding
 
     __print_warning "Current installation directory is not empty, creating a backup first..."
 
     _create_backup || {
       local create_backup_exit_code=$?
-      __print_error "Failed to restore backup ${source#"$INSTANCE_BACKUPS_DIR/"}"
+      __print_error "Failed to restore backup ${source#"$instance_backups_dir/"}"
       return $create_backup_exit_code
     }
 
-    if ! rm -rf "${INSTANCE_INSTALL_DIR:?}"/*; then
-      __print_error "Failed to clear $INSTANCE_INSTALL_DIR, exiting"
+    if ! rm -rf "${instance_install_dir:?}"/*; then
+      __print_error "Failed to clear $instance_install_dir, exiting"
       return 1
     fi
   fi
 
   if [[ "$source" == *.gz ]]; then
-    cd "$INSTANCE_INSTALL_DIR" || return 1
+    cd "$instance_install_dir" || return 1
 
     if ! tar -xzf "$source" .; then
       __print_error "Failed to restore $source"
       return 1
     fi
   else
-    # $INSTANCE_INSTALL_DIR is empty/user confirmed continue, move the backup into it
-    if ! cp -r "$source"/* "$INSTANCE_INSTALL_DIR"/; then
+    # $instance_install_dir is empty/user confirmed continue, move the backup into it
+    if ! cp -r "$source"/* "$instance_install_dir"/; then
       __print_error "Failed to restore backup $source"
       return 1
     fi
@@ -638,23 +638,21 @@ function _list_backups() {
   shopt -s extglob nullglob
 
   # Create array with contents of the backup dir
-  backups_array=("$INSTANCE_BACKUPS_DIR"/*)
+  backups_array=("$instance_backups_dir"/*)
   # remove leading $instance_backups_dir:
-  backups_array=("${backups_array[@]#"$INSTANCE_BACKUPS_DIR/"}")
+  backups_array=("${backups_array[@]#"$instance_backups_dir/"}")
 
   echo "${backups_array[@]}"
 }
 
 function _get_installed_version() {
-  echo "$(<"$INSTANCE_VERSION_FILE")"
+  echo "$(<"$instance_version_file")"
 }
 
 function _get_latest_version() {
 
-  app_id=$INSTANCE_STEAM_APP_ID
-
   username=anonymous
-  auth_level=$INSTANCE_IS_STEAM_ACCOUNT_REQUIRED
+  auth_level=$instance_is_steam_account_required
 
   if [[ $auth_level -ne 0 ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
@@ -675,7 +673,7 @@ function _get_latest_version() {
     steamcmd \
       +login $username \
       +app_info_update 1 \
-      +app_info_print $app_id \
+      +app_info_print $instance_steam_app_id \
       +quit |
       tr '\n' ' ' |
       grep --color=NEVER \
@@ -715,7 +713,7 @@ function _save_version() {
 
   __print_info "Saving version ${version}..."
 
-  echo "$version" >"$INSTANCE_VERSION_FILE"
+  echo "$version" >"$instance_version_file"
 
   __print_success "Version saved"
   return 0
@@ -723,30 +721,30 @@ function _save_version() {
 
 function _download() {
   local version=$1
-  local dest=${2:-$INSTANCE_TEMP_DIR}
-  local app_id=${3:-$INSTANCE_STEAM_APP_ID}
+  local dest=${2:-$instance_temp_dir}
+  local app_id=${3:-$instance_steam_app_id}
 
   __print_info "Downloading..."
 
-  if [[ -z "$INSTANCE_STEAM_APP_ID" ]]; then
-    __print_error "INSTANCE_STEAM_APP_ID is expected but it's not set"
+  if [[ -z "$instance_steam_app_id" ]]; then
+    __print_error "'instance_steam_app_id' is expected but it's not set"
     return 1
   fi
 
-  if [[ -z "$INSTANCE_IS_STEAM_ACCOUNT_REQUIRED" ]]; then
-    __print_error "INSTANCE_IS_STEAM_ACCOUNT_REQUIRED is expected but it's not set"
+  if [[ -z "$instance_is_steam_account_required" ]]; then
+    __print_error "'instance_is_steam_account_required' is expected but it's not set"
     return 1
   fi
 
   username=anonymous
-  if [[ $INSTANCE_IS_STEAM_ACCOUNT_REQUIRED -ne 0 ]]; then
+  if [[ $instance_is_steam_account_required -ne 0 ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
-      __print_error "STEAM_USERNAME is expected but it's not set"
+      __print_error "'STEAM_USERNAME' is expected but it's not set"
       return 1
     fi
 
     if [[ -z "$STEAM_PASSWORD" ]]; then
-      __print_error "STEAM_PASSWORD is expected but it's not set"
+      __print_error "'STEAM_PASSWORD' is expected but it's not set"
       return 1
     fi
 
@@ -755,7 +753,7 @@ function _download() {
 
   # shellcheck disable=SC2086
   steamcmd \
-    +@sSteamCmdForcePlatformType "${INSTANCE_PLATFORM:-linux}" \
+    +@sSteamCmdForcePlatformType "${instance_platform:-linux}" \
     +force_install_dir "$dest" \
     +login $username \
     +app_update "$app_id" \
@@ -767,8 +765,8 @@ function _download() {
 }
 
 function _deploy() {
-  local source=$INSTANCE_TEMP_DIR
-  local dest=$INSTANCE_INSTALL_DIR
+  local source=$instance_temp_dir
+  local dest=$instance_install_dir
 
   __print_info "Deploying..."
 

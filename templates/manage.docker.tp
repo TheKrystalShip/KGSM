@@ -54,7 +54,7 @@ set -o pipefail
 
 function enable_upnp() {
   local output
-  if ! output=$(upnpc -e "$INSTANCE_ID" -r "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -e "$instance_name" -r "${instance_upnp_ports[@]}" 2>&1); then
     echo "$self ERROR: Failed to enable UPnP ports" >&2
     echo "$self ERROR: ${output}" >&2
   fi
@@ -62,46 +62,46 @@ function enable_upnp() {
 
 function disable_upnp() {
   local output
-  if ! output=$(upnpc -f "${INSTANCE_UPNP_PORTS[@]}" 2>&1); then
+  if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     echo "$self ERROR: Failed to disable UPnP ports" >&2
     echo "$self ERROR: ${output}" >&2
   fi
 }
 
-trap '[[ "$USE_UPNP" -eq 1 ]] && disable_upnp' INT
+trap '[[ "$config_enable_port_forwarding" -eq 1 ]] && disable_upnp' INT
 
 function start_foreground() {
-  if [[ "$USE_UPNP" -eq 1 ]]; then
+  if [[ "$config_enable_port_forwarding" -eq 1 ]]; then
     enable_upnp
   fi
 
-  # https://docs.docker.com/reference/cli/docker/container/start/
-  docker start -a "$INSTANCE_ID" $INSTANCE_LAUNCH_ARGS
+  # Use docker-compose up to start the container with logs visible
+  docker compose -f "$INSTANCE_DOCKER_FILE" up
 }
 
 function start_background() {
-  if [[ "$USE_UPNP" -eq 1 ]]; then
+  if [[ "$config_enable_port_forwarding" -eq 1 ]]; then
     enable_upnp
   fi
 
-  # https://docs.docker.com/reference/cli/docker/container/start/
-  docker start "$INSTANCE_ID" $INSTANCE_LAUNCH_ARGS
+  # Use docker-compose up -d to start the container in detached mode
+  docker compose -f "$INSTANCE_DOCKER_FILE" up -d
 }
 
 function stop_server() {
   if ! $(is_active &>/dev/null); then
-    echo "$self WARNING: Instance $INSTANCE_ID is not running"
+    echo "$self WARNING: Instance $instance_name is not running"
     return 0
   fi
 
-  if [[ "$USE_UPNP" -eq 1 ]]; then
+  if [[ "$config_enable_port_forwarding" -eq 1 ]]; then
     disable_upnp
   fi
 
-  # https://docs.docker.com/reference/cli/docker/container/stop/
-  docker stop "$INSTANCE_ID" -t $STOP_TIMEOUT_S
+  # Use docker-compose down to stop the container
+  docker compose -f "$INSTANCE_DOCKER_FILE" down
 
-  echo "$self SUCCESS: Instance $INSTANCE_ID stopped"
+  echo "$self SUCCESS: Instance $instance_name stopped"
 }
 
 function save_game() {
@@ -113,21 +113,187 @@ function send_input() {
 }
 
 function is_active() {
-  if [ "$(docker container inspect -f '{{.State.Status}}' "$INSTANCE_ID")" = "running" ]; then
-    echo "$self INFO: Active" && true
+  # Check if the container is running using docker-compose
+  if docker compose -f "$INSTANCE_DOCKER_FILE" ps --services --filter "status=running" | grep -q .; then
+    echo "$self INFO: Active" && return 0
   fi
 
-  echo "$self INFO: Inactive" && false
+  echo "$self INFO: Inactive" && return 1
 }
 
 function print_logs() {
   local follow=$1
 
   if [[ "$follow" == "--follow" ]]; then
-    docker logs -f "$INSTANCE_ID"
+    docker compose -f "$INSTANCE_DOCKER_FILE" logs -f
   else
-    docker logs -n 10 "$INSTANCE_ID"
+    docker compose -f "$INSTANCE_DOCKER_FILE" logs --tail=10
   fi
+}
+
+# Define version management functions for Docker containers
+function _get_installed_version() {
+  if [[ -f "$instance_version_file" ]]; then
+    cat "$instance_version_file"
+  else
+    echo "latest"
+  fi
+}
+
+function _get_latest_version() {
+  # For containers, we can use the Docker image tag or digest
+  # This example uses the 'latest' tag, but could be modified to check for
+  # updated images using Docker Hub API or other methods
+  echo "latest"
+}
+
+function _compare_versions() {
+  # For Docker containers, comparing versions is less relevant
+  # since we're working with images and not actual game files
+  # We can pull the latest image and check if it's different
+  echo "latest"
+  return 1  # Return non-zero to indicate no update needed
+}
+
+function _save_version() {
+  local version=$1
+
+  echo "Saving version ${version}..."
+
+  echo "$version" > "$instance_version_file"
+
+  echo "Version saved"
+  return 0
+}
+
+function _download() {
+  local version=$1
+
+  echo "Downloading Docker image..."
+
+  # For container-based instances, downloading means pulling the images defined in the compose file
+  # This will pull all images defined in the docker-compose.yml file
+  if [[ ! -f "$INSTANCE_DOCKER_FILE" ]]; then
+    # If docker-compose file doesn't exist yet, we need to create it first
+    _deploy
+  fi
+
+  docker compose -f "$INSTANCE_DOCKER_FILE" pull
+
+  echo "Download complete"
+  return 0
+}
+
+function _deploy() {
+  echo "Deploying Docker container..."
+
+  # For container instances, we need to create a docker-compose.yml file
+  # from the template and place it in the working directory
+  if [[ ! -f "$INSTANCE_DOCKER_COMPOSE_TEMPLATE" ]]; then
+    echo "Error: Docker compose template not found: $INSTANCE_DOCKER_COMPOSE_TEMPLATE" >&2
+    return 1
+  fi
+
+  # Copy the docker-compose.yml template to the working directory
+  cp "$INSTANCE_DOCKER_COMPOSE_TEMPLATE" "$INSTANCE_DOCKER_FILE"
+
+  # Replace environment variables in the docker-compose.yml file
+  # This includes instance_name, instance_working_dir, etc.
+  sed -i "s|\${instance_name}|$instance_name|g" "$INSTANCE_DOCKER_FILE"
+  sed -i "s|\${instance_working_dir}|$instance_working_dir|g" "$INSTANCE_DOCKER_FILE"
+
+  # Also replace any Steam credentials if needed
+  if [[ -n "$STEAM_USERNAME" && -n "$STEAM_PASSWORD" ]]; then
+    sed -i "s|\${STEAM_USERNAME}|$STEAM_USERNAME|g" "$INSTANCE_DOCKER_FILE"
+    sed -i "s|\${STEAM_PASSWORD}|$STEAM_PASSWORD|g" "$INSTANCE_DOCKER_FILE"
+  fi
+
+  # Create the version file if it doesn't exist
+  if [[ ! -f "$instance_version_file" ]]; then
+    echo "latest" > "$instance_version_file"
+  fi
+
+  echo "Deploy complete"
+  return 0
+}
+
+function _update() {
+  echo "Updating Docker container..."
+
+  # For container instances, updating means:
+  # 1. Pull the latest images defined in the docker-compose file
+  # 2. Recreate the containers with the latest images
+
+  # Pull the latest images
+  docker compose -f "$INSTANCE_DOCKER_FILE" pull
+
+  # If the container is running, stop it and recreate
+  if is_active &>/dev/null; then
+    docker compose -f "$INSTANCE_DOCKER_FILE" up -d --force-recreate
+  else
+    # Just recreate without starting
+    docker compose -f "$INSTANCE_DOCKER_FILE" up -d
+    docker compose -f "$INSTANCE_DOCKER_FILE" down
+  fi
+
+  # Update version information
+  echo "latest" > "$instance_version_file"
+
+  echo "Update complete"
+  return 0
+}
+
+function _create_backup() {
+  echo "Creating backup of Docker container data..."
+
+  local datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
+  local output="${instance_backups_dir}/${instance_name}-${datetime}.backup.tar.gz"
+
+  # Make sure the container is stopped before backing up
+  if is_active &>/dev/null; then
+    stop_server
+  fi
+
+  # Create a tar.gz of the entire working directory
+  tar -czf "$output" -C "$instance_working_dir" .
+
+  echo "Backup created: $output"
+  return 0
+}
+
+function _restore_backup() {
+  local backup="$1"
+  local source="$instance_backups_dir/$backup"
+
+  echo "Restoring backup from $source..."
+
+  if [[ ! -f "$source" ]]; then
+    echo "Error: Backup file not found: $source" >&2
+    return 1
+  fi
+
+  # Stop the container if it's running
+  if is_active &>/dev/null; then
+    stop_server
+  fi
+
+  # Extract the backup to the working directory
+  tar -xzf "$source" -C "$instance_working_dir"
+
+  echo "Backup restored from $source"
+  return 0
+}
+
+function _list_backups() {
+  # List all backup files in the backups directory
+  shopt -s extglob nullglob
+
+  # Create array with contents of the backup dir
+  backups_array=("$instance_backups_dir"/*)
+  # Remove leading $instance_backups_dir/
+  backups_array=("${backups_array[@]#"$instance_backups_dir/"}")
+
+  echo "${backups_array[@]}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -186,6 +352,70 @@ while [[ $# -gt 0 ]]; do
     ;;
   --disable-upnp)
     disable_upnp
+    exit $?
+    ;;
+  --version)
+    shift
+    if [[ -z "$1" ]]; then
+      _get_installed_version
+      exit $?
+    fi
+    case "$1" in
+    --compare)
+      _compare_versions
+      exit $?
+      ;;
+    --latest)
+      _get_latest_version
+      exit $?
+      ;;
+    --save)
+      shift
+      if [[ -z "$1" ]]; then
+        echo "$self ERROR: Missing argument <version>" >&2
+        exit 1
+      fi
+      _save_version "$1"
+      exit $?
+      ;;
+    *)
+      echo "$self ERROR: Invalid argument $1" >&2
+      exit 1
+      ;;
+    esac
+    ;;
+  --download)
+    version=0
+    shift
+    if [[ -n "$1" ]]; then
+      version="$1"
+    fi
+    _download "$version"
+    exit $?
+    ;;
+  --deploy)
+    _deploy
+    exit $?
+    ;;
+  --update)
+    _update
+    exit $?
+    ;;
+  --create-backup)
+    _create_backup
+    exit $?
+    ;;
+  --restore-backup)
+    shift
+    if [[ -z "$1" ]]; then
+      echo "$self ERROR: Missing argument <backup>" >&2
+      exit 1
+    fi
+    _restore_backup "$1"
+    exit $?
+    ;;
+  --list-backups)
+    _list_backups
     exit $?
     ;;
   *)

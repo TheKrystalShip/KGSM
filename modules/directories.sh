@@ -8,7 +8,7 @@ Usage:
 
 Options:
   -h, --help                  Prints this message
-  -i, --instance <instance>   INSTANCE_ID from the instance config file.
+  -i, --instance <instance>   instance_name from the instance config file.
                               The .ini extension is not required
     --create                  Generates the directory structure
     --remove                  Removes the directory structure
@@ -74,46 +74,47 @@ instance_config_file=$(__find_instance_config "$instance")
 # shellcheck disable=SC1090
 source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
 
-# Check if INSTANCE_WORKING_DIR is set
-if [[ -z "$INSTANCE_WORKING_DIR" ]]; then
-  __print_error "INSTANCE_WORKING_DIR is not set in the instance config file $instance_config_file"
+# Check if instance_working_dir is set
+if [[ -z "$instance_working_dir" ]]; then
+  __print_error "instance_working_dir is not set in the instance config file $instance_config_file"
   exit $EC_INVALID_CONFIG
 fi
 
-# Ensure INSTANCE_WORKING_DIR is an absolute path
-if [[ ! "$INSTANCE_WORKING_DIR" = /* ]]; then
-  __print_error "INSTANCE_WORKING_DIR must be an absolute path, got: $INSTANCE_WORKING_DIR"
+# Ensure instance_working_dir is an absolute path
+if [[ ! "$instance_working_dir" = /* ]]; then
+  __print_error "instance_working_dir must be an absolute path, got: $instance_working_dir"
   exit $EC_INVALID_CONFIG
 fi
 
 declare -A DIR_ARRAY=(
-  ["INSTANCE_WORKING_DIR"]=$INSTANCE_WORKING_DIR
-  ["INSTANCE_BACKUPS_DIR"]=$INSTANCE_WORKING_DIR/backups
-  ["INSTANCE_INSTALL_DIR"]=$INSTANCE_WORKING_DIR/install
-  ["INSTANCE_SAVES_DIR"]=$INSTANCE_WORKING_DIR/saves
-  ["INSTANCE_TEMP_DIR"]=$INSTANCE_WORKING_DIR/temp
-  ["INSTANCE_LOGS_DIR"]=$INSTANCE_WORKING_DIR/logs
+  ["instance_working_dir"]=$instance_working_dir
+  ["instance_backups_dir"]=$instance_working_dir/backups
+  ["instance_install_dir"]=$instance_working_dir/install
+  ["instance_saves_dir"]=$instance_working_dir/saves
+  ["instance_temp_dir"]=$instance_working_dir/temp
+  ["instance_logs_dir"]=$instance_working_dir/logs
 )
 
 function _create() {
 
-  __print_info "Creating directories for instance ${INSTANCE_ID}"
+  # shellcheck disable=SC2154
+  __print_info "Creating directories for instance ${instance_name}"
 
-  for dir in "${!DIR_ARRAY[@]}"; do
+  for dir_key in "${!DIR_ARRAY[@]}"; do
 
-    local current_dir="${DIR_ARRAY[$dir]}"
+    local dir_value="${DIR_ARRAY[$dir_key]}"
 
-    __create_dir "$current_dir"
+    __create_dir "$dir_value"
 
-    __add_or_update_config "$instance_config_file" "$dir" "$current_dir" "INSTANCE_WORKING_DIR" || {
-      __print_error "Failed to add or update $dir in $instance_config_file"
+    __add_or_update_config "$instance_config_file" "$dir_key" "$dir_value" "instance_working_dir" || {
+      __print_error "Failed to add or update $dir_key in $instance_config_file"
       return $?
     }
   done
 
   __emit_instance_directories_created "${instance%.ini}"
 
-  __print_success "Directories created successfully for instance ${INSTANCE_ID}"
+  __print_success "Directories created successfully for instance ${instance_name}"
 
   return 0
 }
@@ -121,8 +122,8 @@ function _create() {
 function _remove() {
   # Remove main working directory
   # This will also remove all subdirectories
-  if ! rm -rf "${INSTANCE_WORKING_DIR?}"; then
-    __print_error "Failed to remove $INSTANCE_WORKING_DIR"
+  if ! rm -rf "${instance_working_dir?}"; then
+    __print_error "Failed to remove $instance_working_dir"
     return $EC_FAILED_RM
   fi
 
