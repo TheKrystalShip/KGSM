@@ -6,6 +6,7 @@
 # even if individual tests fail
 
 # Absolute path to this script
+# shellcheck disable=SC2155
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export TEST_ROOT="$SCRIPT_DIR"
 export KGSM_ROOT="$(dirname "$TEST_ROOT")"
@@ -104,37 +105,33 @@ export total_tests=0
 export passed_tests=0
 export failed_tests=0
 
-# Run the test runner with appropriate arguments
+# Prepare arguments for the runner
+runner_args=()
+
+# Add integration tests if enabled
+if [[ "$RUN_INTEGRATION" -eq 1 ]]; then
+  runner_args+=("--integration")
+fi
+
+# Add e2e tests if enabled
+if [[ "$RUN_E2E" -eq 1 ]]; then
+  runner_args+=("--e2e")
+fi
+
+# Add specific test if provided
 if [[ -n "$SPECIFIC_TEST" ]]; then
   log_header "Running specific test: $SPECIFIC_TEST"
-  source "$TEST_ROOT/framework/runner.sh" "$SPECIFIC_TEST"
-else
-  # Create an array to track which types of tests to run
-  test_types=()
-
-  # Add integration tests if enabled
-  if [[ "$RUN_INTEGRATION" -eq 1 ]]; then
-    test_types+=("--integration")
-  fi
-
-  # Add e2e tests if enabled
-  if [[ "$RUN_E2E" -eq 1 ]]; then
-    test_types+=("--e2e")
-  fi
-
-  # Run each test type
-  for test_type in "${test_types[@]}"; do
-    source "$TEST_ROOT/framework/runner.sh" "$test_type"
-
-    # If this isn't the last test type, preserve the counters
-    # to avoid them being reset by the next runner.sh invocation
-    if [[ "$test_type" != "${test_types[-1]}" ]]; then
-      export total_tests
-      export passed_tests
-      export failed_tests
-    fi
-  done
+  runner_args+=("--test" "$SPECIFIC_TEST")
 fi
+
+# Add verbose flag if enabled
+if [[ "$VERBOSE" -eq 1 ]]; then
+  runner_args+=("--verbose")
+fi
+
+# Run the test runner with appropriate arguments
+export total_tests passed_tests failed_tests
+"$TEST_ROOT/framework/runner.sh" "${runner_args[@]}"
 
 # Print test summary
 log_header "Test Summary"
@@ -144,4 +141,5 @@ log_error "Failed tests: $failed_tests"
 log_info "Detailed logs available at: $LOG_FILE"
 
 # Exit code depends on whether all tests passed
-[[ "$failed_tests" -eq 0 ]]
+# shellcheck disable=SC2046
+exit $([[ "$failed_tests" -eq 0 ]] && echo 0 || echo 1)

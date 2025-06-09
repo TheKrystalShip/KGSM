@@ -24,7 +24,7 @@ function report_init() {
     echo "Generated: $(date)"
     echo "====================================="
     echo ""
-  } >>"$TEST_RESULTS_FILE"
+  } >"$TEST_RESULTS_FILE"
 }
 
 # Record test result
@@ -105,6 +105,7 @@ function start_test_timer() {
 
 # End timing a test and return duration
 function end_test_timer() {
+  # shellcheck disable=SC2155
   local end_time=$(date +%s)
   local duration=$((end_time - TEST_START_TIME))
   echo "$duration"

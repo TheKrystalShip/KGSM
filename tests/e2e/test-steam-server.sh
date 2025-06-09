@@ -29,8 +29,7 @@ log_info "Testing Necesse server installation from Steam"
 
 # Step 1: Install Necesse server
 log_info "Step 1: Installing Necesse server"
-install_dir="$TEST_ENV_DIR/server_installs"
-install_cmd="./kgsm.sh --install necesse --install-dir $install_dir"
+install_cmd="./kgsm.sh --install necesse --id necesse"
 
 log_info "Running command: $install_cmd"
 install_output=$(run_with_timeout 300 $install_cmd 2>&1)
@@ -109,9 +108,10 @@ fi
 log_success "Necesse server stopped successfully"
 
 # Verify server is stopped
-sleep 2
+sleep 5
 is_active_cmd="./modules/lifecycle.sh --is-active $instance_id"
-if $is_active_cmd &> /dev/null; then
+status_check_output=$($is_active_cmd 2>&1)
+if ! echo "$status_check_output" | grep -q "inactive"; then
   log_error "Server is still running when it should be stopped"
   exit 1
 fi

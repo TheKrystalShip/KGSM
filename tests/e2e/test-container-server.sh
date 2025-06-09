@@ -36,8 +36,7 @@ log_info "Testing V Rising server installation in container"
 
 # Step 1: Install V Rising server
 log_info "Step 1: Installing V Rising server"
-install_dir="$TEST_ENV_DIR/server_installs"
-install_cmd="./kgsm.sh --install vrising --install-dir $install_dir"
+install_cmd="./kgsm.sh --install vrising --id vrising"
 
 log_info "Running command: $install_cmd"
 install_output=$(run_with_timeout 300 $install_cmd 2>&1)

@@ -38,7 +38,7 @@ function setup_test_environment() {
   fi
 
   log_info "Copying KGSM project from $KGSM_ROOT to $TEST_ENV_DIR"
-  cp -r "$KGSM_ROOT"/* "$TEST_ENV_DIR/"
+  cp -r "$KGSM_ROOT"/. "$TEST_ENV_DIR/"
 
   # Set KGSM_ROOT to the test environment directory
   export KGSM_ROOT="$TEST_ENV_DIR"

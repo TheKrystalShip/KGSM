@@ -11,7 +11,7 @@ log_header "Testing lifecycle.sh module"
 function setup_mock_instance() {
   # Create instance
   install_dir="$TEST_ENV_DIR/server_installs"
-  instance_id=$(./modules/instances.sh --create factorio.bp --install-dir "$install_dir" --id "lifecycle-test")
+  instance_id=$(./modules/instances.sh --create factorio --id "lifecycle-test")
   assert_true "[[ -n \"$instance_id\" ]]" "Should create an instance and return its ID"
 
   # Create directories
@@ -28,7 +28,7 @@ function setup_mock_instance() {
   manage_file="$instance_dir/lifecycle-test.manage.sh"
 
   # Modify the management script to echo commands instead of running a real server
-  sed -i 's/exec "$INSTANCE_LAUNCH_BIN" $INSTANCE_LAUNCH_ARGS/echo "Server would start with: $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS"/' "$manage_file"
+  sed -i 's/exec "$INSTANCE_EXECUTABLE_FILE" $INSTANCE_EXECUTABLE_ARGUMENTS/echo "Server would start with: $INSTANCE_EXECUTABLE_FILE $INSTANCE_EXECUTABLE_ARGUMENTS"/' "$manage_file"
 
   # Create mock version file
   echo "1.0.0" > "$instance_dir/.lifecycle-test.version"

@@ -22,8 +22,7 @@ log_info "Testing Factorio server installation from external source"
 
 # Step 1: Install Factorio server
 log_info "Step 1: Installing Factorio server"
-install_dir="$TEST_ENV_DIR/server_installs"
-install_cmd="./kgsm.sh --install factorio --install-dir $install_dir"
+install_cmd="./kgsm.sh --install factorio --id factorio"
 
 log_info "Running command: $install_cmd"
 install_output=$(run_with_timeout 300 $install_cmd 2>&1)
@@ -102,9 +101,10 @@ fi
 log_success "Factorio server stopped successfully"
 
 # Verify server is stopped
-sleep 2
+sleep 5
 is_active_cmd="./modules/lifecycle.sh --is-active $instance_id"
-if $is_active_cmd &> /dev/null; then
+status_check_output=$($is_active_cmd 2>&1)
+if ! echo "$status_check_output" | grep -q "inactive"; then
   log_error "Server is still running when it should be stopped"
   exit 1
 fi

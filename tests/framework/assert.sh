@@ -3,8 +3,8 @@
 # Assertion library for KGSM testing framework
 
 # Track assertion counts
-ASSERTION_COUNT=0
-FAILED_ASSERTIONS=0
+export ASSERTION_COUNT=0
+export FAILED_ASSERTIONS=0
 
 # Functions for assertions
 
