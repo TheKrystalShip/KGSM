@@ -1,9 +1,9 @@
 # Managing Game Servers
 
-This document explains how to manage a game server post-installation using KGSM.
+This document explains the day-to-day operations of managing game server instances after they've been created. For information about what instances are and how they're created, see [Instances 101](instances.md).
 
 > [!NOTE]
-> `<instance>` represents the generated name of an instance configuration file post-installation.
+> Throughout this document, `<instance>` refers to the name of your game server instance as shown when running `./kgsm.sh --instances`.
 
 ---
 
@@ -36,7 +36,7 @@ Use the following command:
 
 ### Option 2: Systemctl
 
-If `USE_SYSTEMD` is enabled in `config.ini`, the instance will be configured to run as a `systemctl` service.
+If `enable_systemd` is enabled in `config.ini`, the instance will be configured to run as a `systemctl` service.
 
 Example command:
 
@@ -46,7 +46,7 @@ sudo systemctl start <instance>
 
 ### Option 3: Manually
 
-If `USE_SYSTEMD` is not enabled, you can manage the instance manually using the `<instance>.manage.sh` script in the instance’s installation directory.
+If `enable_systemd` is not enabled, you can manage the instance manually using the `<instance>.manage.sh` script in the instance’s installation directory.
 
 To start the instance in the current terminal, run:
 
@@ -131,7 +131,7 @@ This command automatically retrieves logs from:
 
 ### Systemctl
 
-For instances created with `USE_SYSTEMD` enabled, enable automatic startup on boot using:
+For instances created with `enable_systemd` enabled, enable automatic startup on boot using:
 
 ```sh
 sudo systemctl enable <instance>
@@ -139,7 +139,7 @@ sudo systemctl enable <instance>
 
 ### Manually
 
-If `USE_SYSTEMD` is not enabled, add the following line to your system’s startup script:
+If `enable_systemd` is not enabled, add the following line to your system’s startup script:
 
 ```sh
 /full/path/to/instance/<instance>.manage.sh --start --background
@@ -191,5 +191,13 @@ This will:
 - Stop the instance.
 - Remove all files and directories associated with the instance.
 - Delete `systemd` and `ufw` integrations, if applicable.
+
+## Advanced Management Features
+
+### Event System
+
+KGSM features an event broadcasting system that emits notifications when important actions occur (such as starting a server, creating backups, etc.). This allows for building sophisticated integrations and monitoring tools.
+
+For details on the event system and how to use it, see [KGSM Event System](events.md).
 
 

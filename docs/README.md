@@ -1,16 +1,20 @@
-# KGSM Docs
+# KGSM Documentation
 
-The documentation is a work in progress, some things will change, more things
-will be added.
+This documentation explains how KGSM works and provides comprehensive guides for setting up and managing game servers.
 
-Read these sections in order to understand how KGSM operates:
+## Core Concepts
 
-1. [Blueprints 101](blueprints.md)
+Read these sections in order to understand the core concepts of how KGSM operates:
 
-2. [Instances 101](instances.md)
+1. [Blueprints 101](blueprints.md) - Configuration templates for game servers
+2. [Instances 101](instances.md) - Deployed game server environments
+3. [Overrides 101](overrides.md) - Custom function implementations for game servers
 
-3. [Overrides 101](overrides.md)
+## Workflows
 
-- [Creating a new game server instance](create_new_game_server_instance.md)
+- [Creating a new game server instance](create_new_game_server_instance.md) - Step-by-step guide to set up a new server
+- [Managing game servers](managing_game_servers.md) - Day-to-day operations for running your servers
 
-- [Managing game servers](managing_game_servers.md)
+## Advanced Features
+
+- [Event System](events.md) - Using KGSM's event broadcasting to build integrations
