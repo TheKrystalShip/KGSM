@@ -15,6 +15,7 @@ Options:
                                 content.
   --info <blueprint>          Print the contents of a blueprint file.
   --info <blueprint> --json   Print the contents of a blueprint in JSON format
+  --find <blueprint>          Find the absolute path to a blueprint file.
 
 Examples:
   $(basename "$0") --list
@@ -247,6 +248,23 @@ while [ $# -gt 0 ]; do
       blueprint=$1
       _print_blueprint "$blueprint"
       exit $?
+      ;;
+    --find)
+      shift
+      if [[ -z "$1" ]]; then
+        __print_error "Missing argument <blueprint>"
+        exit $EC_MISSING_ARG
+      fi
+
+      blueprint=$1
+      blueprint_path=$(__find_blueprint "$blueprint")
+      if [[ -z "$blueprint_path" ]]; then
+        __print_error "Blueprint '$blueprint' not found"
+        exit $EC_NOT_FOUND
+      fi
+
+      echo "$blueprint_path"
+      exit 0
       ;;
     *)
       __print_error "Invalid argument $1"
