@@ -208,7 +208,7 @@ function usage_interactive() {
 "
 }
 
-if [[ "$KGSM_RUN_UPDATE_CHECK" -eq 1 ]]; then
+if [[ "$config_auto_update_check" == "true" ]]; then
   check_for_update
 fi
 
@@ -440,9 +440,9 @@ KGSM - Interactive menu
   # --install has a different arg order
   case "$action" in
     --install)
-      install_directory=${INSTANCE_DEFAULT_INSTALL_DIR:-}
+    install_directory=${config_default_install_directory:-}
       if [ -z "$install_directory" ]; then
-        echo "INSTANCE_DEFAULT_INSTALL_DIR is not set in the configuration file, please specify an installation directory" >&2
+      echo "'default_install_directory' is not set in the configuration file, please specify an installation directory" >&2
         read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit "$EC_INVALID_ARG"
       fi
 
@@ -568,7 +568,7 @@ while [[ "$#" -gt 0 ]]; do
       shift
       [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
       bp_to_install="$1"
-      bp_install_dir=$INSTANCE_DEFAULT_INSTALL_DIR
+      bp_install_dir=$config_default_install_directory
       bp_install_version=0
       bp_id=
       shift

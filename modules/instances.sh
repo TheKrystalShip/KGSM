@@ -110,7 +110,7 @@ function _generate_unique_instance_name() {
   fi
 
   while :; do
-    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${INSTANCE_RANDOM_CHAR_COUNT:-2}")
+    instance_id=$(tr -dc 0-9 </dev/urandom | head -c "${config_instance_suffix_length:-2}")
     instance_id="${blueprint_name}-${instance_id}"
 
     if [[ ! -f "$INSTANCES_SOURCE_DIR/$blueprint_name/${instance_id}.ini" ]]; then
@@ -193,12 +193,14 @@ function __create_base_instance() {
   local instance_version_file="${instance_working_dir}/.${instance_id}.version"
 
   local instance_lifecycle_manager
-  [[ "$USE_SYSTEMD" -eq 0 ]] && instance_lifecycle_manager="standalone" || instance_lifecycle_manager="systemd"
+  [[ "$config_enable_systemd" == "true" ]] && instance_lifecycle_manager="standalone" || instance_lifecycle_manager="systemd"
 
-  local instance_systemd_service_file="${SYSTEMD_DIR}/${INSTANCE_ID}.service"
-  local instance_systemd_socket_file="${SYSTEMD_DIR}/${INSTANCE_ID}.socket"
+  # shellcheck disable=SC2154
+  local instance_systemd_service_file="${config_systemd_files_dir}/${INSTANCE_ID}.service"
+  local instance_systemd_socket_file="${config_systemd_files_dir}/${INSTANCE_ID}.socket"
 
-  local instance_ufw_file="${UFW_RULES_DIR}/kgsm-${instance_id}"
+  # shellcheck disable=SC2154
+  local instance_ufw_file="${config_firewall_rules_dir}/kgsm-${instance_id}"
 
   local instance_install_datetime
   instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
@@ -216,12 +218,12 @@ function __create_base_instance() {
     echo "INSTANCE_LIFECYCLE_MANAGER=\"$instance_lifecycle_manager\""
     echo "INSTANCE_MANAGE_FILE=\"$instance_manage_file\""
 
-    [[ "$USE_SYSTEMD" -eq 1 ]] && {
+    [[ "$config_enable_systemd" == "true" ]] && {
       echo "INSTANCE_SYSTEMD_SERVICE_FILE=\"$instance_systemd_service_file\""
       echo "INSTANCE_SYSTEMD_SOCKET_FILE=\"$instance_systemd_socket_file\""
     }
 
-    [[ "$USE_UFW" -eq 1 ]] && {
+    [[ "$config_enable_firewall_management" == "true" ]] && {
       echo "INSTANCE_UFW_FILE=\"$instance_ufw_file\""
     }
 
@@ -377,7 +379,7 @@ function _print_info() {
       fi
     fi
 
-    if [[ "$USE_UFW" -eq 1 ]]; then
+    if [[ "$config_enable_firewall_management" == "true" ]]; then
       if [[ -f "$INSTANCE_UFW_FILE" ]]; then
         echo "Firewall rule:       $INSTANCE_UFW_FILE"
       fi
@@ -407,11 +409,11 @@ function _print_info_json() {
   local logs_dir
   logs_dir=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "standalone" ]] && echo "$INSTANCE_LOGS_DIR" || echo "None")
   local service_file
-  service_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" && -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "$INSTANCE_SYSTEMD_SERVICE_FILE" || echo "")
+  service_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]] && [[ -f "$INSTANCE_SYSTEMD_SERVICE_FILE" ]] && echo "$INSTANCE_SYSTEMD_SERVICE_FILE" || echo "")
   local socket_file
-  socket_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" && -n "$INSTANCE_SOCKET_FILE" ]] && echo "$INSTANCE_SOCKET_FILE" || echo "")
+  socket_file=$([[ "$INSTANCE_LIFECYCLE_MANAGER" == "systemd" ]] && [[ -n "$INSTANCE_SOCKET_FILE" ]] && echo "$INSTANCE_SOCKET_FILE" || echo "")
   local firewall_rule
-  firewall_rule=$([[ "$USE_UFW" -eq 1 && -f "$INSTANCE_UFW_FILE" ]] && echo "$INSTANCE_UFW_FILE" || echo "")
+  firewall_rule=$([[ "$config_enable_firewall_management" == "true" ]] && [[ -f "$INSTANCE_UFW_FILE" ]] && echo "$INSTANCE_UFW_FILE" || echo "")
 
   jq -n \
     --arg instance "$INSTANCE_ID" \

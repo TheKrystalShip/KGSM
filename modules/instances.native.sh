@@ -129,12 +129,12 @@ function __create_native_instance_config() {
   export tail_pid_file="${INSTANCE_WORKING_DIR}/.${INSTANCE_ID}.tail.pid"
 
   # Default timeout values
-  export instance_save_command_timeout_s="${INSTANCE_SAVE_COMMAND_TIMEOUT_S:-5}"
-  export instance_stop_command_timeout_s="${INSTANCE_STOP_COMMAND_TIMEOUT_S:-30}"
+  export instance_save_command_timeout_s="${config_save_command_timeout_seconds:-5}"
+  export instance_stop_command_timeout_s="${config_stop_command_timeout_seconds:-30}"
 
   # Other configuration options
-  export instance_use_upnp="${USE_UPNP:-0}"
-  export instance_compress_backups="${COMPRESS_BACKUPS:-0}"
+  export instance_use_upnp="${config_enable_port_forwarding:-0}"
+  export instance_compress_backups="${config_enable_backup_compression:-0}"
 
   # UPnP port configuration if applicable
   local instance_upnp_ports=()

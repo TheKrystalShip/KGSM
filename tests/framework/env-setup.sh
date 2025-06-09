@@ -74,17 +74,17 @@ function configure_test_environment() {
   fi
 
   # Modify paths in config.ini to point to test environment
-  sed -i "s|KGSM_BRANCH=.*|KGSM_BRANCH=main|g" "$config_file"
-  sed -i "s|KGSM_RUN_UPDATE_CHECK=.*|KGSM_RUN_UPDATE_CHECK=0|g" "$config_file"
-  sed -i "s|USE_LOGGING=.*|USE_LOGGING=1|g" "$config_file"
-  sed -i "s|USE_SYSTEMD=.*|USE_SYSTEMD=0|g" "$config_file"
-  sed -i "s|USE_UFW=.*|USE_UFW=0|g" "$config_file"
-  sed -i "s|USE_EVENTS=.*|USE_EVENTS=1|g" "$config_file"
+  sed -i "s|update_channel=.*|update_channel=main|g" "$config_file"
+  sed -i "s|auto_update_check=.*|auto_update_check=0|g" "$config_file"
+  sed -i "s|enable_logging=.*|enable_logging=1|g" "$config_file"
+  sed -i "s|enable_systemd=.*|enable_systemd=0|g" "$config_file"
+  sed -i "s|enable_firewall_management=.*|enable_firewall_management=0|g" "$config_file"
+  sed -i "s|enable_event_broadcasting=.*|enable_event_broadcasting=1|g" "$config_file"
   sed -i "s|KGSM_ROOT=.*|KGSM_ROOT=$TEST_ENV_DIR|g" "$config_file"
-  sed -i "s|INSTANCE_DEFAULT_INSTALL_DIR=.*|INSTANCE_DEFAULT_INSTALL_DIR=$TEST_ENV_DIR/server_installs|g" "$config_file"
-  sed -i "s|SYSTEMD_DIR=.*|SYSTEMD_DIR=$TEST_ENV_DIR/systemd|g" "$config_file"
-  sed -i "s|UFW_RULES_DIR=.*|UFW_RULES_DIR=$TEST_ENV_DIR/ufw|g" "$config_file"
-  sed -i "s|EVENTS_SOCKET_FILE=.*|EVENTS_SOCKET_FILE=$TEST_ENV_DIR/kgsm.sock|g" "$config_file"
+  sed -i "s|default_install_directory=.*|default_install_directory=$TEST_ENV_DIR/server_installs|g" "$config_file"
+  sed -i "s|systemd_files_dir=.*|systemd_files_dir=$TEST_ENV_DIR/systemd|g" "$config_file"
+  sed -i "s|firewall_rules_dir=.*|firewall_rules_dir=$TEST_ENV_DIR/ufw|g" "$config_file"
+  sed -i "s|event_socket_filename=.*|event_socket_filename=$TEST_ENV_DIR/kgsm.sock|g" "$config_file"
 
   # Create required directories for testing
   mkdir -p "$TEST_ENV_DIR/logs"

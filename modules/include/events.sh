@@ -45,7 +45,8 @@ export EVENT_INSTANCE_UNINSTALLED="instance_uninstalled"
 function __emit_event() {
   local event=$1
   local data=$2
-  local socket_file=$KGSM_ROOT/$EVENTS_SOCKET_FILE
+  # shellcheck disable=SC2154
+  local socket_file=$KGSM_ROOT/$config_event_socket_filename
 
   if [[ -e "$socket_file" ]]; then
     set +eo pipefail
@@ -428,7 +429,7 @@ function __emit_instance_uninstalled() {
 export -f __emit_instance_uninstalled
 
 # Replace all event functions with dummy ones in order to not break the calls
-if [[ "$USE_EVENTS" == 0 ]]; then
+if [[ "$config_enable_event_broadcasting" == "false" ]]; then
   # List all functions defined and extract function names
   declare -F | \
     grep -E '^declare -f __emit_' | \

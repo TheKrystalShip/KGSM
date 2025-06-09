@@ -59,11 +59,12 @@ function __log_message() {
   __create_dir "$LOGS_SOURCE_DIR"
 
   # Rotate log file if it reaches the size limit
-  if [[ -f "$LOG_FILE" ]] && [[ "$(stat --format=%s "$LOG_FILE")" -ge "$LOG_FILE_MAX_SIZE" ]]; then
+  # shellcheck disable=SC2154
+  if [[ -f "$LOG_FILE" ]] && [[ "$(stat --format=%s "$LOG_FILE")" -ge "$config_log_max_size_kb" ]]; then
     mv "$LOG_FILE" "$LOG_FILE.$(date '+%Y%m%d%H%M%S')"
   fi
 
-  if [[ "$USE_LOGGING" ]] && [[ "$USE_LOGGING" -eq 1 ]]; then
+  if [[ "$config_enable_logging" == "true" ]]; then
     echo "$log_entry" >> "$LOG_FILE"
   fi
 

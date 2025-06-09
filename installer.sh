@@ -17,7 +17,7 @@ fi
 
 package="kgsm"
 owner="TheKrystalShip"
-head="${KGSM_BRANCH:-main}"
+head="${config_update_channel:-main}"
 repo_archive_tag_url="https://github.com/${owner}/${package^^}/archive/refs/tags"
 all_releases_api_url="https://api.github.com/repos/${owner}/${package^^}/releases"
 stable_release_api_url="https://api.github.com/repos/${owner}/${package^^}/releases/latest"

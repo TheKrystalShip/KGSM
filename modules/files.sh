@@ -101,7 +101,7 @@ source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 function __inject_native_management_variables() {
   # UPnP ports on startup & disabled them on shutdown
-  export USE_UPNP
+  export config_enable_port_forwarding
 
   # shellcheck disable=SC2155
   local instance_install_subdir=$(grep "blueprint_executable_subdirectory=" < "$INSTANCE_BLUEPRINT_FILE" | cut -d "=" -f2 | tr -d '"')
@@ -374,15 +374,15 @@ function _systemd_install() {
 
   __print_info "Adding systemd integration..."
 
-  [[ -z "$SYSTEMD_DIR" ]] && __print_error "SYSTEMD_DIR is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$config_systemd_files_dir" ]] && __print_error "config_systemd_files_dir is expected but it's not set" && return $EC_MISSING_ARG
 
   local service_template_file
   local socket_template_file
   service_template_file="$(__find_template service.tp)"
   socket_template_file="$(__find_template socket.tp)"
 
-  local instance_systemd_service_file=${SYSTEMD_DIR}/${INSTANCE_ID}.service
-  local instance_systemd_socket_file=${SYSTEMD_DIR}/${INSTANCE_ID}.socket
+  local instance_systemd_service_file=${config_systemd_files_dir}/${INSTANCE_ID}.service
+  local instance_systemd_socket_file=${config_systemd_files_dir}/${INSTANCE_ID}.socket
 
   local temp_systemd_service_file=/tmp/${INSTANCE_ID}.service
   local temp_systemd_socket_file=/tmp/${INSTANCE_ID}.socket
@@ -513,7 +513,7 @@ function _ufw_uninstall() {
 
   __print_info "Removing UFW integration..."
 
-  [[ -z "$UFW_RULES_DIR" ]] && __print_error "UFW_RULES_DIR is expected but it's not set" && return "$EC_MISSING_ARG"
+  [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return "$EC_MISSING_ARG"
   [[ -z "$INSTANCE_UFW_FILE" ]] && return 0
   [[ ! -f "$INSTANCE_UFW_FILE" ]] && return 0
 
@@ -546,12 +546,12 @@ function _ufw_install() {
 
   __print_info "Adding UFW integration..."
 
-  if [[ -z "$UFW_RULES_DIR" ]]; then
-    __print_error "UFW_RULES_DIR is expected but it's not set"
+  if [[ -z "$config_firewall_rules_dir" ]]; then
+    __print_error "'firewall_rules_dir' is expected but it's not set"
     return $EC_MISSING_ARG
   fi
 
-  local instance_ufw_file=${UFW_RULES_DIR}/kgsm-${INSTANCE_ID}
+  local instance_ufw_file=${config_firewall_rules_dir}/kgsm-${INSTANCE_ID}
   local temp_ufw_file=/tmp/kgsm-${INSTANCE_ID}
 
   # If firewall rule file already exists, remove it
@@ -608,16 +608,16 @@ EOF
 
 function _symlink_uninstall() {
 
-  # Remove the symlink from the $INSTANCE_MANAGEMENT_SYMLINK_DIR
+  # Remove the symlink from the $config_command_shortcuts_directory
   # if it exists.
 
   # Check if the symlink directory is set
-  if [[ -z "$INSTANCE_MANAGEMENT_SYMLINK_DIR" ]]; then
-    __print_error "INSTANCE_MANAGEMENT_SYMLINK_DIR is expected but it's not set"
+  if [[ -z "$config_command_shortcuts_directory" ]]; then
+    __print_error "config_command_shortcuts_directory is expected but it's not set"
     return $EC_MISSING_ARG
   fi
 
-  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_ID}"
+  local symlink_path="${config_command_shortcuts_directory}/${INSTANCE_ID}"
 
   # Check if the symlink exists
   if [[ -L "$symlink_path" ]]; then
@@ -631,9 +631,9 @@ function _symlink_uninstall() {
   fi
 
   # Remove the symlink entry from the instance config file
-  __remove_config "$instance_config_file" "INSTANCE_MANAGEMENT_SYMLINK_DIR"
+  __remove_config "$instance_config_file" "command_shortcuts_directory"
 
-  __print_success "Symlink for instance '$INSTANCE_ID' removed from $INSTANCE_MANAGEMENT_SYMLINK_DIR"
+  __print_success "Symlink for instance '$INSTANCE_ID' removed from $config_command_shortcuts_directory"
 
   return 0
 }
@@ -646,24 +646,18 @@ function _symlink_install() {
   __print_info "Creating symlink for instance '$INSTANCE_ID'..."
 
   # Check if the symlink directory is set
-  if [[ -z "$INSTANCE_MANAGEMENT_SYMLINK_DIR" ]]; then
-    __print_error "INSTANCE_MANAGEMENT_SYMLINK_DIR is expected but it's not set"
+  if [[ -z "$config_command_shortcuts_directory" ]]; then
+    __print_error "'command_shortcuts_directory' is expected but it's not set"
     return $EC_MISSING_ARG
   fi
 
   # Check if the symlink directory exists
-  if [[ ! -d "$INSTANCE_MANAGEMENT_SYMLINK_DIR" ]]; then
-    __print_error "INSTANCE_MANAGEMENT_SYMLINK_DIR '$INSTANCE_MANAGEMENT_SYMLINK_DIR' does not exist"
+  if [[ ! -d "$config_command_shortcuts_directory" ]]; then
+    __print_error "'command_shortcuts_directory' '$config_command_shortcuts_directory' does not exist"
     return $EC_FILE_NOT_FOUND
   fi
 
-  # Check if the symlink directory is writable
-  # if [[ ! -w "$INSTANCE_MANAGEMENT_SYMLINK_DIR" ]]; then
-  #   __print_error "INSTANCE_MANAGEMENT_SYMLINK_DIR '$INSTANCE_MANAGEMENT_SYMLINK_DIR' is not writable"
-  #   return $EC_PERMISSION
-  # fi
-
-  local symlink_path="${INSTANCE_MANAGEMENT_SYMLINK_DIR}/${INSTANCE_ID}"
+  local symlink_path="${config_command_shortcuts_directory}/${INSTANCE_ID}"
 
   # Check if the symlink already exists
   if [[ -L "$symlink_path" ]]; then
@@ -681,11 +675,11 @@ function _symlink_install() {
   fi
 
   # Save the symlink directory into the instance config file
-  __add_or_update_config "$instance_config_file" "INSTANCE_MANAGEMENT_SYMLINK_DIR" "$INSTANCE_MANAGEMENT_SYMLINK_DIR" || {
+  __add_or_update_config "$instance_config_file" "command_shortcuts_directory" "$config_command_shortcuts_directory" || {
     return $EC_FAILED_UPDATE_CONFIG
   }
 
-  __print_success "Instance \"${INSTANCE_ID}\" symlink created in $INSTANCE_MANAGEMENT_SYMLINK_DIR"
+  __print_success "Instance \"${INSTANCE_ID}\" symlink created in $config_command_shortcuts_directory"
 
   return 0
 }
@@ -697,11 +691,11 @@ function _create() {
     _systemd_install || return $?
   fi
 
-  if [[ "$USE_UFW" -eq 1 ]]; then
+  if [[ "$config_enable_firewall_management" == "true" ]]; then
     _ufw_install || return $?
   fi
 
-  if [[ "$USE_INSTANCE_MANAGEMENT_SYMLINK" -eq 1 ]]; then
+  if [[ "$config_enable_command_shortcuts" == "true" ]]; then
     _symlink_install || return $?
   fi
 
@@ -714,11 +708,11 @@ function _remove() {
     _systemd_uninstall || return $?
   fi
 
-  if [[ "$USE_UFW" -eq 1 ]]; then
+  if [[ "$config_enable_firewall_management" == "true" ]]; then
     _ufw_uninstall || return $?
   fi
 
-  if [[ "$USE_INSTANCE_MANAGEMENT_SYMLINK" -eq 1 ]]; then
+  if [[ "$config_enable_command_shortcuts" == "true" ]]; then
     _symlink_uninstall || return $?
   fi
 
