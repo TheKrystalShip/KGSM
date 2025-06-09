@@ -24,7 +24,7 @@ KGSM_ROOT="$(dirname "$(readlink -f "$0")")"
 export KGSM_ROOT
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
   if [[ -z "$module_common" ]]; then
     echo "${0##*/} ERROR: Could not find module common.sh" >&2
     echo "${0##*/} ERROR: Install compromised, please reinstall KGSM" >&2
