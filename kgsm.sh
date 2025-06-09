@@ -507,7 +507,7 @@ KGSM - Interactive menu
       modify_options+=("Add ufw")
     fi
 
-    if grep -q "command_shortcuts_directory=" <"$instance_config_file"; then
+    if grep -q "instance_enable_command_shortcuts=" <"$instance_config_file"; then
       modify_options+=("Remove symlink")
     else
       modify_options+=("Add symlink")
