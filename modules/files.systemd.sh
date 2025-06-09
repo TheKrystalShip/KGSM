@@ -128,13 +128,15 @@ function _systemd_uninstall() {
   # Remove entries from instance config file and management file
   __remove_config "$instance_config_file" "instance_systemd_service_file"
   __remove_config "$instance_config_file" "instance_systemd_socket_file"
-  __remove_config "$instance_management_file" "instance_systemd_service_file"
-  __remove_config "$instance_management_file" "instance_systemd_socket_file"
+  __add_or_update_config "$instance_config_file" "instance_enable_systemd" "false"
+  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "standalone"
 
-  # Change the instance_lifecycle_manager to standalone
-  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "standalone" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  if [[ -f "$instance_management_file" ]]; then
+    __remove_config "$instance_management_file" "instance_systemd_service_file"
+    __remove_config "$instance_management_file" "instance_systemd_socket_file"
+
+    __add_or_update_config "$instance_management_file" "instance_enable_systemd" "false"
+  fi
 
   __print_success "Systemd integration removed"
 
@@ -242,38 +244,18 @@ EOF
 
   # Save new files into instance config file
 
-  # Add the service file to the instance config file
-  __add_or_update_config "$instance_config_file" "instance_systemd_service_file" "$instance_systemd_service_file" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Add the socket file to the instance config file
-  __add_or_update_config "$instance_config_file" "instance_systemd_socket_file" "$instance_systemd_socket_file" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  __add_or_update_config "$instance_config_file" "instance_enable_systemd" "true"
+  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "systemd"
+  __add_or_update_config "$instance_config_file" "instance_systemd_service_file" \""$instance_systemd_service_file"\"
+  __add_or_update_config "$instance_config_file" "instance_systemd_socket_file" \""$instance_systemd_socket_file"\"
 
   # Save it into the instance's management file also. Prepend just before the bottom marker
   local marker="# === END INJECT CONFIG ==="
 
-  # Add the service file to the management file
-  __add_or_update_config "$instance_management_file" "instance_systemd_service_file" "$instance_systemd_service_file" "$marker" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Add the socket file to the management file
-  __add_or_update_config "$instance_management_file" "instance_systemd_socket_file" "$instance_systemd_socket_file" "$marker" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Change the instance_lifecycle_manager to systemd
-  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "systemd" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Also change the instance_lifecycle_manager in the management file
-  __add_or_update_config "$instance_management_file" "instance_lifecycle_manager" "systemd" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  __add_or_update_config "$instance_management_file" "instance_enable_systemd" "true" "$marker"
+  __add_or_update_config "$instance_management_file" "instance_lifecycle_manager" "systemd"
+  __add_or_update_config "$instance_management_file" "instance_systemd_service_file" \""$instance_systemd_service_file"\" "$marker"
+  __add_or_update_config "$instance_management_file" "instance_systemd_socket_file" \""$instance_systemd_socket_file"\" "$marker"
 
   __print_success "Systemd integration complete"
 

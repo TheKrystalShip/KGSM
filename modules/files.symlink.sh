@@ -102,8 +102,13 @@ function _symlink_uninstall() {
   fi
 
   # Remove the symlink entry from the instance config file
-  __remove_config "$instance_config_file" "instance_enable_command_shortcuts"
-  __remove_config "$instance_config_file" "instance_command_shortcuts_directory"
+  __add_or_update_config "$instance_config_file" "instance_enable_command_shortcuts" "false"
+  __remove_config "$instance_config_file" "instance_command_shortcut_file"
+
+  if [[ -f "$instance_management_file" ]]; then
+    __add_or_update_config "$instance_management_file" "instance_enable_command_shortcuts" "false"
+    __remove_config "$instance_management_file" "instance_command_shortcut_file"
+  fi
 
   __print_success "Symlink for instance '$instance_name' removed from $config_command_shortcuts_directory"
 
@@ -146,16 +151,13 @@ function _symlink_install() {
     return $EC_FAILED_LN
   fi
 
-  # Enable command shortcuts for the instance
-  __add_or_update_config "$instance_config_file" "instance_enable_command_shortcuts" "true" || {
-    __print_error "Failed to update instance config with 'instance_enable_command_shortcuts' set to 'true'"
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  # Add the config in the instance config file
+  __add_or_update_config "$instance_config_file" "instance_enable_command_shortcuts" "true"
+  __add_or_update_config "$instance_config_file" "instance_command_shortcut_file" \""${symlink_path}"\"
 
-  # Save the symlink directory into the instance config file
-  __add_or_update_config "$instance_config_file" "instance_command_shortcut_file" "${symlink_path}" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  # Add the config in the instance management file
+  __add_or_update_config "$instance_management_file" "instance_enable_command_shortcuts" "true"
+  __add_or_update_config "$instance_management_file" "instance_command_shortcut_file" \""${symlink_path}"\"
 
   __print_success "Instance \"${instance_name}\" symlink created in $config_command_shortcuts_directory"
 

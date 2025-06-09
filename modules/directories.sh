@@ -87,12 +87,12 @@ if [[ ! "$instance_working_dir" = /* ]]; then
 fi
 
 declare -A DIR_ARRAY=(
-  ["instance_working_dir"]=$instance_working_dir
-  ["instance_backups_dir"]=$instance_working_dir/backups
-  ["instance_install_dir"]=$instance_working_dir/install
-  ["instance_saves_dir"]=$instance_working_dir/saves
-  ["instance_temp_dir"]=$instance_working_dir/temp
-  ["instance_logs_dir"]=$instance_working_dir/logs
+  ["instance_working_dir"]="$instance_working_dir"
+  ["instance_backups_dir"]="${instance_working_dir}/backups"
+  ["instance_install_dir"]="${instance_working_dir}/install"
+  ["instance_saves_dir"]="${instance_working_dir}/saves"
+  ["instance_temp_dir"]="${instance_working_dir}/temp"
+  ["instance_logs_dir"]="${instance_working_dir}/logs"
 )
 
 function _create() {
@@ -106,7 +106,7 @@ function _create() {
 
     __create_dir "$dir_value"
 
-    __add_or_update_config "$instance_config_file" "$dir_key" "$dir_value" "instance_working_dir" || {
+    __add_or_update_config "$instance_config_file" "$dir_key" \""$dir_value"\" "instance_working_dir" || {
       __print_error "Failed to add or update $dir_key in $instance_config_file"
       return $?
     }

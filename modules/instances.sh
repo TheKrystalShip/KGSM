@@ -39,6 +39,7 @@ Options:
     --name <name>                 Optional: Specify an instance identifier
                                   instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
+  --find <instance>               Find the absolute path to an instance config file
   --info <instance>               Print a detailed description of an instance
   --info <instance> --json        Print a detailed description of an instance in
                                   JSON format.
@@ -47,6 +48,7 @@ Examples:
   $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
   $(basename "$0") --status factorio-01
   $(basename "$0") --list --detailed factorio.bp
+  $(basename "$0") --find factorio-01
 "
 }
 
@@ -192,15 +194,7 @@ function __create_base_instance() {
   local instance_working_dir="${install_dir}/${instance_name}"
   local instance_version_file="${instance_working_dir}/.${instance_name}.version"
 
-  local instance_lifecycle_manager
-  [[ "$config_enable_systemd" == "true" ]] && instance_lifecycle_manager="systemd" || instance_lifecycle_manager="standalone"
-
-  # shellcheck disable=SC2154
-  local instance_systemd_service_file="${config_systemd_files_dir}/${instance_name}.service"
-  local instance_systemd_socket_file="${config_systemd_files_dir}/${instance_name}.socket"
-
-  # shellcheck disable=SC2154
-  local instance_ufw_file="${config_firewall_rules_dir}/kgsm-${instance_name}"
+  local instance_lifecycle_manager="standalone"
 
   local instance_install_datetime
   instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
@@ -217,15 +211,6 @@ function __create_base_instance() {
     echo "instance_version_file=\"$instance_version_file\""
     echo "instance_lifecycle_manager=\"$instance_lifecycle_manager\""
     echo "instance_management_file=\"$instance_manage_file\""
-
-    [[ "$config_enable_systemd" == "true" ]] && {
-      echo "instance_systemd_service_file=\"$instance_systemd_service_file\""
-      echo "instance_systemd_socket_file=\"$instance_systemd_socket_file\""
-    }
-
-    [[ "$config_enable_firewall_management" == "true" ]] && {
-      echo "instance_ufw_file=\"$instance_ufw_file\""
-    }
 
   } >>"$instance_config_file"
 
@@ -642,6 +627,23 @@ while [[ $# -gt 0 ]]; do
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
     _remove "$1"
     exit $?
+    ;;
+  --find)
+    shift
+    if [[ -z "$1" ]]; then
+      __print_error "Missing argument <instance>"
+      exit $EC_MISSING_ARG
+    fi
+
+    instance=$1
+    instance_path=$(__find_instance_config "$instance")
+    if [[ -z "$instance_path" ]]; then
+      __print_error "Instance '$instance' not found"
+      exit $EC_NOT_FOUND
+    fi
+
+    echo "$instance_path"
+    exit 0
     ;;
   --info)
     shift

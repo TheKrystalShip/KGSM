@@ -102,8 +102,16 @@ function _ufw_uninstall() {
   fi
 
   # Remove UFW entries from the instance config file
+  __add_or_update_config "$instance_config_file" "instance_enable_firewall_management" "false"
   __remove_config "$instance_config_file" "instance_ufw_file"
-  __remove_config "$instance_management_file" "instance_ufw_file"
+
+  # Management file might have been deleted already if the instance is in the
+  # process of being uninstalled.
+  if [[ -f "$instance_management_file" ]]; then
+    # Remove the firewall rule file path from the management file
+    __remove_config "$instance_management_file" "instance_enable_firewall_management"
+    __remove_config "$instance_management_file" "instance_ufw_file"
+  fi
 
   __print_success "UFW integration removed"
 
@@ -156,24 +164,12 @@ EOF
   fi
 
   # Enable firewall management in the instance config file
-  __add_or_update_config "$instance_config_file" "instance_enable_firewall_management" "true" || {
-    __print_error "Failed to update instance config file with 'instance_enable_firewall_management' set to 'true'"
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Save the UFW file into the instance config file
-  __add_or_update_config "$instance_config_file" "instance_ufw_file" "$instance_ufw_file" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
-
-  # Update instance_management_file UFW definition
+  __add_or_update_config "$instance_config_file" "instance_enable_firewall_management" "true"
+  __add_or_update_config "$instance_config_file" "instance_ufw_file" \""$instance_ufw_file"\"
 
   local marker="=== END INJECT CONFIG ==="
-
-  # Add the UFW file to the management file
-  __add_or_update_config "$instance_management_file" "instance_ufw_file" "$instance_ufw_file" "$marker" || {
-    return $EC_FAILED_UPDATE_CONFIG
-  }
+  __add_or_update_config "$instance_management_file" "instance_enable_firewall_management" "true" "$marker"
+  __add_or_update_config "$instance_management_file" "instance_ufw_file" \""$instance_ufw_file"\" "$marker"
 
   __print_success "UFW integration complete"
 
