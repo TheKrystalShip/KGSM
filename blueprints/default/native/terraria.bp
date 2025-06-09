@@ -37,7 +37,7 @@ level_name=default
 #   $INSTANCE_INSTALL_DIR
 #   $INSTANCE_SAVES_DIR
 #   $INSTANCE_LEVEL_NAME
-executable_arguments="-port $INSTANCE_PORT -world $INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME -autocreate 3 -worldname $INSTANCE_LEVEL_NAME"
+executable_arguments="-world $INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME -autocreate 3 -worldname $INSTANCE_LEVEL_NAME"
 
 # (Optional) Stop command sent to the input socket
 stop_command=exit

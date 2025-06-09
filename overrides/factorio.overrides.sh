@@ -51,9 +51,9 @@
 # INSTANCE_INSTALL_DATETIME
 # INSTANCE_BLUEPRINT_FILE
 # INSTANCE_LEVEL_NAME
-# INSTANCE_PORT
-# INSTANCE_LAUNCH_BIN
-# INSTANCE_LAUNCH_ARGS
+# INSTANCE_PORTS
+# INSTANCE_EXECUTABLE_FILE
+# INSTANCE_EXECUTABLE_ARGUMENTS
 # INSTANCE_LIFECYCLE_MANAGER
 # INSTANCE_MANAGE_FILE
 # INSTANCE_INSTALLED_VERSION
@@ -138,7 +138,7 @@ function _deploy() {
   # save otherwise it fails to start. Create a savefile at this stage
   if [[ ! -f "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" ]]; then
     cd "$INSTANCE_INSTALL_DIR/bin/x64" || return 1
-    if ! "$INSTANCE_LAUNCH_BIN" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" &> /dev/null; then
+    if ! "$INSTANCE_EXECUTABLE_FILE" --create "$INSTANCE_SAVES_DIR/$INSTANCE_LEVEL_NAME" &> /dev/null; then
       __print_error "Failed to create savefile $INSTANCE_LEVEL_NAME, server won't be able to start without it"
       return 1
     fi

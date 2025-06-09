@@ -119,10 +119,10 @@ function __inject_native_management_variables() {
   stdout_file="\$INSTANCE_LOGS_DIR/\$INSTANCE_ID-\$(date +"%Y-%m-%dT%H:%M:%S").log"
   export INSTANCE_LOGS_REDIRECT="$stdout_file"
 
-  # Avoid evaluating INSTANCE_LAUNCH_ARGS as it can contain variables that need
+  # Avoid evaluating INSTANCE_EXECUTABLE_ARGUMENTS as it can contain variables that need
   # to just be passed along, not evaluated
   local instance_launch_args
-  instance_launch_args="$(grep "INSTANCE_LAUNCH_ARGS=" < "$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
+  instance_launch_args="$(grep "INSTANCE_EXECUTABLE_ARGUMENTS=" < "$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
   export instance_launch_args
 
   local injected_config
@@ -388,7 +388,7 @@ function _systemd_install() {
   local temp_systemd_socket_file=/tmp/${INSTANCE_ID}.socket
 
   local instance_bin_absolute_path
-  instance_bin_absolute_path="$INSTANCE_LAUNCH_DIR/$INSTANCE_LAUNCH_BIN"
+  instance_bin_absolute_path="$INSTANCE_LAUNCH_DIR/$INSTANCE_EXECUTABLE_FILE"
 
   # Required by template
   export INSTANCE_BIN_ABSOLUTE_PATH="$instance_bin_absolute_path"

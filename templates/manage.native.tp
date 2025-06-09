@@ -8,6 +8,21 @@
 # can be manually used to regenerate the file in case something breaks:
 # > $KGSM_ROOT/modules/files.sh --instance <instance> --create --manage
 
+debug=
+# shellcheck disable=SC2199
+if [[ $@ =~ "--debug" ]]; then
+  debug=" --debug"
+  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+  set -x
+  for a; do
+    shift
+    case $a in
+      --debug) continue ;;
+      *) set -- "$@" "$a" ;;
+    esac
+  done
+fi
+
 # === BEGIN INJECT CONFIG ===
 # === END INJECT CONFIG ===
 
@@ -156,7 +171,7 @@ function _disable_upnp() {
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "$USE_UPNP" -eq 1 ]] && _disable_upnp' INT
+trap '[[ "${USE_UPNP:-0}" -eq 1 ]] && _disable_upnp' INT TERM
 
 # Start the server in the current terminal
 function _start() {
@@ -172,7 +187,7 @@ function _start() {
   }
 
   # shellcheck disable=SC2086
-  exec $INSTANCE_LAUNCH_BIN $INSTANCE_LAUNCH_ARGS
+  exec $INSTANCE_EXECUTABLE_FILE $INSTANCE_EXECUTABLE_ARGUMENTS
 }
 
 # Start the server in the background
@@ -256,6 +271,8 @@ function _kill_all_processes() {
 # This function will also save the game state if requested
 # and remove the PID file and the named pipe
 function _stop_server() {
+  local no_save=0
+  local no_graceful=0
 
   __print_info "Stopping $self"
 
@@ -264,11 +281,14 @@ function _stop_server() {
     return 0
   fi
 
-  for a; do
-    shift
-    case "$a" in
+  # Process arguments without destroying them
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
     --no-save) no_save=1 ;;
     --no-graceful) no_graceful=1 ;;
+    # Skip the special argument passed in some cases
+    "\@") continue ;;
     *) continue ;;
     esac
   done
@@ -315,13 +335,17 @@ function _timed_stop() {
 # This function is used to save the game state
 # It will send the save command to the server through the named pipe
 function _send_save_command() {
-  if [[ -p "$INSTANCE_SOCKET_FILE" ]]; then
-    if [[ -n "$INSTANCE_SAVE_COMMAND" ]]; then
-      echo "$INSTANCE_SAVE_COMMAND" >>"$INSTANCE_SOCKET_FILE"
-      sleep "$INSTANCE_SAVE_COMMAND_TIMEOUT_S"
+  # Check if socket file exists and is a named pipe
+  if [[ -p "${INSTANCE_SOCKET_FILE}" ]]; then
+    # Check if save command is defined
+    if [[ -n "${INSTANCE_SAVE_COMMAND}" ]]; then
+      echo "${INSTANCE_SAVE_COMMAND}" >>"${INSTANCE_SOCKET_FILE}"
+      # Sleep to give the server time to process the save command
+      sleep "${INSTANCE_SAVE_COMMAND_TIMEOUT_S:-5}"
+      return 0
     fi
   else
-    __print_error "Save failed: No active server found."
+    __print_error "Save failed: No active server found or socket file missing."
     return 1
   fi
 }
@@ -478,14 +502,19 @@ function _update() {
 }
 
 function _create_backup() {
-
   __print_info "Creating backup..."
+
+  # Check if install directory exists
+  if [[ ! -d "${INSTANCE_INSTALL_DIR}" ]]; then
+    __print_error "Install directory ${INSTANCE_INSTALL_DIR} does not exist"
+    return 1
+  fi
 
   # Check for content inside the install directory before attempting to
   # create a backup. If empty, skip
-  if [ -z "$(ls -A "$INSTANCE_INSTALL_DIR")" ]; then
-    # $source is empty, nothing to back up
-    __print_error "$INSTANCE_INSTALL_DIR is empty, skipping backup"
+  if [ -z "$(ls -A "${INSTANCE_INSTALL_DIR}")" ]; then
+    # Source directory is empty, nothing to back up
+    __print_warning "${INSTANCE_INSTALL_DIR} is empty, skipping backup"
     return 0
   fi
 
@@ -495,9 +524,20 @@ function _create_backup() {
     return 1
   fi
 
-  #shellcheck disable=SC2155
-  local datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
-  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_ID}-${INSTANCE_INSTALLED_VERSION}-${datetime}.backup"
+  # Ensure backup directory exists
+  if [[ ! -d "${INSTANCE_BACKUPS_DIR}" ]]; then
+    mkdir -p "${INSTANCE_BACKUPS_DIR}" || {
+      __print_error "Failed to create backup directory ${INSTANCE_BACKUPS_DIR}"
+      return 1
+    }
+  fi
+
+  # Format current datetime for backup filename
+  local datetime
+  datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
+  local installed_version
+  installed_version=$(_get_installed_version)
+  local output="${INSTANCE_BACKUPS_DIR}/${INSTANCE_ID}-${installed_version:-unknown}-${datetime}.backup"
 
   if [[ "$INSTANCE_COMPRESS_BACKUPS" == 1 ]]; then
     output="${output}.tar.gz"
@@ -611,10 +651,10 @@ function _get_installed_version() {
 
 function _get_latest_version() {
 
-  app_id=$INSTANCE_APP_ID
+  app_id=$INSTANCE_STEAM_APP_ID
 
   username=anonymous
-  auth_level=$INSTANCE_STEAM_ACCOUNT_NEEDED
+  auth_level=$INSTANCE_IS_STEAM_ACCOUNT_REQUIRED
 
   if [[ $auth_level -ne 0 ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
@@ -684,22 +724,22 @@ function _save_version() {
 function _download() {
   local version=$1
   local dest=${2:-$INSTANCE_TEMP_DIR}
-  local app_id=${3:-$INSTANCE_APP_ID}
+  local app_id=${3:-$INSTANCE_STEAM_APP_ID}
 
   __print_info "Downloading..."
 
-  if [[ -z "$INSTANCE_APP_ID" ]]; then
-    __print_error "INSTANCE_APP_ID is expected but it's not set"
+  if [[ -z "$INSTANCE_STEAM_APP_ID" ]]; then
+    __print_error "INSTANCE_STEAM_APP_ID is expected but it's not set"
     return 1
   fi
 
-  if [[ -z "$INSTANCE_STEAM_ACCOUNT_NEEDED" ]]; then
-    __print_error "INSTANCE_STEAM_ACCOUNT_NEEDED is expected but it's not set"
+  if [[ -z "$INSTANCE_IS_STEAM_ACCOUNT_REQUIRED" ]]; then
+    __print_error "INSTANCE_IS_STEAM_ACCOUNT_REQUIRED is expected but it's not set"
     return 1
   fi
 
   username=anonymous
-  if [[ $INSTANCE_STEAM_ACCOUNT_NEEDED -ne 0 ]]; then
+  if [[ $INSTANCE_IS_STEAM_ACCOUNT_REQUIRED -ne 0 ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
       __print_error "STEAM_USERNAME is expected but it's not set"
       return 1
@@ -824,7 +864,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --kill)
-    _kill_server
+    _kill_all_processes
     exit $?
     ;;
   --save)

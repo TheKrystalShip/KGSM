@@ -1,4 +1,4 @@
 [$INSTANCE_ID]
 title=$INSTANCE_ID
 description=$INSTANCE_ID
-ports=$INSTANCE_PORT
+ports=$INSTANCE_PORTS

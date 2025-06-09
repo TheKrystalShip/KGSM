@@ -20,13 +20,13 @@ INSTANCE_BLUEPRINT_FILE="$instance_blueprint_file"
 INSTANCE_LEVEL_NAME="$instance_level_name"
 
 # Network port
-INSTANCE_PORT="$instance_port"
+INSTANCE_PORTS="$instance_port"
 
 # The executable in charge of starting the service
-INSTANCE_LAUNCH_BIN="$instance_launch_bin"
+INSTANCE_EXECUTABLE_FILE="$instance_launch_bin"
 
-# The arguments passed to the INSTANCE_LAUNCH_BIN
-INSTANCE_LAUNCH_ARGS="$instance_launch_args"
+# The arguments passed to the INSTANCE_EXECUTABLE_FILE
+INSTANCE_EXECUTABLE_ARGUMENTS="$instance_launch_args"
 
 # Operating system platform
 # Values:
