@@ -11,6 +11,41 @@ Thank you for your interest in contributing to KGSM! This project aims to simpli
 5. Push to your fork: `git push origin feature-or-fix-name`.
 6. Open a pull request with a description of your changes.
 
+## Key Areas for Contribution
+
+### Game Server Blueprints
+The most valuable contribution is adding support for new game servers:
+- **Native Blueprints**: Add `.bp` files for games with native Linux server support
+- **Container Blueprints**: With KGSM 2.0, you can contribute `docker-compose.yml` files for containerized game servers
+- Use the existing blueprints in the `blueprints/default` directory as templates
+- Follow the guidelines in `docs/blueprints.md`
+
+### System Compatibility
+- Test KGSM on different Linux distributions and report compatibility
+- Add support for alternative system components:
+  - Process management systems (alternatives to systemd)
+  - Firewall configurations (alternatives to ufw)
+  - Enhanced event data and monitoring capabilities
+
+### Testing and Bug Reports
+- Test KGSM on your Linux distribution and report any compatibility issues
+- Report bugs using the issue templates on GitHub
+- Verify fixes and new features work across different environments
+
+### Documentation
+- Improve guides, tutorials, and examples
+- Translate documentation to other languages
+- Add diagrams or screenshots to clarify complex concepts
+
+## Using GitHub Issue Templates
+The project includes several issue templates for different types of contributions:
+- Bug Report
+- Feature Request
+- New Game Server
+- Documentation Improvement
+
+Please use these templates when creating new issues as they help provide the necessary information.
+
 ## Coding Standards
 KGSM uses an `.editorconfig` file to maintain consistent coding styles across different editors. Please ensure your editor respects the following settings:
 - Indent style: Spaces
@@ -35,9 +70,11 @@ For suggesting new game server support, use the **New Game Server** issue templa
 - Relevant details like Steam App ID or official download links are provided.
 
 ## Testing Contributions
-While KGSM currently lacks a testing framework, contributors are encouraged to:
-- Manually verify their changes with various configurations.
-- Ensure new or existing game server blueprints function as expected.
+KGSM now has a testing framework in the `tests/` directory. Contributors are encouraged to:
+- Add tests for new features or bug fixes
+- Run the existing test suite before submitting PRs: `./tests/run.sh`
+- Manually verify their changes with various configurations
+- Test on multiple Linux distributions if possible
 
 ## Community and Communication
 If you have questions or need help, feel free to:
