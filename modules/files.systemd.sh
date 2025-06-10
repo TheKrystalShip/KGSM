@@ -33,8 +33,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -43,17 +43,17 @@ if [ "$#" -eq 0 ]; then usage && return 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    -i | --instance)
-      shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-      instance=$1
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  -i | --instance)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
+    ;;
+  *)
+    break
+    ;;
   esac
   shift
 done
@@ -86,14 +86,14 @@ function _systemd_uninstall() {
     return 0
   fi
 
-  if systemctl is-active "$instance_name" &> /dev/null; then
-    if ! $SUDO systemctl stop "$instance_name" &> /dev/null; then
+  if systemctl is-active "$instance_name" &>/dev/null; then
+    if ! $SUDO systemctl stop "$instance_name" &>/dev/null; then
       __print_error "Failed to stop $instance_name before uninstalling systemd files"
       return $EC_SYSTEMD
     fi
   fi
 
-  if systemctl is-enabled "$instance_name" &> /dev/null; then
+  if systemctl is-enabled "$instance_name" &>/dev/null; then
     if ! $SUDO systemctl disable "$instance_name"; then
       __print_warning "Failed to disable $instance_name"
       return $EC_SYSTEMD
@@ -198,9 +198,9 @@ function _systemd_install() {
 
   # Create the service file
   if ! eval "cat <<EOF
-$(< "$service_template_file")
+$(<"$service_template_file")
 EOF
-" > "$temp_systemd_service_file" 2> /dev/null; then
+" >"$temp_systemd_service_file" 2>/dev/null; then
     __print_error "Could not generate $service_template_file to $temp_systemd_service_file"
     return $EC_FAILED_TEMPLATE
   fi
@@ -217,9 +217,9 @@ EOF
 
   # Create the socket file
   if ! eval "cat <<EOF
-$(< "$socket_template_file")
+$(<"$socket_template_file")
 EOF
-" > "$temp_systemd_socket_file" 2> /dev/null; then
+" >"$temp_systemd_socket_file" 2>/dev/null; then
     __print_error "Could not generate $socket_template_file to $temp_systemd_socket_file"
     return $EC_FAILED_TEMPLATE
   fi
@@ -271,18 +271,18 @@ source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --install)
-      _systemd_install
-      exit $?
-      ;;
-    --uninstall)
-      _systemd_uninstall
-      exit $?
-      ;;
-    *)
-      __print_error "Invalid argument $1"
-      exit $EC_INVALID_ARG
-      ;;
+  --install)
+    _systemd_install
+    exit $?
+    ;;
+  --uninstall)
+    _systemd_uninstall
+    exit $?
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

@@ -9,8 +9,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -43,12 +43,12 @@ Examples:
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  *)
+    break
+    ;;
   esac
 done
 
@@ -117,40 +117,40 @@ function _get_logs() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --logs | --is-active | --start | --stop | --restart)
-      command=$1
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-      instance=$1
-      case "$command" in
-        --logs)
-          follow=""
-          # shellcheck disable=SC2199
-          if [[ "$@" =~ "--follow" ]]; then
-            follow="--follow"
-          fi
-          _get_logs "$instance" "$follow"
-          ;;
-        --is-active)
-          _is_instance_active "$instance"
-          ;;
-        --start)
-          _start_instance "$instance"
-          ;;
-        --stop)
-          _stop_instance "$instance"
-          ;;
-        --restart)
-          _restart_instance "$instance"
-          ;;
-        *)
-          __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
-          ;;
-      esac
+  --logs | --is-active | --start | --stop | --restart)
+    command=$1
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
+    instance=$1
+    case "$command" in
+    --logs)
+      follow=""
+      # shellcheck disable=SC2199
+      if [[ "$@" =~ "--follow" ]]; then
+        follow="--follow"
+      fi
+      _get_logs "$instance" "$follow"
+      ;;
+    --is-active)
+      _is_instance_active "$instance"
+      ;;
+    --start)
+      _start_instance "$instance"
+      ;;
+    --stop)
+      _stop_instance "$instance"
+      ;;
+    --restart)
+      _restart_instance "$instance"
       ;;
     *)
       __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
       ;;
+    esac
+    ;;
+  *)
+    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

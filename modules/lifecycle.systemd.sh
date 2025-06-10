@@ -126,27 +126,32 @@ while [[ $# -gt 0 ]]; do
     if [[ "$1" == "--follow" ]]; then
       follow="--follow"
     fi
-    _get_logs "$instance" "$follow"; exit $?
+    _get_logs "$instance" "$follow"
+    exit $?
     ;;
   --is-active)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _is_instance_active "$1"; exit $?
+    _is_instance_active "$1"
+    exit $?
     ;;
   --start)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _start_instance "$1"; exit $?
+    _start_instance "$1"
+    exit $?
     ;;
   --stop)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _stop_instance "$1"; exit $?
+    _stop_instance "$1"
+    exit $?
     ;;
   --restart)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
-    _restart_instance "$1"; exit $?
+    _restart_instance "$1"
+    exit $?
     ;;
   *)
     __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"

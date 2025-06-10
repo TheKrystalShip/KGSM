@@ -40,7 +40,7 @@ if [[ -z "$KGSM_CONFIG_LOADED" ]]; then
     if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
     # Export each config with a prefix
     export "config_${line?}"
-  done < "$CONFIG_FILE"
+  done <"$CONFIG_FILE"
 
   export KGSM_CONFIG_LOADED=1
 fi
@@ -76,19 +76,19 @@ function __merge_user_config_with_default() {
 
         if [[ -n "$user_value" ]]; then
           # Output the commented block only if it's not already commented
-          echo "$block" | sed '/^#/! s/^/# /' >> "$MERGED_CONFIG_FILE"
-          echo "$user_value" >> "$MERGED_CONFIG_FILE"
+          echo "$block" | sed '/^#/! s/^/# /' >>"$MERGED_CONFIG_FILE"
+          echo "$user_value" >>"$MERGED_CONFIG_FILE"
         else
           # Use the block as is
-          echo "$block" >> "$MERGED_CONFIG_FILE"
+          echo "$block" >>"$MERGED_CONFIG_FILE"
         fi
       else
         # No variable in the block, just copy it
-        echo "$block" >> "$MERGED_CONFIG_FILE"
+        echo "$block" >>"$MERGED_CONFIG_FILE"
       fi
 
       # Append a newline after processing each block
-      echo >> "$MERGED_CONFIG_FILE"
+      echo >>"$MERGED_CONFIG_FILE"
 
       # Reset the block
       block=""
@@ -96,7 +96,7 @@ function __merge_user_config_with_default() {
       # Accumulate lines into the block
       block+="$line"$'\n'
     fi
-  done < "$DEFAULT_CONFIG_FILE"
+  done <"$DEFAULT_CONFIG_FILE"
 
   # Handle the last block (if file does not end with a newline)
   if [[ -n "$block" ]]; then
@@ -106,13 +106,13 @@ function __merge_user_config_with_default() {
       user_value=$(grep -m 1 "^$varname=" "$CONFIG_FILE")
 
       if [[ -n "$user_value" ]]; then
-        echo "$block" | sed '/^#/! s/^/# /' >> "$MERGED_CONFIG_FILE"
-        echo "$user_value" >> "$MERGED_CONFIG_FILE"
+        echo "$block" | sed '/^#/! s/^/# /' >>"$MERGED_CONFIG_FILE"
+        echo "$user_value" >>"$MERGED_CONFIG_FILE"
       else
-        echo "$block" >> "$MERGED_CONFIG_FILE"
+        echo "$block" >>"$MERGED_CONFIG_FILE"
       fi
     else
-      echo "$block" >> "$MERGED_CONFIG_FILE"
+      echo "$block" >>"$MERGED_CONFIG_FILE"
     fi
   fi
 
@@ -150,7 +150,7 @@ function __add_or_update_config() {
   # Check if the key already exists in the config filee
   if grep -q "^$key=" "$config_file"; then
     # If it exists, modify in-place
-    if ! sed -i "/^$key=/c$key=$value" "$config_file" > /dev/null; then
+    if ! sed -i "/^$key=/c$key=$value" "$config_file" >/dev/null; then
       __print_error "Failed to update key '$key' in '$config_file'."
       return $EC_FAILED_SED
     fi
@@ -159,7 +159,7 @@ function __add_or_update_config() {
     if [[ -n "$after_key" ]] && grep -q "^$after_key=" "$config_file"; then
       sed -i "/^$after_key=/a$key=$value" "$config_file"
     else
-      echo "$key=$value" >> "$config_file"
+      echo "$key=$value" >>"$config_file"
     fi
   fi
 }
@@ -201,7 +201,7 @@ function __remove_config() {
   fi
 
   # Remove the key from the config file
-  if ! sed -i "/^$key=/d" "$config_file" > /dev/null; then
+  if ! sed -i "/^$key=/d" "$config_file" >/dev/null; then
     __print_error "Failed to remove key '$key' from '$config_file'."
     return $EC_FAILED_SED
   fi

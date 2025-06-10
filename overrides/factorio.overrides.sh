@@ -72,9 +72,9 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function _get_latest_version() {
-  wget -qO - 'https://factorio.com/api/latest-releases' \
-    | jq .stable.headless \
-    | tr -d '"'
+  wget -qO - 'https://factorio.com/api/latest-releases' |
+    jq .stable.headless |
+    tr -d '"'
 }
 
 # INPUT:
@@ -99,7 +99,7 @@ function _download() {
   fi
 
   # Extract
-  if ! tar -xf "$dest_file" --strip-components=1 -C "$dest" > /dev/null 2>&1; then
+  if ! tar -xf "$dest_file" --strip-components=1 -C "$dest" >/dev/null 2>&1; then
     __print_error "tar -xf $dest_file --strip-components=1 -C $dest"
     return 1
   fi
@@ -136,7 +136,7 @@ function _deploy() {
   # save otherwise it fails to start. Create a savefile at this stage
   if [[ ! -f "$instance_saves_dir/$instance_level_name" ]]; then
     cd "$instance_install_dir/bin/x64" || return 1
-    if ! "$instance_executable_file" --create "$instance_saves_dir/$instance_level_name" &> /dev/null; then
+    if ! "$instance_executable_file" --create "$instance_saves_dir/$instance_level_name" &>/dev/null; then
       __print_error "Failed to create savefile $instance_level_name, server won't be able to start without it"
       return 1
     fi

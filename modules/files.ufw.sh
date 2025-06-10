@@ -33,8 +33,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -43,17 +43,17 @@ if [ "$#" -eq 0 ]; then usage && return 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    -i | --instance)
-      shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-      instance=$1
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  -i | --instance)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
+    ;;
+  *)
+    break
+    ;;
   esac
   shift
 done
@@ -87,7 +87,7 @@ function _ufw_uninstall() {
 
   # Remove ufw rule
   __print_info "Deleting UFW rule"
-  if ! $SUDO ufw delete allow "$instance_name" &> /dev/null; then
+  if ! $SUDO ufw delete allow "$instance_name" &>/dev/null; then
     __print_error "Failed to remove UFW rule for $instance_name"
     return $EC_UFW
   fi
@@ -142,9 +142,9 @@ function _ufw_install() {
   __print_info "Creating UFW rule definition file"
   # Create firewall rule file from template
   if ! eval "cat <<EOF
-$(< "$ufw_template_file")
+$(<"$ufw_template_file")
 EOF
-" > "$temp_ufw_file"; then
+" >"$temp_ufw_file"; then
     __print_error "Failed writing rules to $temp_ufw_file" && return "$EX_FAILED_TEMPLATE"
   fi
 
@@ -159,7 +159,7 @@ EOF
 
   # Enable firewall rule
   __print_info "Allowing UFW rule"
-  if ! $SUDO ufw allow "$instance_name" &> /dev/null; then
+  if ! $SUDO ufw allow "$instance_name" &>/dev/null; then
     __print_error "Failed to allow UFW rule for $instance_name" && return "$EC_UFW"
   fi
 
@@ -185,18 +185,18 @@ source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --install)
-      _ufw_install
-      exit $?
-      ;;
-    --uninstall)
-      _ufw_uninstall
-      exit $?
-      ;;
-    *)
-      __print_error "Invalid argument $1"
-      exit $EC_INVALID_ARG
-      ;;
+  --install)
+    _ufw_install
+    exit $?
+    ;;
+  --uninstall)
+    _ufw_uninstall
+    exit $?
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

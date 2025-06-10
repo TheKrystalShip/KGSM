@@ -6,7 +6,7 @@ if test -t 1; then
   ncolors=0
 
   # Check for availability of tput
-  if command -v tput > /dev/null 2>&1; then
+  if command -v tput >/dev/null 2>&1; then
     ncolors="$(tput colors)"
   fi
 
@@ -65,7 +65,7 @@ function __log_message() {
   fi
 
   if [[ "$config_enable_logging" == "true" ]]; then
-    echo "$log_entry" >> "$LOG_FILE"
+    echo "$log_entry" >>"$LOG_FILE"
   fi
 
   if [[ "$log_level" = "$LOG_LEVEL_ERROR" ]]; then

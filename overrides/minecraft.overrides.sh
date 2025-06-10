@@ -72,9 +72,9 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function _get_latest_version() {
-  wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json \
-    | jq -r '{latest: .latest.release} | .[]' \
-    | tr -d '"'
+  wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json |
+    jq -r '{latest: .latest.release} | .[]' |
+    tr -d '"'
 }
 
 # INPUT:
@@ -89,8 +89,8 @@ function _download() {
 
   # shellcheck disable=SC2155
   local release_url="$(
-    wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json \
-      | jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]"
+    wget -qO - https://launchermeta.mojang.com/mc/game/version_manifest.json |
+      jq -r "{versions: .versions} | .[] | .[] | select(.id == \"$version\") | {url: .url} | .[]"
   )"
 
   if [[ -z "$release_url" ]]; then
@@ -100,8 +100,8 @@ function _download() {
 
   # shellcheck disable=SC2155
   local release_server_jar_url="$(
-    wget -qO - "$release_url" \
-      | jq -r '{url: .downloads.server.url} | .[]'
+    wget -qO - "$release_url" |
+      jq -r '{url: .downloads.server.url} | .[]'
   )"
 
   if [[ -z "$release_server_jar_url" ]]; then
@@ -135,7 +135,7 @@ function _deploy() {
 
   local eula_file=$dest/eula.txt
 
-  if ! echo "eula=true" > "$eula_file"; then
+  if ! echo "eula=true" >"$eula_file"; then
     __print_warning "Failed to configure eula.txt file, continuing"
   fi
 

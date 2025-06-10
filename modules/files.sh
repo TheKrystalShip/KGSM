@@ -11,8 +11,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -57,17 +57,17 @@ if [ "$#" -eq 0 ]; then usage && return 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    -i | --instance)
-      shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-      instance=$1
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  -i | --instance)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
+    ;;
+  *)
+    break
+    ;;
   esac
   shift
 done
@@ -151,64 +151,64 @@ function _remove() {
 # Read the argument values
 while [ $# -gt 0 ]; do
   case "$1" in
-    --create)
-      shift
-      if [[ -z "$1" ]]; then
-        _create
-        exit $?
-      fi
-      case "$1" in
-        --manage)
-          "$(__find_module files.management.sh)" --instance "$instance" --create
-          exit $?
-          ;;
-        --systemd)
-          "$(__find_module files.systemd.sh)" --instance "$instance" --install
-          exit $?
-          ;;
-        --ufw)
-          "$(__find_module files.ufw.sh)" --instance "$instance" --install
-          exit $?
-          ;;
-        --symlink)
-          "$(__find_module files.symlink.sh)" --instance "$instance" --install
-          exit $?
-          ;;
-        *)
-          __print_error "Invalid argument $1"
-          exit $EC_INVALID_ARG
-          ;;
-      esac
+  --create)
+    shift
+    if [[ -z "$1" ]]; then
+      _create
+      exit $?
+    fi
+    case "$1" in
+    --manage)
+      "$(__find_module files.management.sh)" --instance "$instance" --create
+      exit $?
       ;;
-    --remove)
-      shift
-      if [[ -z "$1" ]]; then
-        _remove
-        exit $?
-      fi
-      case "$1" in
-        --systemd)
-          "$(__find_module files.systemd.sh)" --instance "$instance" --uninstall
-          exit $?
-          ;;
-        --ufw)
-          "$(__find_module files.ufw.sh)" --instance "$instance" --uninstall
-          exit $?
-          ;;
-        --symlink)
-          "$(__find_module files.symlink.sh)" --instance "$instance" --uninstall
-          exit $?
-          ;;
-        *)
-          __print_error "Invalid argument $1"
-          exit $EC_INVALID_ARG
-          ;;
-      esac
+    --systemd)
+      "$(__find_module files.systemd.sh)" --instance "$instance" --install
+      exit $?
+      ;;
+    --ufw)
+      "$(__find_module files.ufw.sh)" --instance "$instance" --install
+      exit $?
+      ;;
+    --symlink)
+      "$(__find_module files.symlink.sh)" --instance "$instance" --install
+      exit $?
       ;;
     *)
       __print_error "Invalid argument $1"
       exit $EC_INVALID_ARG
       ;;
+    esac
+    ;;
+  --remove)
+    shift
+    if [[ -z "$1" ]]; then
+      _remove
+      exit $?
+    fi
+    case "$1" in
+    --systemd)
+      "$(__find_module files.systemd.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    --ufw)
+      "$(__find_module files.ufw.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    --symlink)
+      "$(__find_module files.symlink.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    *)
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
+      ;;
+    esac
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

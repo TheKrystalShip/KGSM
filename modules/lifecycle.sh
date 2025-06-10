@@ -13,8 +13,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -47,12 +47,12 @@ Examples:
 # Read the argument values
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  *)
+    break
+    ;;
   esac
 done
 
@@ -89,39 +89,39 @@ function _get_lifecycle_manager() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --logs | --is-active | --start | --stop | --restart)
-      command=$1
-      shift
-      [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-      instance=$1
-      lifecycle_manager="$(_get_lifecycle_manager "$instance")"
-      case "$command" in
-        --logs)
-          follow=""
-          # shellcheck disable=SC2199
-          if [[ "$@" =~ "--follow" ]]; then
-            follow="--follow"
-          fi
-          "$lifecycle_manager" --logs "$instance" $follow $debug
-          ;;
-        --is-active)
-          "$lifecycle_manager" --is-active "$instance" $debug
-          ;;
-        --start)
-          "$lifecycle_manager" --start "$instance" $debug
-          ;;
-        --stop)
-          "$lifecycle_manager" --stop "$instance" $debug
-          ;;
-        --restart)
-          "$lifecycle_manager" --restart "$instance" $debug
-          ;;
-      esac
-      exit $?
+  --logs | --is-active | --start | --stop | --restart)
+    command=$1
+    shift
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
+    instance=$1
+    lifecycle_manager="$(_get_lifecycle_manager "$instance")"
+    case "$command" in
+    --logs)
+      follow=""
+      # shellcheck disable=SC2199
+      if [[ "$@" =~ "--follow" ]]; then
+        follow="--follow"
+      fi
+      "$lifecycle_manager" --logs "$instance" $follow $debug
       ;;
-    *)
-      __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+    --is-active)
+      "$lifecycle_manager" --is-active "$instance" $debug
       ;;
+    --start)
+      "$lifecycle_manager" --start "$instance" $debug
+      ;;
+    --stop)
+      "$lifecycle_manager" --stop "$instance" $debug
+      ;;
+    --restart)
+      "$lifecycle_manager" --restart "$instance" $debug
+      ;;
+    esac
+    exit $?
+    ;;
+  *)
+    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

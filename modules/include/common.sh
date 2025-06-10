@@ -12,7 +12,7 @@ if [[ -z "$KGSM_ROOT" ]]; then
     [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
     SELF_PATH="$(dirname "$SELF_PATH")"
   done
-    [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
+  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
 
   export KGSM_ROOT
 fi

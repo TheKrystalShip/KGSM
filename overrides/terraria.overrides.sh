@@ -72,10 +72,10 @@
 # - 0: Success (echo "$new_version")
 # - 1: Error
 function _get_latest_version() {
-  wget -qO - 'https://terraria.org/api/get/dedicated-servers-names' \
-    | jq .[0] \
-    | cut -d '-' -f3 \
-    | cut -d '.' -f1
+  wget -qO - 'https://terraria.org/api/get/dedicated-servers-names' |
+    jq .[0] |
+    cut -d '-' -f3 |
+    cut -d '.' -f1
 }
 
 # INPUT:

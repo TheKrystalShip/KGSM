@@ -9,7 +9,7 @@ function __parse_ufw_to_upnp_ports() {
   local grouped_ports=()
 
   # Split the input into individual port ranges
-  IFS='|' read -ra ranges <<< "$ufw_ports"
+  IFS='|' read -ra ranges <<<"$ufw_ports"
 
   for range in "${ranges[@]}"; do
 
@@ -77,11 +77,14 @@ function __parse_docker_compose_to_ufw_ports() {
       local protocol="${BASH_REMATCH[3]}"
       ufw_ports+=("${host_port}/${protocol}")
     fi
-  done < "$blueprint_abs_path"
+  done <"$blueprint_abs_path"
 
   # Join all port definitions with pipe symbol for UFW format
   if [[ ${#ufw_ports[@]} -gt 0 ]]; then
-    echo "$(IFS='|'; echo "${ufw_ports[*]}")"
+    echo "$(
+      IFS='|'
+      echo "${ufw_ports[*]}"
+    )"
   else
     echo ""
   fi

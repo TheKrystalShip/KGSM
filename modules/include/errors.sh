@@ -55,9 +55,9 @@ declare -A EXIT_CODES=(
 
 function __print_error_code() {
   local code=$1
-  local script="${BASH_SOURCE[1]}"  # The script where the error occurred
-  local func="${FUNCNAME[1]}"       # The function where the error occurred
-  local line="${BASH_LINENO[0]}"    # The line number where the error occurred
+  local script="${BASH_SOURCE[1]}" # The script where the error occurred
+  local func="${FUNCNAME[1]}"      # The function where the error occurred
+  local line="${BASH_LINENO[0]}"   # The line number where the error occurred
 
   echo "Error $code: ${EXIT_CODES[$code]:-Unknown error}" >&2
   echo "Occurred in script: $script, function: $func, line: $line" >&2

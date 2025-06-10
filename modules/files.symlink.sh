@@ -33,8 +33,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -43,17 +43,17 @@ if [ "$#" -eq 0 ]; then usage && return 1; fi
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    -h | --help)
-      usage && exit 0
-      ;;
-    -i | --instance)
-      shift
-      [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
-      instance=$1
-      ;;
-    *)
-      break
-      ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  -i | --instance)
+    shift
+    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument <instance>" >&2 && exit 1
+    instance=$1
+    ;;
+  *)
+    break
+    ;;
   esac
   shift
 done
@@ -173,18 +173,18 @@ source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --install)
-      _symlink_install
-      exit $?
-      ;;
-    --uninstall)
-      _symlink_uninstall
-      exit $?
-      ;;
-    *)
-      __print_error "Invalid argument $1"
-      exit $EC_INVALID_ARG
-      ;;
+  --install)
+    _symlink_install
+    exit $?
+    ;;
+  --uninstall)
+    _symlink_uninstall
+    exit $?
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done
