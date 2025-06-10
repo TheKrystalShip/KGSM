@@ -267,7 +267,7 @@ function _install() {
     "$module_instance" \
       --create "$blueprint" \
       --install-dir "$install_dir" \
-      ${identifier:+--id $identifier} \
+      ${identifier:+--name $identifier} \
       $debug
   )"
 
