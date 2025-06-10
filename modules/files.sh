@@ -104,7 +104,7 @@ function _create() {
   # This is necessary to determine if we need to create systemd service files,
   # the firewall rules, or command shortcuts.
 
-  if [[ "$config_enable_systemd" ]] && [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+  if [[ "$config_enable_systemd" == "true" ]]; then
     # Use the files.systemd.sh module
     "$(__find_module files.systemd.sh)" --instance "$instance" --install || return $?
   fi
