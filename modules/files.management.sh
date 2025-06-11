@@ -135,7 +135,7 @@ EOF
   return 0
 }
 
-function __inject_docker_management_variables() {
+function __inject_container_management_variables() {
   local injected_config
   injected_config=$(
     cat <<EOF
@@ -157,18 +157,41 @@ EOF
   return 0
 }
 
+function __create_container_file_template() {
+  # Fetch the container blueprint file, which will be a docker-compose file with some
+  # placeholder variables that need replacing with variables from the instance config file.
+
+  if [[ ! -f "$instance_blueprint_file" ]]; then
+    __print_error "Container blueprint file '$instance_blueprint_file' does not exist."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # The instance config file should already be sourced, so we can use the variables directly
+  # to create the container file template.
+  # The output file must be in the same directory as the instance management file,
+  # so we can use the same variables as in the instance management file.
+  local container_file="${instance_working_dir}/${instance_name}.docker-compose.yml"
+  if ! eval "cat <<EOF
+$(<"$instance_blueprint_file")
+EOF
+" >"$container_file" 2>/dev/null; then
+    __print_error "Could not generate $instance_blueprint_file to $container_file"
+    return $EC_FAILED_TEMPLATE
+  fi
+
+  return $?
+}
+
 function _inject_management_overrides() {
   # shellcheck disable=SC1090
+
+  # Check for function definitions and replace defaults with overrides
+  __print_info "Checking for overrides..."
 
   source "$(__find_module overrides.sh)" "$instance" || {
     __print_error "Failed to source module overrides.sh"
     return 1
   }
-
-  # Check for function definitions and replace defaults with overrides
-  __print_info "Checking for overrides..."
-
-  # Overrides are located in $KGSM_ROOT/overrides/${INSTANCE_BP_NAME}.overrides.sh
 
   # $instance_blueprint_file is the absolute path to the blueprint file, we just need the name
   local instance_bp_name
@@ -252,9 +275,14 @@ function _create_manage_file() {
       return $EC_FAILED_TEMPLATE
     }
     ;;
-  docker)
-    __inject_docker_management_variables || {
+  container)
+    __inject_container_management_variables || {
       __print_error "Failed to inject docker management variables into $instance_management_file"
+      return $EC_FAILED_TEMPLATE
+    }
+
+    __create_container_file_template "$instance_blueprint_file" || {
+      __print_error "Failed to create container file template for $instance_blueprint_file"
       return $EC_FAILED_TEMPLATE
     }
     ;;
