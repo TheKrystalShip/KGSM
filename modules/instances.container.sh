@@ -93,6 +93,21 @@ function __create_container_instance_config() {
   local instance_config_file="$1"
   local blueprint_abs_path="$2"
 
+  # Check if the instance config file already exists
+  if [[ ! -f "$instance_config_file" ]]; then
+    __print_error "Instance config file '$instance_config_file' not found."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Check if the blueprint file exists
+  if [[ ! -f "$blueprint_abs_path" ]]; then
+    __print_error "Blueprint file '$blueprint_abs_path' does not exist."
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Load instance config file to get variables
+  __source_instance "$instance_config_file"
+
   # Extract the blueprint name from the path (remove extension and directory)
   local blueprint_name
   blueprint_name=$(basename "$blueprint_abs_path" .docker-compose.yml)
@@ -101,21 +116,29 @@ function __create_container_instance_config() {
     blueprint_name=$(basename "$blueprint_abs_path" .yaml)
   fi
 
-  set -x
-
   # Grab ports from the docker-compose file and format them in the UFW format
   local instance_ports
-  instance_ports=$(__parse_docker_compose_to_ufw_ports "$blueprint_abs_path")
-
-  if [[ $? -ne 0 ]]; then
+  if ! instance_ports=$(__parse_docker_compose_to_ufw_ports "$blueprint_abs_path"); then
     __print_error "Failed to parse ports from the docker-compose file: $blueprint_abs_path"
     return $EC_INVALID_ARG
+  fi
+
+  # UPnP port configuration if applicable
+  export instance_use_upnp="${config_enable_port_forwarding:-0}"
+  local instance_upnp_ports=()
+  if [[ -n "${instance_ports:-}" ]]; then
+    if ! output=$(__parse_ufw_to_upnp_ports "$instance_ports") || ! read -ra instance_upnp_ports <<<"$output"; then
+      __print_warning "Failed to generate 'instance_upnp_ports'. Disabling UPnP for instance $instance_name"
+      export instance_use_upnp=0
+    fi
   fi
 
   # Append the necessary variables to the instance config file
   {
     echo "instance_runtime=\"container\""
-    [[ -n "${instance_ports[*]:-}" ]] && echo "instance_ports=\"${instance_ports:-}\""
+    echo "instance_ports=\"${instance_ports[*]}\""
+    echo "instance_use_upnp=\"${instance_use_upnp:-0}\""
+    echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
 
   } >>"$instance_config_file"
 
