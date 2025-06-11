@@ -35,6 +35,9 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
+# Load essential modules early
+module_interactive=$(__find_module interactive.sh)
+
 installer_script="$(__find_or_fail installer.sh)"
 
 if [[ ! -f "$installer_script" ]]; then
@@ -76,6 +79,7 @@ Options:
   ${UNDERLINE}General${END}
   -h, --help                  Print this help message.
     [--interactive]           Print help information for interactive mode.
+  -i, --interactive           Start KGSM in interactive mode.
   --update                    Update KGSM to the latest version.
     [--force]                 Ignore version check and download the latest
                               version available.
@@ -155,60 +159,8 @@ ${UNDERLINE}Instances${END}
 "
 }
 
-function usage_interactive() {
-  local UNDERLINE="\e[4m"
-  local END="\e[0m"
-
-  echo -e "$DESCRIPTION"
-
-  echo -e "Interactive mode menu options:
-  ${UNDERLINE}Install${END}            Create a new game server instance from a blueprint.
-
-  ${UNDERLINE}List blueprints${END}    Display a list of all blueprints.
-
-  ${UNDERLINE}List instances${END}     Display a list of all created instances with a detailed
-                     description.
-
-  ${UNDERLINE}Start${END}              Start up an instance.
-
-  ${UNDERLINE}Stop${END}               Stop a running instance.
-
-  ${UNDERLINE}Restart${END}            Restart an instance.
-
-  ${UNDERLINE}Status${END}             Print detailed information about an instance.
-
-  ${UNDERLINE}Modify${END}             Modify an existing instance to add or remove
-                     features.
-                     Currently 'ufw', 'systemd', and 'symlink' integrations can
-                     be added/removed.
-
-  ${UNDERLINE}Check for update${END}   Check if a new version of an instance is available.
-                     It will print out the new version if found, otherwise
-                     it will fail with exit code 1.
-
-  ${UNDERLINE}Update${END}             Runs a check for a new instance version, creates a
-                     backup of the current installation if any, downloads the new
-                     version and deploys it.
-
-  ${UNDERLINE}Logs${END}               Print out the last 10 lines of the latest instance
-                     log file.
-
-  ${UNDERLINE}Create backup${END}      Creates a backup of an instance.
-
-  ${UNDERLINE}Restore backup${END}     Restores a backup of an instance.
-                     It will prompt to select a backup to restore and
-                     also if the current installation directory of the
-                     instance is not empty.
-
-  ${UNDERLINE}Uninstall${END}          Runs the uninstall process for an instance.
-                     Warning: This will remove everything other than the
-                     blueprint file the instance is based on.
-
-  ${UNDERLINE}Help${END}               Prints this message
-"
-}
-
-if [[ "$config_auto_update_check" == "true" ]]; then
+# Check for updates if configuration allows it
+if [[ -n "$config_auto_update_check" && "$config_auto_update_check" == "true" ]]; then
   check_for_update
 fi
 
@@ -219,12 +171,17 @@ while [[ "$#" -gt 0 ]]; do
     [[ -z "$1" ]] && usage && exit 0
     case "$1" in
     --interactive)
-      usage_interactive && exit 0
+      "$module_interactive" --description
+      exit $?
       ;;
     *)
       __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
       ;;
     esac
+    ;;
+  -i | --interactive)
+    "$module_interactive" -i $debug
+    exit $?
     ;;
   --check-update)
     check_for_update
@@ -246,6 +203,7 @@ module_directories=$(__find_module directories.sh)
 module_files=$(__find_module files.sh)
 module_instance=$(__find_module instances.sh)
 module_lifecycle=$(__find_module lifecycle.sh)
+# module_interactive is already loaded earlier
 
 function _install() {
   local blueprint=$1
@@ -322,219 +280,13 @@ function _uninstall() {
   return 0
 }
 
-function _interactive() {
-  echo "$DESCRIPTION
-
-KGSM also accepts named arguments for automation, to see all options run:
-${0##*/} --help
-
-Press CTRL+C to exit at any time.
-
-KGSM - Interactive menu
-"
-
-  PS3="Choose an action: "
-
-  local action=
-  local blueprint_or_instance=
-
-  declare -a menu_options=(
-    "Install"
-    "List blueprints"
-    "List instances"
-    "Start"
-    "Stop"
-    "Restart"
-    "Status"
-    "Modify"
-    "Check for update"
-    "Update"
-    "Logs"
-    "Create backup"
-    "Restore backup"
-    "Uninstall"
-    "Help"
-  )
-
-  declare -A arg_map=(
-    ["Install"]=--create
-    ["List blueprints"]=--blueprints
-    ["List instances"]=--instances
-    ["Start"]=--start
-    ["Stop"]=--stop
-    ["Restart"]=--restart
-    ["Status"]=--status
-    ["Modify"]=--modify
-    ["Check for update"]=--check-update
-    ["Update"]=--update
-    ["Logs"]=--logs
-    ["Create backup"]=--create-backup
-    ["Restore backup"]=--restore-backup
-    ["Uninstall"]=--uninstall
-    ["Help"]=--help
-  )
-
-  # Select action first
-  select opt in "${menu_options[@]}"; do
-    if [[ -z $opt ]]; then
-      echo "Didn't understand \"$REPLY\" " >&2
-      REPLY=
-    else
-      action="${arg_map[$opt]}"
-      break
-    fi
-  done
-
-  # Depending on the action, load up a list of all blueprints or all instances
-  declare -a blueprints_or_instances=()
-
-  PS3="Choose an instance: "
-
-  case "$action" in
-  --create)
-    # shellcheck disable=SC2178
-    # shellcheck disable=SC2207
-    blueprints_or_instances=($("$module_blueprints" --list | tr '\n' ' '))
-    PS3="Choose a blueprint: "
-    ;;
-  --blueprints)
-    exec $0 --blueprints
-    ;;
-  --instances)
-    exec $0 --instances
-    ;;
-  --help)
-    exec $0 --help --interactive
-    ;;
-  --status)
-    # shellcheck disable=SC2207
-    # shellcheck disable=SC2178
-    blueprints_or_instances=($("$module_instance" --list))
-    ;;
-  *)
-    # shellcheck disable=SC2207
-    # shellcheck disable=SC2178
-    blueprints_or_instances=($("$module_instance" --list))
-    "$module_instance" --list --detailed
-    ;;
-  esac
-
-  # If the user selected an action that requires a blueprint or instance,
-  # check if there are any available.
-  if [[ "${#blueprints_or_instances[@]}" -eq 0 ]]; then
-    __print_warning "No instances found"
-    return 0
-  fi
-
-  # Select blueprint/instance for the action
-  select bp in "${blueprints_or_instances[@]}"; do
-    if [[ -z $bp ]]; then
-      echo "Didn't understand \"$REPLY\" " >&2
-      REPLY=
-    else
-      blueprint_or_instance="$bp"
-      break
-    fi
-  done
-
-  # Recursivelly call the script with the given params.
-  # --install has a different arg order
-  case "$action" in
-  --create)
-    install_directory=${config_default_install_directory:-}
-    if [ -z "$install_directory" ]; then
-      echo "'default_install_directory' is not set in the configuration file, please specify an installation directory" >&2
-      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || exit "$EC_INVALID_ARG"
-    fi
-
-    read -r -p "Version to install (leave empty for latest): " version
-    read -r -p "Instance name (leave empty for default): " instance_name
-
-    echo "Creating an instance of $blueprint_or_instance..." >&2
-    # shellcheck disable=SC2086
-    "$0" \
-      $action $blueprint_or_instance \
-      --install-dir $install_directory \
-      ${version:+--version "$version"} \
-      ${instance_name:+--name "$instance_name"} \
-      $debug
-    ;;
-  --uninstall)
-    "$0" --uninstall "$blueprint_or_instance" $debug
-    ;;
-  --restore-backup)
-    # shellcheck disable=SC2207
-    backups_array=($("$instance_management_file" --list-backups))
-    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
-
-    PS3="Choose a backup to restore: "
-    select backup in "${backups_array[@]}"; do
-      if [[ -z $backup ]]; then
-        echo "Didn't understand \"$REPLY\" " >&2
-        REPLY=
-      else
-        backup_to_restore="$backup"
-        break
-      fi
-    done
-    # shellcheck disable=SC2086
-    "$0" --instance $blueprint_or_instance $action $backup_to_restore $debug
-    ;;
-  --modify)
-    declare -a modify_options=()
-    declare -A modify_arg_map=(
-      ["Add systemd"]="--add systemd"
-      ["Remove systemd"]="--remove systemd"
-      ["Add ufw"]="--add ufw"
-      ["Remove ufw"]="--remove ufw"
-      ["Add symlink"]="--add symlink"
-      ["Remove symlink"]="--remove symlink"
-    )
-    local mod_action
-
-    local instance_config_file
-    instance_config_file=$(__find_instance_config "$blueprint_or_instance")
-
-    if grep -q "instance_systemd_service_file=" <"$instance_config_file"; then
-      modify_options+=("Remove systemd")
-    else
-      modify_options+=("Add systemd")
-    fi
-
-    if grep -q "instance_ufw_file=" <"$instance_config_file"; then
-      modify_options+=("Remove ufw")
-    else
-      modify_options+=("Add ufw")
-    fi
-
-    if grep -q "instance_command_shortcut_file=" <"$instance_config_file"; then
-      modify_options+=("Remove symlink")
-    else
-      modify_options+=("Add symlink")
-    fi
-
-    select mod_arg in "${modify_options[@]}"; do
-      if [[ -z "$mod_arg" ]]; then
-        echo "Didn't understand \"$REPLY\"" >&2
-        REPLY=
-      else
-        mod_action="${modify_arg_map[$mod_arg]}"
-        break
-      fi
-    done
-
-    # shellcheck disable=SC2086
-    "$0" --instance "$blueprint_or_instance" --modify $mod_action $debug
-    ;;
-  *)
-    # shellcheck disable=SC2086
-    $0 --instance $blueprint_or_instance $action $debug
-    ;;
-  esac
-}
+# Interactive mode function moved to modules/interactive.sh
 
 # If it's started with no args, default to interactive mode
-[[ "$#" -eq 0 ]] && _interactive && exit $?
+if [[ "$#" -eq 0 ]]; then
+  "$module_interactive" -i $debug
+  exit $?
+fi
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--json" ]]; then
