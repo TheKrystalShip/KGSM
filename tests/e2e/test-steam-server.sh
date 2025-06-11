@@ -18,7 +18,7 @@ source "$TEST_ROOT/framework/common.sh" || {
 log_header "E2E Test: Steam-based Server (Necesse)"
 
 # Check if SteamCMD is available
-if ! command -v steamcmd &> /dev/null; then
+if ! command -v steamcmd &>/dev/null; then
   log_warning "SteamCMD not found. This test requires SteamCMD to be installed."
   log_warning "Skipping Steam server test."
   exit 0
@@ -108,14 +108,9 @@ fi
 log_success "Necesse server stopped successfully"
 
 # Verify server is stopped
-sleep 5
-is_active_cmd="./modules/lifecycle.sh --is-active $instance_name"
-status_check_output=$($is_active_cmd 2>&1)
-if ! echo "$status_check_output" | grep -q "inactive"; then
-  log_error "Server is still running when it should be stopped"
-  exit 1
-fi
-
+sleep 10
+./modules/lifecycle.sh --is-active "$instance_name" >/dev/null 2>&1
+assert_false "$?" "Necesse server should not be active after stop"
 log_success "Verified server is stopped"
 
 # Step 5: Uninstall the server

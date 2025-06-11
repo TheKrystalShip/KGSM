@@ -68,7 +68,13 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   --test)
     shift
+    if [[ -z "$1" ]]; then
+      echo "ERROR: --test requires a file argument"
+      exit 1
+    fi
     SPECIFIC_TEST="$1"
+    RUN_INTEGRATION=0
+    RUN_E2E=0
     ;;
   --verbose)
     VERBOSE=1

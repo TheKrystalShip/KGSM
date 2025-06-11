@@ -101,14 +101,9 @@ fi
 log_success "Factorio server stopped successfully"
 
 # Verify server is stopped
-sleep 5
-is_active_cmd="./modules/lifecycle.sh --is-active $instance_name"
-status_check_output=$($is_active_cmd 2>&1)
-if ! echo "$status_check_output" | grep -q "inactive"; then
-  log_error "Server is still running when it should be stopped"
-  exit 1
-fi
-
+sleep 10
+./modules/lifecycle.sh --is-active "$instance_name" >/dev/null 2>&1
+assert_equals "$?" "1" "Factorio server should not be active after stop"
 log_success "Verified server is stopped"
 
 # Step 5: Uninstall the server

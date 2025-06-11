@@ -133,15 +133,19 @@ while [[ $# -gt 0 ]]; do
       ;;
     --is-active)
       _is_instance_active "$instance"
+      exit $?
       ;;
     --start)
       _start_instance "$instance"
+      exit $?
       ;;
     --stop)
       _stop_instance "$instance"
+      exit $?
       ;;
     --restart)
       _restart_instance "$instance"
+      exit $?
       ;;
     *)
       __print_error "Invalid argument $1" && exit $EC_INVALID_ARG

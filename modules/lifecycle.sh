@@ -106,15 +106,19 @@ while [[ $# -gt 0 ]]; do
       ;;
     --is-active)
       "$lifecycle_manager" --is-active "$instance" $debug
+      exit $?
       ;;
     --start)
       "$lifecycle_manager" --start "$instance" $debug
+      exit $?
       ;;
     --stop)
       "$lifecycle_manager" --stop "$instance" $debug
+      exit $?
       ;;
     --restart)
       "$lifecycle_manager" --restart "$instance" $debug
+      exit $?
       ;;
     esac
     exit $?
@@ -125,3 +129,5 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+exit $?
