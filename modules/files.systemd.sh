@@ -7,20 +7,28 @@ set -eo pipefail
 # shellcheck disable=SC2086
 
 function usage() {
-  echo "Usage: $(basename "$0") [OPTION]... [COMMAND] [FLAGS]
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Manage systemd integration for game server instances.
+  echo -e "${UNDERLINE}Systemd Integration for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                  Display this help and exit
-  -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
-                              Equivalent to instance_name in the config
+Create and manage systemd services for game server instances, allowing for automatic startup and process management.
 
-Commands:
-  --install                   Generate systemd service/socket files and enable them
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS] [COMMAND]
+
+${UNDERLINE}Options:${END}
+  -h, --help                  Display this help information
+  -i, --instance=INSTANCE     Specify the target instance name (without .ini extension)
+                              Must match the instance_name in the configuration
+
+${UNDERLINE}Commands:${END}
+  --install                   Generate and enable systemd service/socket files for the instance
+                              Configures the server to start automatically with the system
   --uninstall                 Remove and disable systemd service/socket files
+                              Prevents the server from starting automatically
 
-Examples:
+${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --install
   $(basename "$0") -i 7dtd-32 --uninstall
 "

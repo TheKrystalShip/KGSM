@@ -41,29 +41,35 @@ fi
 [[ $# -eq 0 ]] && usage && exit 1
 
 function usage() {
-  echo "Manages native game server instance creation and management
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}Native Instance Management for KGSM${END}
 
-Options:
-  -h, --help                      Prints this message
+Handles configuration and management of game servers that run directly on the host system.
 
-  --create-instance-config        Internal use: Creates additional configuration
-    <config-file> <blueprint-file> for a native game server instance.
-                                  <config-file> Path to the instance configuration file
-                                  <blueprint-file> Path to the blueprint (.bp) file
-                                  This function processes the blueprint file to
-                                  configure the native game server instance with
-                                  appropriate executables, arguments, and ports.
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS]
 
-Command Interface:
-  This module is designed to be used by the main instances.sh module and
-  provides native-specific implementation for game servers that run directly
-  on the host system (not in containers). It supports various game servers
-  defined by blueprint (.bp) files.
+${UNDERLINE}Options:${END}
+  -h, --help                      Display this help information
 
-Examples:
+${UNDERLINE}Configuration:${END}
+  --create-instance-config        Create specific configuration for native game server instances
+    <config-file> <blueprint-file> Parameters:
+                                  <config-file> - Path to the instance configuration file
+                                  <blueprint-file> - Path to the blueprint (.bp) file
+
+                                  Processes blueprint specifications to configure executables,
+                                  command-line arguments, port settings, and other parameters
+                                  needed for native game servers
+
+${UNDERLINE}Module Information:${END}
+  This module provides the implementation for game servers that run directly on the host
+  system rather than in containers. It's designed to work with the main instances.sh module
+  and supports various game engines through blueprint (.bp) file definitions.
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --create-instance-config /path/to/instance.ini /path/to/blueprint.bp
 "
 }

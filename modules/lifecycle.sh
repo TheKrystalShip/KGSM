@@ -20,25 +20,38 @@ if [[ $@ =~ "--debug" ]]; then
 fi
 
 function usage() {
-  echo "Manages the lifecycle of instances
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  local BOLD="\e[1m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}Lifecycle Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                      Prints this message
+Controls the operational state and monitoring of game server instances.
 
-  --logs <instance>               Prints the last few lines of an instance's log
-    [--follow]                   Continuously follow the log output
-  --is-active <instance>          Check if the instance is active.
-  --start <instance>              Start the instance.
-  --stop <instance>               Stop the instance.
-  --restart <instance>            Restart the instance.
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS] <instance>
 
-Examples:
+${UNDERLINE}Options:${END}
+  -h, --help                      Display this help information
+
+${UNDERLINE}Server Control:${END}
+  --start <instance>              Launch a game server instance
+                                  Makes the server available to players
+  --stop <instance>               Gracefully shut down a running server
+                                  Ensures proper save and cleanup procedures
+  --restart <instance>            Perform a complete stop and start sequence
+                                  Useful after configuration changes
+
+${UNDERLINE}Monitoring:${END}
+  --logs <instance>               Display the most recent log entries
+    [--follow]                    Continuously monitor log output in real-time
+  --is-active <instance>          Check if the server is currently running
+                                  Returns exit code 0 if active, 1 if inactive
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --start valheim-03
-  $(basename "$0") --status 7dtd
-  $(basename "$0") --logs factorio-space-age-01
+  $(basename "$0") --logs factorio-space-age-01 --follow
+  $(basename "$0") --restart minecraft-survival
 "
 }
 

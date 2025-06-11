@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 
 function usage() {
-  echo "Provides information about blueprints and creates new ones.
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  local BOLD="\e[1m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}Blueprint Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                    Prints this message.
-  --list                        Returns a list of all blueprints.
-    --default                   Returns a list of only the default blueprints.
-    --custom                    Returns a list of only the custom blueprints.
-    --detailed --json           Print a json map with each blueprint and their
-                                content.
-  --info <blueprint>          Print the contents of a blueprint file.
-  --info <blueprint> --json   Print the contents of a blueprint in JSON format
-  --find <blueprint>          Find the absolute path to a blueprint file.
+Provides tools to create, list, and manage game server blueprints - the templates used to create server instances.
 
-Examples:
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS]
+
+${UNDERLINE}General Options:${END}
+  -h, --help                    Display this help information
+
+${UNDERLINE}Blueprint Listing & Information:${END}
+  --list                        Display all available blueprints
+    --default                   Show only official default blueprints
+    --custom                    Show only user-created custom blueprints
+    --detailed --json           Output detailed blueprint information in JSON format
+  --info <blueprint>            Display the contents of a specific blueprint file
+    --json                      Format the output as JSON
+  --find <blueprint>            Locate the absolute path to a blueprint file
+
+${UNDERLINE}Blueprint Creation:${END}
+  --create                      Create a new custom blueprint
+    --name                      Specify the game name for the blueprint
+    --port                      Define the default server port
+    --launch-bin                Specify the executable binary name
+    --stop-command              Define the command to gracefully stop the server
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --list
   $(basename "$0") --list --custom
   $(basename "$0") --create --name terraria --port 7777 --launch-bin TerrariaServer.bin.x86_64 --stop-command \"exit\"

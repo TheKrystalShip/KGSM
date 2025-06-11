@@ -7,19 +7,26 @@ set -eo pipefail
 # shellcheck disable=SC2086
 
 function usage() {
-  echo "Usage: $(basename "$0") [OPTION]... [COMMAND] [FLAGS]
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Manage management files for game server instances.
+  echo -e "${UNDERLINE}File Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                  Display this help and exit
-  -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
-                              Equivalent to instance_name in the config
+Create and manage essential files for game server instances.
 
-Commands:
-  --create                    Generate management file for the instance
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS] [COMMAND]
 
-Examples:
+${UNDERLINE}Options:${END}
+  -h, --help                  Display this help information
+  -i, --instance=INSTANCE     Specify the target instance name (without .ini extension)
+                              Must match the instance_name in the configuration
+
+${UNDERLINE}Commands:${END}
+  --create                    Generate a management file for the specified instance
+                              Creates necessary configuration files for proper server operation
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --create
 "
 }

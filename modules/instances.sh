@@ -5,29 +5,37 @@
 # shellcheck disable=SC2086
 
 function usage() {
-  echo "Manages instance creation and gathers information post-creation
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}Instance Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                      Prints this message
+Manages instance creation and provides comprehensive information about game server instances.
 
-  --generate-id <blueprint>       Create a unique instance identifier
-  --list [blueprint]              Prints a list of all instances.
-  --list --detailed [blueprint]   Print a list with detailed information about
-                                  instances.
-  --list --json [blueprint]       Prints a JSON formatted list of instances
-  --list --json --detailed        Print a list with detailed information of
-      [blueprint]                 instances.
-                                  Optionally a blueprint name can be provided
-                                  to show only instances of that blueprint.
-  --status <instance>             Return a detailed running status.
-  --save <instance>               Issue the save command to the instance.
-  --input <command>               Issue a command to the instance if it has an
-                                  interactive console. Displays the last 10
-                                  lines of the instance log after issuing the
-                                  command.
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS]
+
+${UNDERLINE}Options:${END}
+  -h, --help                      Display this help information
+
+${UNDERLINE}Instance Creation & Identification:${END}
+  --generate-id <blueprint>       Create a unique instance identifier for a new server
+
+${UNDERLINE}Listing & Information:${END}
+  --list [blueprint]              Display all instances with basic information
+                                  Optionally filter by blueprint name
+  --list --detailed [blueprint]   Show detailed information about instances
+                                  Includes configuration and status details
+  --list --json [blueprint]       Output instance list in JSON format
+  --list --json --detailed        Output detailed instance information in JSON format
+      [blueprint]                 Suitable for programmatic consumption
+  --status <instance>             Display comprehensive status information for a specific instance
+                                  Includes running state, resource usage, and configuration details
+
+${UNDERLINE}Instance Control:${END}
+  --save <instance>               Issue a save command to the specified instance
+  --input <command>               Send a command to the instance's interactive console
+                                  Shows the last 10 log lines after execution
   --create <blueprint>
     --install-dir <install_dir>   Creates a new instance for the given blueprint
                                   and returns the name of the instance config

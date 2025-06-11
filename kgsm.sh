@@ -69,93 +69,84 @@ issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
+  local BOLD="\e[1m"
+
   echo -e "$DESCRIPTION"
 
   echo -e "
-Usage:
-  $(basename "$0") OPTION
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS] [COMMANDS]
 
-Options:
-  ${UNDERLINE}General${END}
-  -h, --help                  Print this help message.
-    [--interactive]           Print help information for interactive mode.
-  -i, --interactive           Start KGSM in interactive mode.
-  --update                    Update KGSM to the latest version.
-    [--force]                 Ignore version check and download the latest
-                              version available.
-  --update-config             Update config.ini with the latest options added
-                              or modified in config.default.ini
-  --ip                        Print the external server IP address.
-  --config                    Modify the configuration file.
-  -v, --version               Print the KGSM version.
-  --check-update              Check for KGSM updates.
+${BOLD}${UNDERLINE}General Options:${END}
+  -h, --help                  Display comprehensive help information
+    [--interactive]           Show help specifically for interactive mode
+  -i, --interactive           Launch KGSM in user-friendly interactive menu mode
+  -v, --version               Display the current KGSM version
+  --check-update              Check if a newer version of KGSM is available
+  --update                    Update KGSM to the latest version
+    [--force]                 Skip version verification and force download of latest version
+  --update-config             Update config.ini with any new options from config.default.ini
+  --ip                        Display this server's external IP address
+  --config                    Modify the KGSM configuration file
 
-${UNDERLINE}Blueprints${END}
-  --create-blueprint          Create a new blueprints file.
-    [-h, --help]              Print help information about the blueprint
-                              creation process.
-  --blueprints                List all available blueprints.
-  --blueprints --json         Print a JSON array with all blueprints.
-  --blueprints --detailed     Print detailed information on all blueprints.
+${BOLD}${UNDERLINE}Blueprint Management:${END}
+  --create-blueprint          Create a new blueprint file for a game server type
+    [-h, --help]              Display help information for the blueprint creation process
+  --blueprints                Display a list of all available server blueprints
+  --blueprints --detailed     Show detailed information about all available blueprints
+  --blueprints --json         Output blueprint list in JSON format
   --blueprints --json --detailed
-                              Print a detailed JSON formatted Map with
-                              information on all blueprints.
-  --create BLUEPRINT          Create a new game server instance from an
-                              existing blueprint.
-                              BLUEPRINT must be the name of a blueprint.
-                              Run --blueprints to see available options.
-    [--install-dir <dir>]     Needed in case KGSM_DEFAULT_INSTALL_DIR is not
-                              set.
-    [--version <version>]     WARNING: Not used by game servers that come from
-                              steamcmd, only used by custom game servers.
-                              Specific version to install.
-    [--name <name>]           Custom name for the instance instead of letting
-                              KGSM generate one automatically.
+                              Output detailed blueprint information in JSON format
 
-${UNDERLINE}Instances${END}
-  --uninstall <instance>      Run the uninstall process for an instance.
-  --instances                 List all installed instances.
-  --instances <blueprint>     List all instances of a specific blueprint.
-  --instances --detailed      List all instances with detailed information.
-  --instances --json          Print a JSON formatted array with all instances.
+  --create BLUEPRINT          Create a new game server instance from an existing blueprint
+                              BLUEPRINT must be the name of a valid blueprint
+                              Use --blueprints to see available options
+    [--install-dir <dir>]     Specify custom installation directory
+                              Required if KGSM_DEFAULT_INSTALL_DIR is not set
+    [--version <version>]     Specify a particular version to install
+                              Note: Not applicable for Steam-based game servers
+    [--name <name>]           Provide a custom instance name
+                              Instead of using auto-generated name
+
+${BOLD}${UNDERLINE}Instance Management:${END}
+  --uninstall <instance>      Remove a game server instance completely
+  --instances                 List all installed game server instances
+  --instances <blueprint>     List instances of a specific blueprint/game type
+  --instances --detailed      Show detailed information about all instances
+  --instances --json          Output instance list in JSON format
   --instances --json --detailed
-                              Print a detailed JSON Map with all instances
-                              and their information.
+                              Output detailed instance information in JSON format
 
-  -i, --instance <x> OPTION   Interact with an instance.
-                              OPTION represents one of the following:
+  -i, --instance <name> COMMAND   Interact with a specific instance:
 
-    --logs                    Print the last few lines of the instance's log.
-      [-f, --follow]          Continuously follow the log output.
-    --status                  Return a detailed running status.
-    --info                    Print information about the instance.
-      [--json]                Print information in JSON format.
-    --is-active               Check if the instance is active.
-    --start                   Start the instance.
-    --stop                    Stop the instance.
-    --restart                 Restart the instance.
-    --save                    Issues the save command to the instance.
-    --input <command>         Send a command to the instance's interactive
-                              console, if the instance accepts commands.
-                              Will display the last 10 lines of the instance
-                              log.
-    -v, --version             Provide version information.
-                              Running this with no other argument has the same
-                              outcome as adding the --installed argument.
-      [--installed]           Print the currently installed version.
-      [--latest]              Print the latest available version.
-    --backups                 Print a list of created backups.
-    --check-update            Check if a new version is available.
-    --update                  Run the update process.
-    --create-backup           Create a backup of the currently installed
-                              version, if any.
-    --restore-backup NAME     Restore a backup.
-                              NAME is the backup name.
-    --modify                  Modify an existing instance.
-      --add OPTION            Add additional functionality. Possible options:
-                                ufw, systemd, symlink
-      --remove OPTION         Remove functionality. Possible options:
-                                ufw, systemd, symlink
+    ${UNDERLINE}Information & Monitoring:${END}
+    --logs                    Display the most recent log entries
+      [-f, --follow]          Continuously monitor new log entries in real-time
+    --status                  Show detailed runtime status and resource usage
+    --info                    Display configuration information
+      [--json]                Output information in JSON format
+    --is-active               Check if the instance is currently running
+    --backups                 List all created backups for this instance
+
+    ${UNDERLINE}Server Control:${END}
+    --start                   Launch the server instance
+    --stop                    Gracefully stop the server
+    --restart                 Perform a complete stop and start sequence
+    --save                    Trigger a server save operation
+    --input <command>         Send a command to the server's console
+                              Shows the last 10 log lines after execution
+
+    ${UNDERLINE}Maintenance:${END}
+    -v, --version             Show version information for this instance
+      [--installed]           Display currently installed version
+      [--latest]              Check for the latest available version
+    --check-update            Check if updates are available
+    --update                  Perform update process to latest version
+    --create-backup           Create a backup of the current installation
+    --restore-backup NAME     Restore from a previously created backup
+    --modify                  Modify instance configuration or integrations
+      --add OPTION            Add functionality: ufw, systemd, or symlink
+      --remove OPTION         Remove functionality: ufw, systemd, or symlink
 "
 }
 

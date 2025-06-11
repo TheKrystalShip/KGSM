@@ -39,28 +39,35 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function usage() {
-  echo "Manages containerized game server instance creation and management
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  local BOLD="\e[1m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}Container-Based Instance Management for KGSM${END}
 
-Options:
-  -h, --help                      Prints this message
+Manages the creation and configuration of containerized game server instances using Docker.
 
-  --create-instance-config        Internal use: Creates additional configuration
-    <config-file> <compose-file>  for a container instance.
-                                  <config-file> Path to the instance configuration file
-                                  <compose-file> Path to the docker-compose.yml file
-                                  This function extracts port configurations from the
-                                  docker-compose file and adds them to the instance
-                                  configuration.
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS]
 
-Command Interface:
-  This module is designed to be used by the main instances.sh module and
-  provides container-specific implementation for Docker-based game servers.
-  It supports Docker containers deployed via docker-compose files.
+${UNDERLINE}Options:${END}
+  -h, --help                      Display this help information
 
-Examples:
+${UNDERLINE}Configuration:${END}
+  --create-instance-config        Create additional configuration for a container instance
+    <config-file> <compose-file>  Parameters:
+                                  <config-file> - Path to the instance configuration file
+                                  <compose-file> - Path to the docker-compose.yml file
+
+                                  Extracts port mappings and other settings from docker-compose
+                                  file and integrates them with the instance configuration
+
+${UNDERLINE}Module Information:${END}
+  This module provides the container-specific implementation for Docker-based game servers.
+  It's designed to be used by the main instances.sh module and handles Docker containers
+  deployed via docker-compose files.
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --create-instance-config /path/to/instance.ini /path/to/blueprint.docker-compose.yml
 "
 }

@@ -47,28 +47,42 @@ if test -t 1; then
 fi
 
 function usage() {
-  echo "Manages KGSM installation, updates, and version checks
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
+  local BOLD="\e[1m"
 
-Usage:
-  $(basename "$0") OPTION
+  echo -e "${UNDERLINE}KGSM Installer${END}
 
-Options:
-  -h, --help                 Prints this message
-  -v, --version              Prints the locally installed version of KGSM
-  -s, --silent               Run in silent mode (minimal output)
-  --version-list             Prints a list of all released versions of KGSM
-  --install                  Downloads and installs the latest version of KGSM
-  --install [version]        Downloads and installs a specific version of KGSM
-  --check-update             Checks if a newer version of KGSM is available
-  --update                   Updates KGSM to the latest version
-  --verify                   Verifies the installation is valid and complete
-  --repair                   Attempts to repair a damaged installation
-  --clean                    Cleans up temporary files from failed installations
-  --diagnostics              Shows diagnostic information about the environment
-  --force                    Skip version checks and force requested operations
+Manages the installation, updates, and version control for Krystal Game Server Manager.
 
-Examples:
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS]
+
+${UNDERLINE}General Options:${END}
+  -h, --help                 Display this help information
+  -v, --version              Display the currently installed version of KGSM
+  -s, --silent               Run in silent mode with minimal output
+                             Useful for automated or scripted operations
+
+${UNDERLINE}Version Management:${END}
+  --version-list             Display all available released versions of KGSM
+  --check-update             Check if a newer version of KGSM is available
+  --update                   Update KGSM to the latest stable version
+
+${UNDERLINE}Installation Options:${END}
+  --install                  Download and install the latest version of KGSM
+  --install [version]        Download and install a specific version of KGSM
+  --verify                   Verify the current installation is valid and complete
+  --repair                   Attempt to repair a damaged or incomplete installation
+  --clean                    Remove temporary files from failed installations
+  --diagnostics              Display diagnostic information about the environment
+  --force                    Skip version verification and force operations
+                             Can be used with --install or --update
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") --install
+  $(basename "$0") --install v2.0.0
+  $(basename "$0") --update --force
   $(basename "$0") --install 1.6.0
   $(basename "$0") --check-update
   $(basename "$0") --update

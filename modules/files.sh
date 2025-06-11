@@ -18,21 +18,28 @@ if [[ $@ =~ "--debug" ]]; then
 fi
 
 function usage() {
-  echo "Usage: $(basename "$0") [OPTION]... [COMMAND] [FLAGS]
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Manage necessary files for running a game server.
+  echo -e "${UNDERLINE}File Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                  Display this help and exit
-  -i, --instance=INSTANCE     Specify the instance name (without .ini extension)
-                              Equivalent to instance_name in the config
+Creates and manages all necessary files for game server operation.
 
-Commands:
-  --create                    Generate all required files:
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [OPTIONS] [COMMAND]
+
+${UNDERLINE}Options:${END}
+  -h, --help                  Display this help information
+  -i, --instance=INSTANCE     Specify the target instance name (without .ini extension)
+                              Must match the instance_name in the configuration
+
+${UNDERLINE}Commands:${END}
+  --create                    Generate all required files for the instance:
                                 - instance.manage.sh
-                                - instance.override.sh (if applicable)
-                                - systemd service/socket files
+                                - systemd service/socket files (if applicable)
                                 - UFW firewall rules (if applicable)
+                                - symlink to the management file (if applicable)
+  ${UNDERLINE}Subcommands:${END}
     --manage                   Create instance.manage.sh
     --systemd                  Generate systemd service/socket files
     --ufw                      Generate and enable UFW firewall rule

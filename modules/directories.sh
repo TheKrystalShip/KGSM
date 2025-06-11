@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
 
 function usage() {
-  echo "Scaffolds the necessary directory structure.
+  local UNDERLINE="\e[4m"
+  local END="\e[0m"
 
-Usage:
-  $(basename "$0") [-i | --instance <instance>] OPTION
+  echo -e "${UNDERLINE}Directory Management for Krystal Game Server Manager${END}
 
-Options:
-  -h, --help                  Prints this message
-  -i, --instance <instance>   instance_name from the instance config file.
+Creates and manages the directory structure needed for game server instances.
+
+${UNDERLINE}Usage:${END}
+  $(basename "$0") [-i | --instance <instance>] [COMMAND]
+
+${UNDERLINE}Options:${END}
+  -h, --help                  Display this help information
+  -i, --instance <instance>   Specify the target instance name from the config file
                               The .ini extension is not required
-    --create                  Generates the directory structure
-    --remove                  Removes the directory structure
 
-Examples:
+${UNDERLINE}Commands:${END}
+  --create                    Generate the complete directory structure for the instance
+                              Creates installation, data, logs, and backup directories
+  --remove                    Remove the entire directory structure for the instance
+                              Warning: This will delete all instance data
+
+${UNDERLINE}Examples:${END}
   $(basename "$0") -i valheim-h1up6V --create
   $(basename "$0") --instance valheim-h1up6V --remove
 "
