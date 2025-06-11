@@ -10,8 +10,6 @@
 # DO NOT MODIFY THIS FILE
 # Instead, copy it to the custom blueprints directory and modify it there
 
-version: "3.8"
-
 services:
   lotrrtm:
 

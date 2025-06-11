@@ -283,7 +283,7 @@ Below is an example for a containerized game server:
 # DO NOT MODIFY THIS FILE
 # Instead, copy it to the custom blueprints directory and modify it there
 
-version: "3.8"
+
 
 # This Docker Compose file is for setting up a V Rising server container.
 services:
