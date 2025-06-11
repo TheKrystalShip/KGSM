@@ -2,7 +2,8 @@
 #
 # Environment setup/teardown for KGSM testing framework
 
-export TEST_ENV_DIR=""
+export TEST_ENV_DIR
+export ORIGINAL_DIR
 
 # Create a temporary directory for test execution
 function create_test_environment() {

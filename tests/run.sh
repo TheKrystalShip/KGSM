@@ -37,6 +37,7 @@ function usage() {
   echo
   echo "Options:"
   echo "  --help           Display this help message"
+  echo "  --unit           Run only unit tests"
   echo "  --integration    Run only integration tests"
   echo "  --e2e            Run only end-to-end tests"
   echo "  --test FILE      Run a specific test file"
@@ -46,6 +47,7 @@ function usage() {
 }
 
 # Parse arguments
+export RUN_UNIT=1
 export RUN_INTEGRATION=1
 export RUN_E2E=1
 export SPECIFIC_TEST=""
@@ -58,11 +60,18 @@ while [[ "$#" -gt 0 ]]; do
     usage
     exit 0
     ;;
+  --unit)
+    RUN_UNIT=1
+    RUN_INTEGRATION=0
+    RUN_E2E=0
+    ;;
   --integration)
+    RUN_UNIT=0
     RUN_INTEGRATION=1
     RUN_E2E=0
     ;;
   --e2e)
+    RUN_UNIT=0
     RUN_INTEGRATION=0
     RUN_E2E=1
     ;;
@@ -73,6 +82,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 1
     fi
     SPECIFIC_TEST="$1"
+    RUN_UNIT=0
     RUN_INTEGRATION=0
     RUN_E2E=0
     ;;
@@ -113,6 +123,11 @@ export failed_tests=0
 
 # Prepare arguments for the runner
 runner_args=()
+
+# Add unit tests if enabled
+if [[ "$RUN_UNIT" -eq 1 ]]; then
+  runner_args+=("--unit")
+fi
 
 # Add integration tests if enabled
 if [[ "$RUN_INTEGRATION" -eq 1 ]]; then

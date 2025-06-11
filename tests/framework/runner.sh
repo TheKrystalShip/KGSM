@@ -10,15 +10,17 @@ Usage:
 
 Options:
   -h, --help              Display this help message
+  --unit                  Run unit tests
   --integration           Run integration tests
   --e2e                   Run end-to-end tests
   --test <file>           Run a specific test file
   --verbose               Enable verbose output
 
 Examples:
+  $(basename "$0") --unit
   $(basename "$0") --integration
   $(basename "$0") --e2e
-  $(basename "$0") --test integration/test-directories.sh
+  $(basename "$0") --test unit/test-parser.sh
 "
 }
 
@@ -152,6 +154,21 @@ function _run_e2e_tests() {
   return 0
 }
 
+# Function to run unit tests
+function _run_unit_tests() {
+  log_header "Running Unit Tests"
+
+  # Find all unit test files
+  local unit_tests
+  unit_tests=$(find "$TEST_ROOT/unit" -type f -name "test-*.sh" | sort)
+
+  for test_file in $unit_tests; do
+    _run_test "$test_file"
+  done
+
+  return 0
+}
+
 # Function to run a specific test
 function _run_specific_test() {
   local test_file="$1"
@@ -160,10 +177,13 @@ function _run_specific_test() {
   if [[ ! -f "$test_file" ]]; then
     # Try to find it in test directories
     local potential_files=(
+      "$TEST_ROOT/unit/$test_file"
       "$TEST_ROOT/integration/$test_file"
       "$TEST_ROOT/e2e/$test_file"
+      "$TEST_ROOT/unit/test-$test_file.sh"
       "$TEST_ROOT/integration/test-$test_file.sh"
       "$TEST_ROOT/e2e/test-$test_file.sh"
+      "$TEST_ROOT/unit/test-$test_file"
       "$TEST_ROOT/integration/test-$test_file"
       "$TEST_ROOT/e2e/test-$test_file"
     )
@@ -190,6 +210,10 @@ function _run_specific_test() {
 function execute_tests() {
   # Initialize test run
   report_init
+
+  if [[ "$RUN_UNIT" -eq 1 ]]; then
+    _run_unit_tests
+  fi
 
   if [[ "$RUN_INTEGRATION" -eq 1 ]]; then
     _run_integration_tests
@@ -222,6 +246,9 @@ while [[ "$#" -gt 0 ]]; do
   -h | --help)
     usage
     exit 0
+    ;;
+  --unit)
+    RUN_UNIT=1
     ;;
   --integration)
     RUN_INTEGRATION=1
