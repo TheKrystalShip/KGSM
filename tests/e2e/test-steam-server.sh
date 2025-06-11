@@ -110,7 +110,7 @@ log_success "Necesse server stopped successfully"
 # Verify server is stopped
 sleep 10
 ./modules/lifecycle.sh --is-active "$instance_name" >/dev/null 2>&1
-assert_false "$?" "Necesse server should not be active after stop"
+assert_equals "$?" "1" "Necesse server should not be active after stop"
 log_success "Verified server is stopped"
 
 # Step 5: Uninstall the server
