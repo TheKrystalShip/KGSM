@@ -182,7 +182,7 @@ function _systemd_install() {
       return $EC_GENERAL
     else
       if ! _systemd_uninstall; then
-        return "$EC_GENERAL"
+        return $EC_GENERAL
       fi
     fi
   fi

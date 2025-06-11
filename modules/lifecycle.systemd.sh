@@ -113,7 +113,7 @@ function _is_instance_active() {
   local is_active
   is_active=$(systemctl is-active "${instance%.ini}" --no-pager)
   [[ "$is_active" == "active" ]] && return 0
-  return "$EC_GENERAL"
+  return $EC_GENERAL
 }
 
 function _get_logs() {
@@ -131,7 +131,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
   --logs)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     instance="$1"
     shift
     follow=""
@@ -143,30 +143,30 @@ while [[ $# -gt 0 ]]; do
     ;;
   --is-active)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _is_instance_active "$1"
     exit $?
     ;;
   --start)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _start_instance "$1"
     exit $?
     ;;
   --stop)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _stop_instance "$1"
     exit $?
     ;;
   --restart)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _restart_instance "$1"
     exit $?
     ;;
   *)
-    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
     ;;
   esac
   shift

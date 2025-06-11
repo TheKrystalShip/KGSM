@@ -81,7 +81,7 @@ fi
 
 instance_config_file=$(__find_instance_config "$instance")
 # shellcheck disable=SC1090
-source "$instance_config_file" || exit "$EC_FAILED_SOURCE"
+source "$instance_config_file" || exit $EC_FAILED_SOURCE
 
 # Check if instance_working_dir is set
 if [[ -z "$instance_working_dir" ]]; then

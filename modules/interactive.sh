@@ -256,7 +256,7 @@ KGSM - Interactive menu
     install_directory=${config_default_install_directory:-}
     if [ -z "$install_directory" ]; then
       echo "'default_install_directory' is not set in the configuration file, please specify an installation directory" >&2
-      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || return "$EC_INVALID_ARG"
+      read -r -p "Installation directory: " install_directory && [[ -n $install_directory ]] || return $EC_INVALID_ARG
     fi
 
     read -r -p "Version to install (leave empty for latest): " version
@@ -287,7 +287,7 @@ KGSM - Interactive menu
 
     # shellcheck disable=SC2207
     backups_array=($("$instance_management_file" --list-backups $debug))
-    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return "$EC_GENERAL"
+    [[ "${#backups_array[@]}" -eq 0 ]] && echo "No backups found. Exiting." >&2 && return $EC_GENERAL
 
     PS3="Choose a backup to restore: "
     select backup in "${backups_array[@]}"; do
@@ -371,7 +371,7 @@ while [[ "$#" -gt 0 ]]; do
     ;;
   *)
     __print_error "Invalid argument $1"
-    exit "$EC_INVALID_ARG"
+    exit $EC_INVALID_ARG
     ;;
   esac
   shift

@@ -573,16 +573,16 @@ while [[ $# -gt 0 ]]; do
     ;;
   --generate-id)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit $EC_MISSING_ARG
     _generate_unique_instance_name "$1"
     exit $?
     ;;
   --input)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     instance=$1
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <command>" && exit $EC_MISSING_ARG
     command=$1
     _send_input_to_instance "$instance" "$command"
     exit $?
@@ -592,7 +592,7 @@ while [[ $# -gt 0 ]]; do
     install_dir=
     identifier=
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit $EC_MISSING_ARG
     blueprint=$1
     shift
     if [[ -n "$1" ]]; then
@@ -600,16 +600,16 @@ while [[ $# -gt 0 ]]; do
         case "$1" in
         --install-dir)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit "$EC_MISSING_ARG"
+          [[ -z "$1" ]] && __print_error "Missing argument <install_dir>" && exit $EC_MISSING_ARG
           install_dir=$1
           ;;
         --name)
           shift
-          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit "$EC_MISSING_ARG"
+          [[ -z "$1" ]] && __print_error "Missing argument <id>" && exit $EC_MISSING_ARG
           identifier=$1
           ;;
         *)
-          __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+          __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
           ;;
         esac
         shift
@@ -620,19 +620,19 @@ while [[ $# -gt 0 ]]; do
     ;;
   --status)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _get_instance_status "$1"
     exit $?
     ;;
   --save)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _send_save_to_instance "$1"
     exit $?
     ;;
   --remove)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     _remove "$1"
     exit $?
     ;;
@@ -655,7 +655,7 @@ while [[ $# -gt 0 ]]; do
     ;;
   --info)
     shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit "$EC_MISSING_ARG"
+    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
     instance=$1
     if [[ -z "$json_format" ]]; then
       _print_info "$instance"
@@ -665,7 +665,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   *)
-    __print_error "Invalid argument $1" && exit "$EC_INVALID_ARG"
+    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
     ;;
   esac
   shift
