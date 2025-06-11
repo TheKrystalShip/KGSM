@@ -124,12 +124,12 @@ function __create_container_instance_config() {
   fi
 
   # UPnP port configuration if applicable
-  export instance_use_upnp="${config_enable_port_forwarding:-0}"
+  export instance_enable_port_forwarding="${config_enable_port_forwarding:-false}"
   local instance_upnp_ports=()
   if [[ -n "${instance_ports:-}" ]]; then
     if ! output=$(__parse_ufw_to_upnp_ports "$instance_ports") || ! read -ra instance_upnp_ports <<<"$output"; then
       __print_warning "Failed to generate 'instance_upnp_ports'. Disabling UPnP for instance $instance_name"
-      export instance_use_upnp=0
+      export instance_enable_port_forwarding="false"
     fi
   fi
 
@@ -137,7 +137,8 @@ function __create_container_instance_config() {
   {
     echo "instance_runtime=\"container\""
     echo "instance_ports=\"${instance_ports[*]}\""
-    echo "instance_use_upnp=\"${instance_use_upnp:-0}\""
+    echo "instance_compose_file=\"${instance_name}.docker-compose.yml\""
+    echo "instance_enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
     echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
 
   } >>"$instance_config_file"

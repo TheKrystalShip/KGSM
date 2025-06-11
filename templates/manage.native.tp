@@ -17,8 +17,8 @@ if [[ $@ =~ "--debug" ]]; then
   for a; do
     shift
     case $a in
-      --debug) continue ;;
-      *) set -- "$@" "$a" ;;
+    --debug) continue ;;
+    *) set -- "$@" "$a" ;;
     esac
   done
 fi
@@ -161,7 +161,7 @@ function _disable_upnp() {
 
   if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to disable UPnP ports"
-    __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
+    __print_info "To stop these message, set 'instance_enable_port_forwarding' to 'false' in $0"
     __print_error "${output}"
   fi
 
@@ -171,13 +171,13 @@ function _disable_upnp() {
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${enable_port_forwarding:-0}" -eq 1 ]] && _disable_upnp' INT TERM
+trap '[[ "${instance_enable_port_forwarding:-0}" == "true" ]] && _disable_upnp' INT TERM
 
 # Start the server in the current terminal
 function _start() {
   __print_info "Starting $self in the current terminal"
 
-  if [[ "$instance_use_upnp" -eq 1 ]]; then
+  if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _enable_upnp
   fi
 
@@ -196,7 +196,7 @@ function _start() {
 function _start_background() {
   __print_info "Starting $self in the background"
 
-  if [[ "$instance_use_upnp" -eq 1 ]]; then
+  if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _enable_upnp
   fi
 
@@ -312,7 +312,7 @@ function _stop_server() {
   [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
   [[ -f "$TAIL_PID_FILE" ]] && rm -f "$TAIL_PID_FILE"
 
-  if [[ "$instance_use_upnp" -eq 1 ]]; then
+  if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _disable_upnp
   fi
 

@@ -124,12 +124,12 @@ function __create_native_instance_config() {
   export tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
 
   # UPnP port configuration if applicable
-  export instance_use_upnp="${config_enable_port_forwarding:-0}"
+  export instance_enable_port_forwarding="${config_enable_port_forwarding:-false}"
   local instance_upnp_ports=()
   if [[ -n "${blueprint_ports:-}" ]]; then
     if ! output=$(__parse_ufw_to_upnp_ports "$blueprint_ports") || ! read -ra instance_upnp_ports <<<"$output"; then
       __print_warning "Failed to generate 'instance_upnp_ports'. Disabling UPnP for instance $instance_name"
-      export instance_use_upnp=0
+      export instance_enable_port_forwarding="false"
     fi
   fi
 
@@ -151,7 +151,7 @@ function __create_native_instance_config() {
     echo "instance_save_command_timeout_seconds=\"${config_instance_save_command_timeout_seconds:-5}\""
     echo "instance_stop_command_timeout_seconds=\"${config_instance_stop_command_timeout_seconds:-30}\""
     echo "instance_compress_backups=\"${config_enable_backup_compression:-0}\""
-    echo "instance_use_upnp=\"${instance_use_upnp:-0}\""
+    echo "instance_enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
     echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
 
   } >>"$instance_config_file"
