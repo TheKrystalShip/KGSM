@@ -17,20 +17,33 @@ services:
     image: ghcr.io/thekrystalship/theforest:latest
 
     # Dynamic container name
-    container_name: "${instance_name}"
+    container_name: ${instance_name}
 
     # Use the host’s network stack directly
     network_mode: host
 
     # Ensure these ports are forwarded to allow external access
     ports:
-      - "8766:8766/udp"
-      - "27015:27015/udp"
-      - "27016:27016/udp"
+      - 8766:8766/udp
+      - 27015:27015/udp
+      - 27016:27016/udp
 
     volumes:
-      # Local directory : Container directory
-      - "${instance_working_dir:-.}:/opt/theforest"
+      - type: bind
+        source: ${instance_backups_dir}
+        target: /opt/theforest/backups
+      - type: bind
+        source: ${instance_install_dir}
+        target: /opt/theforest/install
+      - type: bind
+        source: ${instance_logs_dir}
+        target: /opt/theforest/logs
+      - type: bind
+        source: ${instance_saves_dir}
+        target: /opt/theforest/saves
+      - type: bind
+        source: ${instance_temp_dir}
+        target: /opt/theforest/temp
 
     environment:
       # Environment variables for Steam authentication

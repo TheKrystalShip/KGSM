@@ -16,19 +16,33 @@ services:
     image: ghcr.io/thekrystalship/abioticfactor:latest
 
     # Dynamic container name
-    container_name: "${instance_name}"
+    container_name: ${instance_name}
 
     # Use the host’s network stack directly
     network_mode: host
 
     # Ensure these ports are forwarded to allow external access
     ports:
-      - "7777:7777/udp"
-      - "27015:27015/udp"
-      - "27016:27016/udp"
+      - 7777:7777/udp
+      - 27015:27015/udp
+      - 27016:27016/udp
 
     volumes:
-      - "${instance_working_dir:-.}:/opt/abioticfactor"
+      - type: bind
+        source: ${instance_backups_dir}
+        target: /opt/abioticfactor/backups
+      - type: bind
+        source: ${instance_install_dir}
+        target: /opt/abioticfactor/install
+      - type: bind
+        source: ${instance_logs_dir}
+        target: /opt/abioticfactor/logs
+      - type: bind
+        source: ${instance_saves_dir}
+        target: /opt/abioticfactor/saves
+      - type: bind
+        source: ${instance_temp_dir}
+        target: /opt/abioticfactor/temp
 
     environment:
       STEAM_USERNAME: "${STEAM_USERNAME}"

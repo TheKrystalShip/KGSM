@@ -17,27 +17,37 @@ services:
     image: ghcr.io/thekrystalship/vrising:latest
 
     # Dynamic container name
-    container_name: "${instance_name}"
+    container_name: ${instance_name}
 
     # Use the host’s network stack directly.
     network_mode: host
 
     # Ensure these ports are forwarded to allow external access
     ports:
-      - "9876:9876/udp"
-      - "9877:9877/udp"
-      - "27015:27015/udp"
-      - "27016:27016/udp"
+      - 9876:9876/udp
+      - 9877:9877/udp
+      - 27015:27015/udp
+      - 27016:27016/udp
 
     volumes:
-      # Local directory : Container directory
-      - "${instance_working_dir:-.}:/opt/vrising"
+      - type: bind
+        source: ${instance_backups_dir}
+        target: /opt/vrising/backups
+      - type: bind
+        source: ${instance_install_dir}
+        target: /opt/vrising/install
+      - type: bind
+        source: ${instance_logs_dir}
+        target: /opt/vrising/logs
+      - type: bind
+        source: ${instance_saves_dir}
+        target: /opt/vrising/saves
+      - type: bind
+        source: ${instance_temp_dir}
+        target: /opt/vrising/temp
 
-    environment:
-      # Environment variables for Steam authentication
-      STEAM_USERNAME: "${STEAM_USERNAME}"
-      STEAM_PASSWORD: "${STEAM_PASSWORD}"
+      # Environment variables passed onto the container
+      # https://vrising.fandom.com/wiki/V_Rising_Dedicated_Server
 
     # Restart policy to keep the container running
     restart: unless-stopped
-

@@ -16,22 +16,36 @@ services:
     image: ghcr.io/thekrystalship/empyrion:latest
 
     # Dynamic container name
-    container_name: "${instance_name}"
+    container_name: ${instance_name}
 
     # Use the host’s network stack directly
     network_mode: host
 
     # Ensure these ports are forwarded to allow external access
     ports:
-      - "30000:30000/udp"
-      - "30001:30001/udp"
-      - "30002:30002/udp"
-      - "30003:30003/udp"
-      - "27015:27015/udp"
-      - "27016:27016/udp"
+      - 30000:30000/udp
+      - 30001:30001/udp
+      - 30002:30002/udp
+      - 30003:30003/udp
+      - 27015:27015/udp
+      - 27016:27016/udp
 
     volumes:
-      - "${instance_working_dir:-.}:/opt/empyrion"
+      - type: bind
+        source: ${instance_backups_dir}
+        target: /opt/empyrion/backups
+      - type: bind
+        source: ${instance_install_dir}
+        target: /opt/empyrion/install
+      - type: bind
+        source: ${instance_logs_dir}
+        target: /opt/empyrion/logs
+      - type: bind
+        source: ${instance_saves_dir}
+        target: /opt/empyrion/saves
+      - type: bind
+        source: ${instance_temp_dir}
+        target: /opt/empyrion/temp
 
     environment:
       STEAM_USERNAME: "${STEAM_USERNAME}"
