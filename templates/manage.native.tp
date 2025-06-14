@@ -171,7 +171,7 @@ function _disable_upnp() {
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${instance_enable_port_forwarding:-0}" == "true" ]] && _disable_upnp' INT TERM
+trap '[[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp' INT TERM
 
 # Start the server in the current terminal
 function _start() {
