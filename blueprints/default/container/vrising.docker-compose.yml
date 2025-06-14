@@ -48,7 +48,6 @@ services:
         target: /opt/vrising/temp
 
     # Environment variables passed onto the container
-    # https://vrising.fandom.com/wiki/V_Rising_Dedicated_Server
     environment:
       STEAMCMD_ADDITIONAL_ARGS: ""
 
