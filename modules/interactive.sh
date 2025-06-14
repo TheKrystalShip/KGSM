@@ -19,27 +19,26 @@ if [[ $@ =~ "--debug" ]]; then
   done
 fi
 
+SELF_PATH="$(dirname "$(readlink -f "$0")")"
+
 # Absolute path to this script file
-if [[ -z "$KGSM_ROOT" ]]; then
-  KGSM_ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
+if [ -z "$KGSM_ROOT" ]; then
+  while [[ "$SELF_PATH" != "/" ]]; do
+    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
+    SELF_PATH="$(dirname "$SELF_PATH")"
+  done
+  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
   export KGSM_ROOT
 fi
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
-  if [[ -z "$module_common" ]]; then
-    echo "${0##*/} ERROR: Could not find module common.sh" >&2
-    echo "${0##*/} ERROR: Install compromised, please reinstall KGSM" >&2
-    exit 1
-  fi
-
+  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
 fi
 
-module_blueprints=$(__find_module blueprints.sh)
-module_instance=$(__find_module instances.sh)
-module_lifecycle=$(__find_module lifecycle.sh)
+export kgsm="$KGSM_ROOT/kgsm.sh"
 
 function usage() {
   local UNDERLINE="\e[4m"
@@ -205,14 +204,14 @@ KGSM - Interactive menu
   --create)
     # shellcheck disable=SC2178
     # shellcheck disable=SC2207
-    blueprints_or_instances=($("$module_blueprints" --list | tr '\n' ' '))
+    blueprints_or_instances=($("$kgsm" --blueprints $debug | tr '\n' ' '))
     PS3="Choose a blueprint: "
     ;;
   --blueprints)
-    exec "$KGSM_ROOT/kgsm.sh" --blueprints $debug
+    exec "$kgsm" --blueprints $debug
     ;;
   --instances)
-    exec "$KGSM_ROOT/kgsm.sh" --instances $debug
+    exec "$kgsm" --instances $debug
     ;;
   --help)
     print_interactive_help
@@ -221,13 +220,13 @@ KGSM - Interactive menu
   --status)
     # shellcheck disable=SC2207
     # shellcheck disable=SC2178
-    blueprints_or_instances=($("$module_instance" --list))
+    blueprints_or_instances=($("$kgsm" --instances $debug))
     ;;
   *)
     # shellcheck disable=SC2207
     # shellcheck disable=SC2178
-    blueprints_or_instances=($("$module_instance" --list))
-    "$module_instance" --list --detailed $debug
+    blueprints_or_instances=($("$kgsm" --instances $debug))
+    "$kgsm" --instances --detailed $debug
     ;;
   esac
 
@@ -264,7 +263,7 @@ KGSM - Interactive menu
 
     echo "Creating an instance of $blueprint_or_instance..." >&2
     # shellcheck disable=SC2086
-    "$KGSM_ROOT/kgsm.sh" \
+    "$kgsm" \
       $action $blueprint_or_instance \
       --install-dir $install_directory \
       ${version:+--version "$version"} \
@@ -272,7 +271,7 @@ KGSM - Interactive menu
       $debug
     ;;
   --uninstall)
-    "$KGSM_ROOT/kgsm.sh" --uninstall "$blueprint_or_instance" $debug
+    "$kgsm" --uninstall "$blueprint_or_instance" $debug
     ;;
   --restore-backup)
     local instance_config_file
@@ -300,7 +299,7 @@ KGSM - Interactive menu
       fi
     done
     # shellcheck disable=SC2086
-    "$KGSM_ROOT/kgsm.sh" --instance $blueprint_or_instance $action $backup_to_restore $debug
+    "$kgsm" --instance $blueprint_or_instance $action $backup_to_restore $debug
     ;;
   --modify)
     declare -a modify_options=()
@@ -354,11 +353,11 @@ KGSM - Interactive menu
     done
 
     # shellcheck disable=SC2086
-    "$KGSM_ROOT/kgsm.sh" --instance "$blueprint_or_instance" --modify $mod_action $debug
+    "$kgsm" --instance "$blueprint_or_instance" --modify $mod_action $debug
     ;;
   *)
     # shellcheck disable=SC2086
-    "$KGSM_ROOT/kgsm.sh" --instance $blueprint_or_instance $action $debug
+    "$kgsm" --instance $blueprint_or_instance $action $debug
     ;;
   esac
 }
@@ -372,10 +371,6 @@ while [[ "$#" -gt 0 ]]; do
   -i | --interactive)
     start_interactive
     exit $?
-    ;;
-  --description)
-    __get_description
-    exit 0
     ;;
   *)
     __print_error "Invalid argument $1"
