@@ -13,6 +13,7 @@
 services:
   empyrion:
 
+    # Official KGSM Empyrion Docker image
     image: ghcr.io/thekrystalship/empyrion:latest
 
     # Dynamic container name
@@ -30,6 +31,7 @@ services:
       - 27015:27015/udp
       - 27016:27016/udp
 
+    # Bind mount volumes for persistent storage
     volumes:
       - type: bind
         source: ${instance_backups_dir}
@@ -47,5 +49,9 @@ services:
         source: ${instance_temp_dir}
         target: /opt/empyrion/temp
 
-    restart: unless-stopped
+    # Environment variables for the game server
+    environment:
+      STEAMCMD_ADDITIONAL_ARGS: ""
 
+    # Restart policy to ensure the container restarts automatically
+    restart: unless-stopped

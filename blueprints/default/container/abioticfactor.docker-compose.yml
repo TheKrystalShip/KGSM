@@ -13,6 +13,7 @@
 services:
   abioticfactor:
 
+    # Official KGSM Abiotic Factor Docker image
     image: ghcr.io/thekrystalship/abioticfactor:latest
 
     # Dynamic container name
@@ -27,6 +28,7 @@ services:
       - 27015:27015/udp
       - 27016:27016/udp
 
+    # Bind mount volumes for persistent storage
     volumes:
       - type: bind
         source: ${instance_backups_dir}
@@ -44,9 +46,16 @@ services:
         source: ${instance_temp_dir}
         target: /opt/abioticfactor/temp
 
+    # Environment variables for the game server
     environment:
-      STEAM_USERNAME: "${STEAM_USERNAME}"
-      STEAM_PASSWORD: "${STEAM_PASSWORD}"
+      STEAMCMD_ADDITIONAL_ARGS: ""
+      MAX_SERVER_PLAYERS: 8
+      PORT: 7777
+      QUERY_PORT: 27015
+      SERVER_PASSWORD: change_me
+      STEAM_SERVER_NAME: KGSM
+      WORLD_SAVE_NAME: Cascade
+      ADDITIONAL_LAUNCH_ARGS: ""
 
+    # Restart policy to ensure the container restarts automatically
     restart: unless-stopped
-

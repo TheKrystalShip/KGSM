@@ -13,7 +13,7 @@
 services:
   vrising:
 
-    # Docker image for V Rising server
+    # Official KGSM V Rising Docker image
     image: ghcr.io/thekrystalship/vrising:latest
 
     # Dynamic container name
@@ -29,6 +29,7 @@ services:
       - 27015:27015/udp
       - 27016:27016/udp
 
+    # Bind mount volumes for persistent storage
     volumes:
       - type: bind
         source: ${instance_backups_dir}
@@ -46,8 +47,10 @@ services:
         source: ${instance_temp_dir}
         target: /opt/vrising/temp
 
-      # Environment variables passed onto the container
-      # https://vrising.fandom.com/wiki/V_Rising_Dedicated_Server
+    # Environment variables passed onto the container
+    # https://vrising.fandom.com/wiki/V_Rising_Dedicated_Server
+    environment:
+      STEAMCMD_ADDITIONAL_ARGS: ""
 
     # Restart policy to keep the container running
     restart: unless-stopped
