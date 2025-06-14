@@ -85,7 +85,7 @@ ${BOLD}${UNDERLINE}General Options:${END}
   --check-update              Check if a newer version of KGSM is available
   --update                    Update KGSM to the latest version
     [--force]                 Skip version verification and force download of latest version
-  --update-config             Update config.ini with any new options from config.default.ini
+  --migrate                   Migrate existing game server instances to the latest KGSM version
   --ip                        Display this server's external IP address
   --config                    Modify the KGSM configuration file
 
@@ -192,8 +192,9 @@ done
 module_blueprints=$(__find_module blueprints.sh)
 module_directories=$(__find_module directories.sh)
 module_files=$(__find_module files.sh)
-module_instance=$(__find_module instances.sh)
+module_instances=$(__find_module instances.sh)
 module_lifecycle=$(__find_module lifecycle.sh)
+module_migrator=$(__find_module migrator.sh)
 # module_interactive is already loaded earlier
 
 function _install() {
@@ -211,10 +212,10 @@ function _install() {
 
   # The user can pass an instance identifier instead of having KGSM generate
   # one, for ease of use or easy identification. However it's not mandatory,
-  # if the user doen't pass one, the $module_instance will generate one
+  # if the user doen't pass one, the $module_instances will generate one
   # and use it without any issues.
   instance="$(
-    "$module_instance" \
+    "$module_instances" \
       --create "$blueprint" \
       --install-dir "$install_dir" \
       ${identifier:+--name $identifier} \
@@ -273,7 +274,7 @@ function _uninstall() {
 
   "$module_directories" -i "$instance" --remove $debug || return $?
   "$module_files" -i "$instance" --remove $debug || return $?
-  "$module_instance" --remove "$instance" $debug || return $?
+  "$module_instances" --remove "$instance" $debug || return $?
 
   __emit_instance_uninstall_finished "${instance%.ini}"
 
@@ -285,7 +286,6 @@ function _uninstall() {
 }
 
 # Interactive mode function moved to modules/interactive.sh
-
 # If it's started with no args, default to interactive mode
 if [[ "$#" -eq 0 ]]; then
   "$module_interactive" -i $debug
@@ -404,7 +404,7 @@ function process_blueprints() {
 function process_instances() {
   shift
   if [[ -z "$1" ]]; then
-    "$module_instance" --list $debug
+    "$module_instances" --list $debug
     exit $?
   fi
 
@@ -423,7 +423,7 @@ function process_instances() {
     shift
   done
 
-  "$module_instance" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug
+  "$module_instances" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug
   exit $?
 }
 
@@ -449,10 +449,10 @@ function process_instance() {
     "$module_lifecycle" --logs "$instance" $follow $debug
     ;;
   --status)
-    "$module_instance" --status "$instance" $debug
+    "$module_instances" --status "$instance" $debug
     ;;
   --info)
-    "$module_instance" --info "$instance" ${json_format:+--json} $debug
+    "$module_instances" --info "$instance" ${json_format:+--json} $debug
     ;;
   --is-active)
     # Inactive instances return exit code 1.
@@ -479,7 +479,7 @@ function process_instance() {
   --input)
     shift
     require_arg "<command>" "$1"
-    "$module_instance" --input "$instance" "$1" $debug
+    "$module_instances" --input "$instance" "$1" $debug
     ;;
 
   # Version & Updates
@@ -603,8 +603,8 @@ while [[ "$#" -gt 0 ]]; do
     update_script "$@"
     exit $?
     ;;
-  --update-config)
-    __merge_user_config_with_default
+  --migrate)
+    "$module_migrator" --all $debug
     exit $?
     ;;
 
