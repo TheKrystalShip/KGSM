@@ -30,7 +30,7 @@ ${UNDERLINE}Usage:${END}
 
 ${UNDERLINE}Options:${END}
   -h, --help                  Display this help information
-  -i, --instance=INSTANCE     Specify the target instance name (without .ini extension)
+  -i, --instance INSTANCE     Specify the target instance name (without .ini extension)
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
@@ -39,22 +39,26 @@ ${UNDERLINE}Commands:${END}
                                 - systemd service/socket files (if applicable)
                                 - UFW firewall rules (if applicable)
                                 - symlink to the management file (if applicable)
+                                - UPnP configuration files (if applicable)
   ${UNDERLINE}Subcommands:${END}
     --manage                   Create instance.manage.sh
     --systemd                  Generate systemd service/socket files
     --ufw                      Generate and enable UFW firewall rule
     --symlink                  Create a symlink to the management file in the
                                PATH
+    --upnp                     Generate UPnP configuration files (if applicable)
 
   --remove                    Remove and disable:
                                 - systemd service/socket files
                                 - UFW firewall rules
                                 - symlink to the management file
+                                - UPnP configuration files (if applicable)
     --systemd                  Remove systemd service/socket files
     --ufw                      Remove UFW firewall rules
     --symlink                  Remove the symlink to the management file
+    --upnp                     Remove UPnP configuration files
 
-Examples:
+${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --create
   $(basename "$0") -i 7dtd-32 --remove --ufw
 "
@@ -181,6 +185,10 @@ while [ $# -gt 0 ]; do
       "$(__find_module files.symlink.sh)" --instance "$instance" --install
       exit $?
       ;;
+    --upnp)
+      "$(__find_module files.upnp.sh)" --instance "$instance" --install
+      exit $?
+      ;;
     *)
       __print_error "Invalid argument $1"
       exit $EC_INVALID_ARG
@@ -204,6 +212,10 @@ while [ $# -gt 0 ]; do
       ;;
     --symlink)
       "$(__find_module files.symlink.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    --upnp)
+      "$(__find_module files.upnp.sh)" --instance "$instance" --uninstall
       exit $?
       ;;
     *)

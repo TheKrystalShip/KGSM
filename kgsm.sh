@@ -80,7 +80,7 @@ ${UNDERLINE}Usage:${END}
 ${BOLD}${UNDERLINE}General Options:${END}
   -h, --help                  Display comprehensive help information
     [--interactive]           Show help specifically for interactive mode
-  -i, --interactive           Launch KGSM in user-friendly interactive menu mode
+  --interactive               Launch KGSM in user-friendly interactive menu mode
   -v, --version               Display the current KGSM version
   --check-update              Check if a newer version of KGSM is available
   --update                    Update KGSM to the latest version
@@ -170,7 +170,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     esac
     ;;
-  -i | --interactive)
+  --interactive)
     "$module_interactive" -i $debug
     exit $?
     ;;
@@ -331,25 +331,25 @@ function process_create_instance() {
   # Parse optional arguments
   while [[ $# -ne 0 ]]; do
     case "$1" in
-      --install-dir)
-        shift
-        require_arg "<install_dir>" "$1"
-        bp_install_dir="$1"
-        ;;
-      --version)
-        shift
-        require_arg "<version>" "$1"
-        bp_install_version=$1
-        ;;
-      --name)
-        shift
-        require_arg "<name>" "$1"
-        bp_id=$1
-        ;;
-      *)
-        __print_error "Invalid argument $1"
-        exit $EC_INVALID_ARG
-        ;;
+    --install-dir)
+      shift
+      require_arg "<install_dir>" "$1"
+      bp_install_dir="$1"
+      ;;
+    --version)
+      shift
+      require_arg "<version>" "$1"
+      bp_install_version=$1
+      ;;
+    --name)
+      shift
+      require_arg "<name>" "$1"
+      bp_id=$1
+      ;;
+    *)
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
+      ;;
     esac
     shift
   done
@@ -373,12 +373,12 @@ function process_blueprints() {
   # Parse optional flags
   while [[ $# -ne 0 ]]; do
     case "$1" in
-      --detailed) detailed=1 ;;
-      --json) json_format=1 ;;
-      *)
-        __print_error "Invalid argument $1"
-        exit $EC_INVALID_ARG
-        ;;
+    --detailed) detailed=1 ;;
+    --json) json_format=1 ;;
+    *)
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
+      ;;
     esac
     shift
   done
@@ -402,10 +402,10 @@ function process_instances() {
   # Parse optional flags and blueprint
   while [[ $# -ne 0 ]]; do
     case "$1" in
-      --detailed) detailed=1 ;;
-      --json) json_format=1 ;;
-      --list) ;; # Allowed but no action needed
-      *) blueprint=$1 ;;
+    --detailed) detailed=1 ;;
+    --json) json_format=1 ;;
+    --list) ;; # Allowed but no action needed
+    *) blueprint=$1 ;;
     esac
     shift
   done
@@ -426,125 +426,125 @@ function process_instance() {
   require_arg "[OPTION]" "$1"
 
   case "$1" in
-    # Information & Monitoring commands
-    --logs)
-      shift
-      local follow=""
-      if [[ "$1" == "-f" || "$1" == "--follow" ]]; then
-        follow="--follow"
-      fi
-      "$module_lifecycle" --logs "$instance" $follow $debug
-      ;;
-    --status)
-      "$module_instance" --status "$instance" $debug
-      ;;
-    --info)
-      "$module_instance" --info "$instance" ${json_format:+--json} $debug
-      ;;
-    --is-active)
-      # Inactive instances return exit code 1.
-      __disable_error_checking
-      "$module_lifecycle" --is-active "$instance" $debug
-      ;;
-    --backups)
-      "$instance_management_file" --list-backups $debug
-      ;;
+  # Information & Monitoring commands
+  --logs)
+    shift
+    local follow=""
+    if [[ "$1" == "-f" || "$1" == "--follow" ]]; then
+      follow="--follow"
+    fi
+    "$module_lifecycle" --logs "$instance" $follow $debug
+    ;;
+  --status)
+    "$module_instance" --status "$instance" $debug
+    ;;
+  --info)
+    "$module_instance" --info "$instance" ${json_format:+--json} $debug
+    ;;
+  --is-active)
+    # Inactive instances return exit code 1.
+    __disable_error_checking
+    "$module_lifecycle" --is-active "$instance" $debug
+    ;;
+  --backups)
+    "$instance_management_file" --list-backups $debug
+    ;;
 
-    # Server Control commands
-    --start)
-      "$module_lifecycle" --start "$instance" $debug
-      ;;
-    --stop)
-      "$module_lifecycle" --stop "$instance" $debug
-      ;;
-    --restart)
-      "$module_lifecycle" --restart "$instance" $debug
-      ;;
-    --save)
-      "$instance_management_file" --save $debug
-      ;;
-    --input)
-      shift
-      require_arg "<command>" "$1"
-      "$module_instance" --input "$instance" "$1" $debug
-      ;;
+  # Server Control commands
+  --start)
+    "$module_lifecycle" --start "$instance" $debug
+    ;;
+  --stop)
+    "$module_lifecycle" --stop "$instance" $debug
+    ;;
+  --restart)
+    "$module_lifecycle" --restart "$instance" $debug
+    ;;
+  --save)
+    "$instance_management_file" --save $debug
+    ;;
+  --input)
+    shift
+    require_arg "<command>" "$1"
+    "$module_instance" --input "$instance" "$1" $debug
+    ;;
 
-    # Version & Updates
-    -v | --version)
-      shift
-      if [[ -z "$1" ]]; then
+  # Version & Updates
+  -v | --version)
+    shift
+    if [[ -z "$1" ]]; then
+      "$instance_management_file" --version --installed $debug
+    else
+      case "$1" in
+      --installed)
         "$instance_management_file" --version --installed $debug
-      else
-        case "$1" in
-          --installed)
-            "$instance_management_file" --version --installed $debug
-            ;;
-          --latest)
-            "$instance_management_file" --version --latest $debug
-            ;;
-          *)
-            __print_error "Invalid argument $1"
-            exit $EC_INVALID_ARG
-            ;;
-        esac
-      fi
-      ;;
-    --check-update)
-      "$instance_management_file" --version --compare $debug
-      ;;
-    --update)
-      "$instance_management_file" --update $debug
-      ;;
-    --create-backup)
-      "$instance_management_file" --create-backup $debug
-      ;;
-    --restore-backup)
-      shift
-      require_arg "<backup>" "$1"
-      "$instance_management_file" --restore-backup "$1" $debug
-      ;;
+        ;;
+      --latest)
+        "$instance_management_file" --version --latest $debug
+        ;;
+      *)
+        __print_error "Invalid argument $1"
+        exit $EC_INVALID_ARG
+        ;;
+      esac
+    fi
+    ;;
+  --check-update)
+    "$instance_management_file" --version --compare $debug
+    ;;
+  --update)
+    "$instance_management_file" --update $debug
+    ;;
+  --create-backup)
+    "$instance_management_file" --create-backup $debug
+    ;;
+  --restore-backup)
+    shift
+    require_arg "<backup>" "$1"
+    "$instance_management_file" --restore-backup "$1" $debug
+    ;;
 
-    # Modification options
-    --modify)
+  # Modification options
+  --modify)
+    shift
+    require_arg "<option>" "$1"
+    case "$1" in
+    --add)
       shift
       require_arg "<option>" "$1"
       case "$1" in
-        --add)
-          shift
-          require_arg "<option>" "$1"
-          case "$1" in
-            ufw | systemd | symlink)
-              "$module_files" -i "$instance" --create --"$1" $debug
-              ;;
-            *)
-              __print_error "Invalid argument $1"
-              exit $EC_INVALID_ARG
-              ;;
-          esac
-          ;;
-        --remove)
-          shift
-          require_arg "<option>" "$1"
-          case "$1" in
-            ufw | systemd | symlink)
-              "$module_files" -i "$instance" --remove --"$1" $debug
-              ;;
-            *)
-              __print_error "Invalid argument $1"
-              exit $EC_INVALID_ARG
-              ;;
-          esac
-          ;;
-        *)
-          __print_error "Invalid argument $1"
-          exit $EC_INVALID_ARG
-          ;;
+      ufw | systemd | symlink | upnp)
+        "$module_files" -i "$instance" --create --"$1" $debug
+        ;;
+      *)
+        __print_error "Invalid argument $1"
+        exit $EC_INVALID_ARG
+        ;;
+      esac
+      ;;
+    --remove)
+      shift
+      require_arg "<option>" "$1"
+      case "$1" in
+      ufw | systemd | symlink | upnp)
+        "$module_files" -i "$instance" --remove --"$1" $debug
+        ;;
+      *)
+        __print_error "Invalid argument $1"
+        exit $EC_INVALID_ARG
+        ;;
       esac
       ;;
     *)
       __print_error "Invalid argument $1"
       exit $EC_INVALID_ARG
       ;;
+    esac
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   exit $?
 }
@@ -552,71 +552,71 @@ function process_instance() {
 # Main argument processing loop
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    # Blueprint management
-    --create-blueprint)
-      process_create_blueprint "$@"
-      ;;
-    --create)
-      process_create_instance "$@"
-      ;;
-    --uninstall)
-      shift
-      require_arg "<instance>" "$1"
-      _uninstall "$1"
-      exit $?
-      ;;
-    --blueprints)
-      process_blueprints "$@"
-      ;;
+  # Blueprint management
+  --create-blueprint)
+    process_create_blueprint "$@"
+    ;;
+  --create)
+    process_create_instance "$@"
+    ;;
+  --uninstall)
+    shift
+    require_arg "<instance>" "$1"
+    _uninstall "$1"
+    exit $?
+    ;;
+  --blueprints)
+    process_blueprints "$@"
+    ;;
 
-    # General options
-    --ip)
-      if command -v wget >/dev/null 2>&1; then
-        wget -qO- https://icanhazip.com
-      else
-        __print_error "wget is required but not installed"
-        exit $EC_MISSING_DEPENDENCY
-      fi
-      exit $?
-      ;;
-    --config)
-      ${EDITOR:-vim} "$CONFIG_FILE" || {
-        __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
-        exit $EC_GENERAL
-      }
-      exit 0
-      ;;
-    --update)
-      update_script "$@"
-      exit $?
-      ;;
-    --update-config)
-      __merge_user_config_with_default
-      exit $?
-      ;;
+  # General options
+  --ip)
+    if command -v wget >/dev/null 2>&1; then
+      wget -qO- https://icanhazip.com
+    else
+      __print_error "wget is required but not installed"
+      exit $EC_MISSING_DEPENDENCY
+    fi
+    exit $?
+    ;;
+  --config)
+    ${EDITOR:-vim} "$CONFIG_FILE" || {
+      __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
+      exit $EC_GENERAL
+    }
+    exit 0
+    ;;
+  --update)
+    update_script "$@"
+    exit $?
+    ;;
+  --update-config)
+    __merge_user_config_with_default
+    exit $?
+    ;;
 
-    # Instance commands
-    --instances)
-      process_instances "$@"
-      ;;
-    -i | --instance)
-      process_instance "$@"
-      ;;
+  # Instance commands
+  --instances)
+    process_instances "$@"
+    ;;
+  -i | --instance)
+    process_instance "$@"
+    ;;
 
-    # Version information
-    -v | --version)
-      echo "KGSM, version $(get_version)
+  # Version information
+  -v | --version)
+    echo "KGSM, version $(get_version)
 Copyright (C) 2024 TheKrystalShip
 License GPL-3.0: GNU GPL version 3 <https://www.gnu.org/licenses/gpl-3.0.en.html>
 
 This is free software; you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law."
-      exit 0
-      ;;
-    *)
-      __print_error "Invalid argument $1"
-      exit $EC_INVALID_ARG
-      ;;
+    exit 0
+    ;;
+  *)
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
+    ;;
   esac
   shift
 done

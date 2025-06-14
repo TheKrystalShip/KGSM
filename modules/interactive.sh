@@ -305,12 +305,14 @@ KGSM - Interactive menu
   --modify)
     declare -a modify_options=()
     declare -A modify_arg_map=(
-      ["Add systemd"]="--add systemd"
-      ["Remove systemd"]="--remove systemd"
-      ["Add ufw"]="--add ufw"
-      ["Remove ufw"]="--remove ufw"
-      ["Add symlink"]="--add symlink"
+      ["Enable systemd"]="--add systemd"
+      ["Disable systemd"]="--remove systemd"
+      ["Enable ufw"]="--add ufw"
+      ["Disable ufw"]="--remove ufw"
+      ["Create symlink"]="--add symlink"
       ["Remove symlink"]="--remove symlink"
+      ["Enable UPnP"]="--add upnp"
+      ["Disable UPnP"]="--remove upnp"
     )
     local mod_action
 
@@ -318,21 +320,27 @@ KGSM - Interactive menu
     instance_config_file=$(__find_instance_config "$blueprint_or_instance")
 
     if grep -q "instance_systemd_service_file=" <"$instance_config_file"; then
-      modify_options+=("Remove systemd")
+      modify_options+=("Disable systemd")
     else
-      modify_options+=("Add systemd")
+      modify_options+=("Enable systemd")
     fi
 
     if grep -q "instance_ufw_file=" <"$instance_config_file"; then
-      modify_options+=("Remove ufw")
+      modify_options+=("Disable ufw")
     else
-      modify_options+=("Add ufw")
+      modify_options+=("Enable ufw")
     fi
 
     if grep -q "instance_command_shortcut_file=" <"$instance_config_file"; then
       modify_options+=("Remove symlink")
     else
-      modify_options+=("Add symlink")
+      modify_options+=("Create symlink")
+    fi
+
+    if grep -q "instance_enable_port_forwarding=\"true\"" <"$instance_config_file"; then
+      modify_options+=("Disable UPnP")
+    else
+      modify_options+=("Enable UPnP")
     fi
 
     select mod_arg in "${modify_options[@]}"; do
