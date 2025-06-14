@@ -115,6 +115,12 @@ __emit_event <event_name> <event_data_json>
 
 Each event type has its own specific emission function that constructs the appropriate JSON payload and passes it to `__emit_event`.
 
+### ⚠️ Important Note on Event Emission
+
+Events are **only** emitted when operations are performed through the `kgsm.sh` script. If you bypass `kgsm.sh` and use an instance management file directly (e.g., running `factorio.manage.sh` instead of using `kgsm.sh`), **no events will be emitted**. This is because the event emission functionality is built into the main `kgsm.sh` script and not into the individual instance management files.
+
+Always use the `kgsm.sh` script for operations if you need event broadcasting for external applications or automation.
+
 ## 🧩 Integration Guide
 
 ### Listening for Events
