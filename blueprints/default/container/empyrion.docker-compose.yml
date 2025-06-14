@@ -47,9 +47,5 @@ services:
         source: ${instance_temp_dir}
         target: /opt/empyrion/temp
 
-    environment:
-      STEAM_USERNAME: "${STEAM_USERNAME}"
-      STEAM_PASSWORD: "${STEAM_PASSWORD}"
-
     restart: unless-stopped
 
