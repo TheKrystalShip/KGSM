@@ -204,7 +204,8 @@ function _install() {
   # Optional identifier for the instance, if not provided, KGSM will generate one
   local identifier=${4:-}
 
-  __print_info "Installing $blueprint in $install_dir"
+  __print_info "Creating a new instance of $blueprint in $install_dir..."
+  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
 
   local instance
 
@@ -220,8 +221,6 @@ function _install() {
       $debug
   )"
 
-  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
-
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
 
@@ -236,14 +235,28 @@ function _install() {
     version=$("$instance_management_file" --version --latest $debug)
   fi
 
+  # The instance management file doesn't emit any events, so we need to
+  # emit them manually during this process
+
+  # Download the required files for the instance
+  __emit_instance_download_started "${instance%.ini}"
   "$instance_management_file" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
+  __emit_instance_download_finished "${instance%.ini}"
+  __emit_instance_downloaded "${instance%.ini}"
+
+  # Deploy the instance
+  __emit_instance_deploy_started "${instance%.ini}"
   "$instance_management_file" --deploy $debug || return $EC_FAILED_DEPLOY
+  __emit_instance_deploy_finished "${instance%.ini}"
+  __emit_instance_deployed "${instance%.ini}"
+
+  # Save the new version
   "$instance_management_file" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
+  __emit_instance_version_updated "${instance%.ini}" "0" "$version"
 
   __emit_instance_installation_finished "${instance%.ini}" "${blueprint}"
 
   __print_success "Instance $instance has been created in $install_dir"
-
   __emit_instance_installed "${instance%.ini}" "${blueprint}"
 
   return 0
