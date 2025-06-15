@@ -283,6 +283,9 @@ function _update() {
     (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" down)
   fi
 
+  # Call the management script with the --update flag inside the container
+  (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" run --rm --update)
+
   # Update version information
   echo "latest" >"$instance_version_file"
 
