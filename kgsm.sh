@@ -294,7 +294,7 @@ fi
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--json" ]]; then
-  json_format=1
+  export json_format=1
   for a; do
     shift
     case $a in
@@ -368,13 +368,11 @@ function process_blueprints() {
   fi
 
   local detailed=
-  local json_format=
 
   # Parse optional flags
   while [[ $# -ne 0 ]]; do
     case "$1" in
     --detailed) detailed=1 ;;
-    --json) json_format=1 ;;
     *)
       __print_error "Invalid argument $1"
       exit $EC_INVALID_ARG
@@ -396,16 +394,14 @@ function process_instances() {
   fi
 
   local detailed=
-  local json_format=
   local blueprint=
 
   # Parse optional flags and blueprint
   while [[ $# -ne 0 ]]; do
     case "$1" in
     --detailed) detailed=1 ;;
-    --json) json_format=1 ;;
     --list) ;; # Allowed but no action needed
-    *) blueprint=$1 ;;
+    *) blueprint=$1; break;;
     esac
     shift
   done
@@ -564,7 +560,6 @@ while [[ "$#" -gt 0 ]]; do
   --blueprints)
     process_blueprints "$@"
     ;;
-
   # General options
   --ip)
     if command -v wget >/dev/null 2>&1; then
@@ -613,6 +608,8 @@ There is NO WARRANTY, to the extent permitted by law."
     exit $EC_INVALID_ARG
     ;;
   esac
+  # Prevent infinite loops
+  shift
 done
 
 exit 0
