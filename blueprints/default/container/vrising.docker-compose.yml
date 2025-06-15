@@ -13,7 +13,7 @@
 services:
   vrising:
 
-    # Official KGSM V Rising Docker image
+    # Official image for V Rising
     image: ghcr.io/thekrystalship/vrising:latest
 
     # Dynamic container name
@@ -49,6 +49,7 @@ services:
 
     # Environment variables passed onto the container
     environment:
+      INSTANCE_AUTO_UPDATE: ${instance_auto_update}
       STEAMCMD_ADDITIONAL_ARGS: ""
 
     # Restart policy to keep the container running

@@ -181,6 +181,13 @@ function _start() {
     _enable_upnp
   fi
 
+  if [[ "$instance_auto_update" == "true" ]]; then
+    if ! _update; then
+      __print_error "Failed to update $self, exiting"
+      return 1
+    fi
+  fi
+
   cd "$instance_launch_dir" || {
     __print_error "Failed to move into $instance_launch_dir, exiting"
     return 1

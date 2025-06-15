@@ -13,7 +13,7 @@
 services:
   theforest:
 
-    # Docker image for The Forest server
+    # Official image for The Forest
     image: ghcr.io/thekrystalship/theforest:latest
 
     # Dynamic container name
@@ -48,6 +48,7 @@ services:
 
     # Environment variables passed to the container
     environment:
+      INSTANCE_AUTO_UPDATE: ${instance_auto_update}
       STEAMCMD_ADDITIONAL_ARGS: ""
 
     # Restart policy to keep the container running

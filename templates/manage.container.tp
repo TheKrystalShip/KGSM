@@ -154,7 +154,7 @@ function _disable_upnp() {
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${instance_enable_port_forwarding}" == "true" ]] && _disable_upnp' INT TERM
+trap '[[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp' INT TERM
 
 # Start the server in the current terminal
 function _start() {
@@ -162,6 +162,10 @@ function _start() {
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _enable_upnp
+  fi
+
+  if [[ "$instance_auto_update" == "true" ]]; then
+    _update
   fi
 
   # Use docker compose up to start the container with logs visible
@@ -400,12 +404,25 @@ function _download() {
 }
 
 function _deploy() {
+  # For Docker containers, deploying is a noop
+  # since the container is already defined in the docker-compose.yml file
   __print_info "Deploying Docker container..."
 
-  # Return success as per requirement
+  # Return success
   __print_success "Deploy complete"
   return 0
 }
+
+# Check if docker and docker-compose are installed
+if ! command -v docker &>/dev/null; then
+  __print_error "Docker is not installed. Please install Docker to use this script."
+  exit 1
+fi
+
+if ! command -v docker compose &>/dev/null; then
+  __print_error "Docker Compose is not installed. Please install Docker Compose to use this script."
+  exit 1
+fi
 
 # Main execution starts here - process command line arguments
 while [[ $# -gt 0 ]]; do

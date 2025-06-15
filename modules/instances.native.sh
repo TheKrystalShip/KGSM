@@ -137,8 +137,6 @@ function __create_native_instance_config() {
   {
     echo "instance_runtime=\"native\""
     echo "instance_ports=\"${blueprint_ports:-}\""
-    echo "instance_executable_file=\"${blueprint_executable_file:-}\""
-    echo "instance_executable_arguments=\"${blueprint_executable_arguments:-}\""
     echo "instance_socket_file=\"${instance_socket_file:-}\""
     echo "instance_stop_command=\"${blueprint_stop_command:-}\""
     echo "instance_save_command=\"${blueprint_save_command:-}\""
@@ -153,6 +151,9 @@ function __create_native_instance_config() {
     echo "instance_compress_backups=\"${config_enable_backup_compression:-0}\""
     echo "instance_enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
     echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
+    # These two are at the end because executable_argument can use the variables above
+    echo "instance_executable_file=\"${blueprint_executable_file:-}\""
+    echo "instance_executable_arguments=\"${blueprint_executable_arguments:-}\""
 
   } >>"$instance_config_file"
 

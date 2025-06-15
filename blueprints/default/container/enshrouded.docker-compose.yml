@@ -13,7 +13,7 @@
 services:
   enshrouded:
 
-    # Official KGSM Enshrouded docker image
+    # Official image for Enshrouded
     image: ghcr.io/thekrystalship/enshrouded:latest
 
     # Dynamic container name
@@ -47,9 +47,11 @@ services:
         source: ${instance_temp_dir}
         target: /opt/enshrouded/temp
 
+    # Environment variables passed to the container
     environment:
-      STEAM_USERNAME: "${STEAM_USERNAME}"
-      STEAM_PASSWORD: "${STEAM_PASSWORD}"
+      INSTANCE_AUTO_UPDATE: ${instance_auto_update}
+      STEAMCMD_ADDITIONAL_ARGS: ""
 
+    # Restart policy to keep the container running
     restart: unless-stopped
 

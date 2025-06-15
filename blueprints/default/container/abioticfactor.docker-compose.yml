@@ -48,6 +48,7 @@ services:
 
     # Environment variables for the game server
     environment:
+      INSTANCE_AUTO_UPDATE: ${instance_auto_update}
       STEAMCMD_ADDITIONAL_ARGS: ""
       MAX_SERVER_PLAYERS: 8
       PORT: 7777

@@ -51,6 +51,7 @@ services:
 
     # Environment variables for the game server
     environment:
+      INSTANCE_AUTO_UPDATE: ${instance_auto_update}
       STEAMCMD_ADDITIONAL_ARGS: ""
 
     # Restart policy to ensure the container restarts automatically

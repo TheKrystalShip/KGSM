@@ -219,6 +219,7 @@ function __create_base_instance() {
     echo "instance_version_file=\"$instance_version_file\""
     echo "instance_lifecycle_manager=\"$instance_lifecycle_manager\""
     echo "instance_management_file=\"$instance_manage_file\""
+    echo "instance_auto_update=\"${config_instance_auto_update_before_start:-false}\""
 
   } >>"$instance_config_file"
 
