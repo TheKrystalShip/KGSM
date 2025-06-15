@@ -106,16 +106,16 @@ function check_command() {
 
 function check_download_command() {
   # Try curl first, then wget as fallback
-  if check_command curl curl; then
-    DOWNLOAD_CMD="curl"
-    return 0
-  elif check_command wget wget; then
+  if check_command wget wget; then
     DOWNLOAD_CMD="wget"
+    return 0
+  elif check_command curl curl; then
+    DOWNLOAD_CMD="curl"
     return 0
   else
     echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Either 'curl' or 'wget' is required but neither is installed." >&2
     echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Please install one of them before proceeding." >&2
-    return 1
+    exit 1
   fi
 }
 
@@ -126,8 +126,6 @@ check_command tar tar || exit 1
 
 # Handle deprecated version file
 if [[ -f "${SELF_PATH}/${deprecated_version_file}" ]]; then
-  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_version_file' found"
-  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file has been moved to '$local_version_file'"
   if [[ -f "${SELF_PATH}/${local_version_file}" ]]; then
     rm -rf "${SELF_PATH:?}/${deprecated_version_file:?}"
   else
@@ -137,8 +135,6 @@ fi
 
 # Handle deprecated install file
 if [[ -f "${SELF_PATH}/${deprecated_install_file}" ]]; then
-  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Deprecated file '$deprecated_install_file' found"
-  # echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} This file is no longer used and is safe to delete"
   rm "$deprecated_install_file"
 fi
 
@@ -146,7 +142,7 @@ fi
 function get_current_version() {
   if [[ ! -f "${SELF_PATH}/${local_version_file}" ]]; then
     echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Version file is missing. Reinstallation is recommended." >&2
-    return 1
+    exit 1
   fi
 
   local version
@@ -156,7 +152,7 @@ function get_current_version() {
   if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Invalid version format in ${local_version_file}: $version" >&2
     echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Expected format: X.Y.Z (e.g., 1.7.3)" >&2
-    return 1
+    exit 1
   fi
 
   echo "$version"
@@ -168,13 +164,13 @@ function fetch_version_data() {
   local url=$1
   local data
 
-  if [[ "$DOWNLOAD_CMD" == "curl" ]]; then
-    data=$(curl -sSfL "$url") || {
+  if [[ "$DOWNLOAD_CMD" == "wget" ]]; then
+    data=$(wget -qO - "$url") || {
       echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to fetch data from $url." >&2
       return 1
     }
   else
-    data=$(wget -qO - "$url") || {
+    data=$(curl -sSfL "$url") || {
       echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to fetch data from $url." >&2
       return 1
     }
@@ -292,21 +288,7 @@ function download_kgsm() {
   [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Downloading version $version..."
 
   # Download using the detected command
-  if [[ "$DOWNLOAD_CMD" == "curl" ]]; then
-    if [[ $SILENT_MODE -eq 0 ]]; then
-      curl -SL --progress-bar "$download_url" -o "$tempdir/$tarball" || {
-        echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
-        rm -rf "$tempdir"
-        return 1
-      }
-    else
-      curl -sSL "$download_url" -o "$tempdir/$tarball" || {
-        echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
-        rm -rf "$tempdir"
-        return 1
-      }
-    fi
-  else
+  if [[ "$DOWNLOAD_CMD" == "wget" ]]; then
     if [[ $SILENT_MODE -eq 0 ]]; then
       wget --show-progress --progress=bar:force:noscroll -O "$tempdir/$tarball" "$download_url" || {
         echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
@@ -315,6 +297,20 @@ function download_kgsm() {
       }
     else
       wget -q -O "$tempdir/$tarball" "$download_url" || {
+        echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
+        rm -rf "$tempdir"
+        return 1
+      }
+    fi
+  else
+    if [[ $SILENT_MODE -eq 0 ]]; then
+      curl -SL --progress-bar "$download_url" -o "$tempdir/$tarball" || {
+        echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
+        rm -rf "$tempdir"
+        return 1
+      }
+    else
+      curl -sSL "$download_url" -o "$tempdir/$tarball" || {
         echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download $tarball." >&2
         rm -rf "$tempdir"
         return 1
@@ -734,7 +730,7 @@ function show_diagnostics() {
   # Check for required commands
   echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Required Commands:"
 
-  local commands=("wget" "curl" "jq" "tar" "chmod" "mkdir" "cp" "mv" "find")
+  local commands=("wget" "jq" "tar" "chmod" "mkdir" "cp" "mv" "find" "unzip" "grep" "sed")
   for cmd in "${commands[@]}"; do
     if command -v "$cmd" >/dev/null 2>&1; then
       local cmd_path
@@ -829,14 +825,14 @@ function repair_installation() {
   [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Downloading latest installer script..."
   local temp_installer="${SELF_PATH}/installer.sh.new"
 
-  if [[ $download_cmd == "curl" ]]; then
-    curl -sSfL "$installer_url" -o "$temp_installer" || {
+  if [[ $download_cmd == "wget" ]]; then
+    wget -q -O "$temp_installer" "$installer_url" || {
       echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download installer script." >&2
       echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Your backup is available at $backup_dir" >&2
       return 1
     }
   else
-    wget -q -O "$temp_installer" "$installer_url" || {
+    curl -sSfL "$installer_url" -o "$temp_installer" || {
       echo -e "${0##*/} ${COLOR_RED}ERROR${COLOR_END} Failed to download installer script." >&2
       echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Your backup is available at $backup_dir" >&2
       return 1
