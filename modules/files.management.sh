@@ -188,6 +188,7 @@ function _inject_management_overrides() {
   # Check for function definitions and replace defaults with overrides
   __print_info "Checking for overrides..."
 
+  # shellcheck disable=SC1090
   source "$(__find_module overrides.sh)" "$instance" || {
     __print_error "Failed to source module overrides.sh"
     return 1
@@ -200,7 +201,7 @@ function _inject_management_overrides() {
   local instance_overrides_file="${OVERRIDES_SOURCE_DIR}/${instance_bp_name}.overrides.sh"
   # Check if the overrides file exists
   if [[ ! -f "$instance_overrides_file" ]]; then
-    __print_info "No overrides file found for ${instance_bp_name}, skipping."
+    # Skip if no overrides file is found
     return 0
   fi
 
