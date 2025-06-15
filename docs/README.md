@@ -9,6 +9,7 @@ Read these sections in order to understand the core concepts of how KGSM operate
 1. [Blueprints 101](blueprints.md) - Configuration templates for game servers
 2. [Instances 101](instances.md) - Deployed game server environments
 3. [Overrides 101](overrides.md) - Custom function implementations for game servers
+4. [Templates 101](templates.md) - Standardized files for configuration and generation
 
 ## Workflows
 
