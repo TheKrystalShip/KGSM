@@ -64,7 +64,7 @@ if [[ "$#" -eq 0 ]]; then
 fi
 
 module_files=$(__find_module files.sh)
-module_instances=$(__load_module instances.sh)
+module_instances=$(__find_module instances.sh)
 
 # Function to migrate instance config file
 function _migrate_instance() {

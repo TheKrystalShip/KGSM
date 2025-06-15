@@ -590,7 +590,6 @@ while [[ "$#" -gt 0 ]]; do
     "$module_migrator" --all $debug
     exit $?
     ;;
-
   # Instance commands
   --instances)
     process_instances "$@"
