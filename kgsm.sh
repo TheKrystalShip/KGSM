@@ -90,7 +90,6 @@ ${BOLD}${UNDERLINE}General Options:${END}
   --config                    Modify the KGSM configuration file
 
 ${BOLD}${UNDERLINE}Blueprint Management:${END}
-  --create-blueprint          Create a new blueprint file for a game server type
     [-h, --help]              Display help information for the blueprint creation process
   --blueprints                Display a list of all available server blueprints
   --blueprints --detailed     Show detailed information about all available blueprints
@@ -233,6 +232,7 @@ function _install() {
   # shellcheck disable=SC1090
   source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
   if [[ "$version" == 0 ]]; then
+    # shellcheck disable=SC2154
     version=$("$instance_management_file" --version --latest $debug)
   fi
 
@@ -316,26 +316,13 @@ function require_arg() {
   fi
 }
 
-# Process blueprint creation
-function process_create_blueprint() {
-  shift
-  require_arg "<arguments>" "$1"
-
-  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    "$module_blueprints" --help $debug
-  else
-    # shellcheck disable=SC2068
-    "$module_blueprints" --create $@ $debug
-  fi
-  exit $?
-}
-
 # Process instance creation with options
 function process_create_instance() {
   shift
   require_arg "<blueprint>" "$1"
 
   local bp_to_install="$1"
+  # shellcheck disable=SC2154
   local bp_install_dir=$config_default_install_directory
   local bp_install_version=0
   local bp_id=
@@ -565,10 +552,6 @@ function process_instance() {
 # Main argument processing loop
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  # Blueprint management
-  --create-blueprint)
-    process_create_blueprint "$@"
-    ;;
   --create)
     process_create_instance "$@"
     ;;
@@ -631,7 +614,6 @@ There is NO WARRANTY, to the extent permitted by law."
     exit $EC_INVALID_ARG
     ;;
   esac
-  shift
 done
 
 exit 0

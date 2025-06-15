@@ -3,7 +3,6 @@
 function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
-  local BOLD="\e[1m"
 
   echo -e "${UNDERLINE}Blueprint Management for Krystal Game Server Manager${END}
 
@@ -25,16 +24,13 @@ ${UNDERLINE}Blueprint Listing & Information:${END}
   --find <blueprint>            Locate the absolute path to a blueprint file
 
 ${UNDERLINE}Blueprint Creation:${END}
-  --create                      Create a new custom blueprint
-    --name                      Specify the game name for the blueprint
-    --port                      Define the default server port
-    --launch-bin                Specify the executable binary name
-    --stop-command              Define the command to gracefully stop the server
+  Blueprints should be created manually by copying and modifying the template file:
+  $KGSM_ROOT/templates/blueprint.tp
 
 ${UNDERLINE}Examples:${END}
   $(basename "$0") --list
   $(basename "$0") --list --custom
-  $(basename "$0") --create --name terraria --port 7777 --launch-bin TerrariaServer.bin.x86_64 --stop-command \"exit\"
+  $(basename "$0") --list --default
 "
 }
 
@@ -75,138 +71,216 @@ if [[ "$#" -eq 0 ]]; then
   exit $EC_MISSING_ARG
 fi
 
-function __get_blueprint_list() {
-  for B in $(_list_custom_blueprints) $(_list_default_blueprints); do echo "$B"; done | sort -du
+function _combine_blueprint_results() {
+  local native_results
+  native_results=$("$(__find_module blueprints.native.sh)" "$@")
+  local native_exit=$?
+
+  local container_results
+  container_results=$("$(__find_module blueprints.container.sh)" "$@")
+  local container_exit=$?
+
+  # If both modules failed, return an error
+  if [[ $native_exit -ne 0 && $container_exit -ne 0 ]]; then
+    return $EC_NOT_FOUND
+  fi
+
+  # Output the combined results
+  if [[ -n "$native_results" ]]; then
+    echo "$native_results"
+  fi
+
+  if [[ -n "$container_results" ]]; then
+    echo "$container_results"
+  fi
+
+  return 0
+}
+
+function _list_blueprints() {
+  # Get blueprints from both native and container modules and combine them
+  local native_cmd_args="--list"
+  local container_cmd_args="--list"
+
+  # Pass the json flag if set
+  if [[ -n "$json_format" ]]; then
+    native_cmd_args="$native_cmd_args --json"
+    container_cmd_args="$container_cmd_args --json"
+  fi
+
+  local native_blueprints
+  native_blueprints=$("$(__find_module blueprints.native.sh)" $native_cmd_args)
+  local native_exit=$?
+
+  local container_blueprints
+  container_blueprints=$("$(__find_module blueprints.container.sh)" $container_cmd_args)
+  local container_exit=$?
+
+  # If JSON output is requested, combine the JSON objects
+  if [[ -n "$json_format" ]]; then
+    if [[ $native_exit -eq 0 && $container_exit -eq 0 && -n "$native_blueprints" && -n "$container_blueprints" ]]; then
+      # Merge both JSON arrays, remove empty strings, and ensure unique entries
+      jq -s 'add | map(select(length > 0)) | unique' <(echo "$native_blueprints") <(echo "$container_blueprints")
+      return 0
+    elif [[ $native_exit -eq 0 && -n "$native_blueprints" ]]; then
+      # Filter out empty strings from native blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$native_blueprints")
+      return 0
+    elif [[ $container_exit -eq 0 && -n "$container_blueprints" ]]; then
+      # Filter out empty strings from container blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$container_blueprints")
+      return 0
+    fi
+    # If we got here, no valid JSON was returned
+    echo "[]"
+    return 0
+  else
+    # For non-JSON, combine and sort unique blueprints
+    printf "%s\n%s\n" "$native_blueprints" "$container_blueprints" | grep -v '^$' | sort -u
+    return 0
+  fi
 }
 
 function _list_custom_blueprints() {
-  shopt -s extglob nullglob
+  # Get blueprints from both native and container modules and combine them
+  local native_cmd_args="--list --custom"
+  local container_cmd_args="--list --custom"
 
-  local -a custom_bps=("$BLUEPRINTS_CUSTOM_NATIVE_SOURCE_DIR"/*)
-  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_CUSTOM_NATIVE_SOURCE_DIR/"}")
+  # Pass the json flag if set
+  if [[ -n "$json_format" ]]; then
+    native_cmd_args="$native_cmd_args --json"
+    container_cmd_args="$container_cmd_args --json"
+  fi
 
-  custom_bps+=("$BLUEPRINTS_CUSTOM_CONTAINER_SOURCE_DIR"/*)
-  custom_bps=("${custom_bps[@]#"$BLUEPRINTS_CUSTOM_CONTAINER_SOURCE_DIR/"}")
+  local native_blueprints
+  native_blueprints=$("$(__find_module blueprints.native.sh)" $native_cmd_args)
+  local native_exit=$?
 
-  # Strip file extensions (.bp and .docker-compose.yml)
-  local -a stripped_bps=()
-  for bp in "${custom_bps[@]}"; do
-    local base_name
-    base_name="${bp%.bp}"
-    base_name="${base_name%.docker-compose.yml}"
-    stripped_bps+=("$base_name")
-  done
+  local container_blueprints
+  container_blueprints=$("$(__find_module blueprints.container.sh)" $container_cmd_args)
+  local container_exit=$?
 
-  if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${stripped_bps[@]}"
+  # If JSON output is requested, combine the JSON objects
+  if [[ -n "$json_format" ]]; then
+    if [[ $native_exit -eq 0 && $container_exit -eq 0 && -n "$native_blueprints" && -n "$container_blueprints" ]]; then
+      # Merge both JSON arrays, remove empty strings, and ensure unique entries
+      jq -s 'add | map(select(length > 0)) | unique' <(echo "$native_blueprints") <(echo "$container_blueprints")
+      return 0
+    elif [[ $native_exit -eq 0 && -n "$native_blueprints" ]]; then
+      # Filter out empty strings from native blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$native_blueprints")
+      return 0
+    elif [[ $container_exit -eq 0 && -n "$container_blueprints" ]]; then
+      # Filter out empty strings from container blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$container_blueprints")
+      return 0
+    fi
+    # If we got here, no valid JSON was returned
+    echo "[]"
+    return 0
   else
-    jq -n --argjson blueprints "$(printf '%s\n' "${stripped_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
+    # For non-JSON, combine and sort unique blueprints
+    printf "%s\n%s\n" "$native_blueprints" "$container_blueprints" | grep -v '^$' | sort -u
+    return 0
   fi
 }
 
 function _list_default_blueprints() {
-  shopt -s extglob nullglob
+  # Get blueprints from both native and container modules and combine them
+  local native_cmd_args="--list --default"
+  local container_cmd_args="--list --default"
 
-  local -a default_bps=("$BLUEPRINTS_DEFAULT_NATIVE_SOURCE_DIR"/*)
-  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_NATIVE_SOURCE_DIR/"}")
-
-  default_bps+=("$BLUEPRINTS_DEFAULT_CONTAINER_SOURCE_DIR"/*)
-  default_bps=("${default_bps[@]#"$BLUEPRINTS_DEFAULT_CONTAINER_SOURCE_DIR/"}")
-
-  # Strip file extensions (.bp and .docker-compose.yml)
-  local -a stripped_bps=()
-  for bp in "${default_bps[@]}"; do
-    local base_name
-    base_name="${bp%.bp}"
-    base_name="${base_name%.docker-compose.yml}"
-    stripped_bps+=("$base_name")
-  done
-
-  if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${stripped_bps[@]}"
-  else
-    jq -n --argjson blueprints "$(printf '%s\n' "${stripped_bps[@]}" | jq -R . | jq -s .)" '$blueprints'
+  # Pass the json flag if set
+  if [[ -n "$json_format" ]]; then
+    native_cmd_args="$native_cmd_args --json"
+    container_cmd_args="$container_cmd_args --json"
   fi
-}
 
-function _list_blueprints() {
-  local previous_json_format=$json_format
-  unset json_format
-  declare -a blueprint_list=($(__get_blueprint_list))
-  json_format=$previous_json_format
+  local native_blueprints
+  native_blueprints=$("$(__find_module blueprints.native.sh)" $native_cmd_args)
+  local native_exit=$?
 
-  if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${blueprint_list[@]}"
+  local container_blueprints
+  container_blueprints=$("$(__find_module blueprints.container.sh)" $container_cmd_args)
+  local container_exit=$?
+
+  # If JSON output is requested, combine the JSON objects
+  if [[ -n "$json_format" ]]; then
+    if [[ $native_exit -eq 0 && $container_exit -eq 0 && -n "$native_blueprints" && -n "$container_blueprints" ]]; then
+      # Merge both JSON arrays, remove empty strings, and ensure unique entries
+      jq -s 'add | map(select(length > 0)) | unique' <(echo "$native_blueprints") <(echo "$container_blueprints")
+      return 0
+    elif [[ $native_exit -eq 0 && -n "$native_blueprints" ]]; then
+      # Filter out empty strings from native blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$native_blueprints")
+      return 0
+    elif [[ $container_exit -eq 0 && -n "$container_blueprints" ]]; then
+      # Filter out empty strings from container blueprints
+      jq 'map(select(length > 0)) | unique' <(echo "$container_blueprints")
+      return 0
+    fi
+    # If we got here, no valid JSON was returned
+    echo "[]"
+    return 0
+  else
+    # For non-JSON, combine and sort unique blueprints
+    printf "%s\n%s\n" "$native_blueprints" "$container_blueprints" | grep -v '^$' | sort -u
     return 0
   fi
-
-  # Print contents as a JSON array of blueprint names
-  jq -n --argjson blueprints "$(printf '%s\n' "${blueprint_list[@]}" | jq -R . | jq -s .)" '$blueprints'
 }
 
 function _list_detailed_blueprints() {
-  local previous_json_format=$json_format
-  unset json_format
-  declare -a blueprint_list=($(__get_blueprint_list))
-  json_format=$previous_json_format
+  # For detailed listings, we need to handle JSON format separately
+  if [[ -n "$json_format" ]]; then
+    local native_json
+    native_json=$("$(__find_module blueprints.native.sh)" --list --detailed --json 2>/dev/null)
+    local native_exit=$?
 
-  if [[ -z "$json_format" ]]; then
-    printf "%s\n" "${blueprint_list[@]}"
-    return 0
+    local container_json
+    container_json=$("$(__find_module blueprints.container.sh)" --list --detailed --json 2>/dev/null)
+    local container_exit=$?
+
+    # Combine the JSON results (this assumes the outputs are valid JSON objects)
+    if [[ $native_exit -eq 0 && $container_exit -eq 0 && -n "$native_json" && -n "$container_json" ]]; then
+      # Merge both JSON objects
+      jq -s '.[0] * .[1]' <(echo "$native_json") <(echo "$container_json")
+    elif [[ $native_exit -eq 0 && -n "$native_json" ]]; then
+      echo "$native_json"
+    elif [[ $container_exit -eq 0 && -n "$container_json" ]]; then
+      echo "$container_json"
+    else
+      # Return empty object if no results
+      echo "{}"
+    fi
+  else
+    # If not JSON, just use the regular list function
+    _list_blueprints
   fi
-
-  # Build a JSON object with blueprint contents
-  jq -n --argjson blueprints \
-    "$(for blueprint in "${blueprint_list[@]}"; do
-      # Get the content of the blueprint as JSON
-      local content
-      content=$(_print_blueprint "$blueprint")
-      # Skip blueprints with invalid content
-      if [[ $? -ne 0 || -z "$content" ]]; then
-        continue
-      fi
-      jq -n --arg key "$blueprint" --argjson value "$content" '{"key": $key, "value": $value}'
-    done | jq -s 'from_entries')" '$blueprints'
 }
 
 function _print_blueprint() {
-  local blueprint=$1
+  local blueprint="$1"
 
-  local blueprint_path
-  blueprint_path=$(__find_blueprint "$blueprint")
+  # Try to get the blueprint from the native module
+  local blueprint_content
+  blueprint_content=$("$(__find_module blueprints.native.sh)" --info "$blueprint" 2>/dev/null)
+  local native_exit=$?
 
-  if [[ -z "$json_format" ]]; then
-    cat "$blueprint_path"
-    return $?
+  if [[ $native_exit -eq 0 && -n "$blueprint_content" ]]; then
+    echo "$blueprint_content"
+    return 0
   fi
 
-  __source_blueprint "$blueprint" || return $EC_FAILED_SOURCE
+  # If not found in native module, try the container module
+  blueprint_content=$("$(__find_module blueprints.container.sh)" --info "$blueprint" 2>/dev/null)
+  local container_exit=$?
 
-  # shellcheck disable=SC2154
-  # The $blueprint_* variables are created dynamically when sourcing the blueprint file
-  jq -n \
-    --arg name "$blueprint_name" \
-    --arg ports "$blueprint_ports" \
-    --arg steam_app_id "$blueprint_steam_app_id" \
-    --arg is_steam_account_required "$blueprint_is_steam_account_required" \
-    --arg executable_file "$blueprint_executable_file" \
-    --arg level_name "$blueprint_level_name" \
-    --arg executable_subdirectory "$blueprint_executable_subdirectory" \
-    --arg executable_arguments "$blueprint_executable_arguments" \
-    --arg stop_command "$blueprint_stop_command" \
-    --arg save_command "$blueprint_save_command" \
-    '{
-      Name: $name,
-      Ports: $ports,
-      SteamAppId: $steam_app_id,
-      IsSteamAccountRequired: $is_steam_account_required,
-      ExecutableFile: $executable_file,
-      LevelName: $level_name,
-      ExecutableSubdirectory: $executable_subdirectory,
-      ExecutableArguments: $executable_arguments,
-      StopCommand: $stop_command,
-      SaveCommand: $save_command
-    }'
+  if [[ $container_exit -eq 0 && -n "$blueprint_content" ]]; then
+    echo "$blueprint_content"
+    return 0
+  fi
+
+  return $EC_NOT_FOUND
 }
 
 # shellcheck disable=SC2199

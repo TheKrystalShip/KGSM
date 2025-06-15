@@ -63,11 +63,11 @@ steamcmd inotify-tools
 
 These packages enable additional features when configured:
 
-| Package | Purpose | Config Setting |
-|---------|---------|----------------|
-| `ufw` | Firewall management | `config_enable_firewall_management=true` |
-| `socat` | Event handling | `config_enable_event_broadcasting=true` |
-| `miniupnpc` | Port forwarding | `config_enable_port_forwarding=true` |
+| Package     | Purpose             | Config Setting                           |
+| ----------- | ------------------- | ---------------------------------------- |
+| `ufw`       | Firewall management | `config_enable_firewall_management=true` |
+| `socat`     | Event handling      | `config_enable_event_broadcasting=true`  |
+| `miniupnpc` | Port forwarding     | `config_enable_port_forwarding=true`     |
 
 > [!NOTE]
 > If [SteamCMD][1] isn't available through your distribution's package manager, you'll need to [install it manually](https://developer.valvesoftware.com/wiki/SteamCMD#Linux).
@@ -165,14 +165,9 @@ Contributions to KGSM are always welcome! Here are some ways you can help:
 
 The most valuable contributions are new game server blueprints. If you've successfully set up a game server that isn't currently supported by KGSM, consider sharing your work:
 
-1. Create a new blueprint file in `blueprints/custom/native/` or `blueprints/custom/container/`
-2. Test it thoroughly to ensure it works properly
+1. Create a new blueprint file in `blueprints/custom/native/` or `blueprints/custom/container/` either from an existing blueprint or from the template file: `templates/blueprint.tp`
+2. Test it thoroughly to ensure it works properly by running the full installation, lifecycle (start/stop/restart etc), uninstall
 3. Submit a pull request to have it included in the main project
-
-For guidance on creating blueprints, run:
-```sh
-./kgsm.sh --create-blueprint --help
-```
 
 ### Other Contributions
 

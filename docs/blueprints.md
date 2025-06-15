@@ -83,15 +83,7 @@ If KGSM doesn't have a blueprint for your desired game server, you have several 
 
 #### Using the Blueprint Creation Tool (Native Servers)
 
-KGSM provides a built-in tool to create new blueprints for native servers:
-
-```sh
-./kgsm.sh --create-blueprint --name <game-name> --port <port-number> --launch-bin <executable-name> [--stop-command <command>]
-```
-
-This will guide you through creating a new blueprint with the basic required parameters.
-
-#### Manual Blueprint Creation
+#### Blueprint Creation
 
 For more advanced configurations:
 
