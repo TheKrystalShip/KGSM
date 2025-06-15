@@ -64,15 +64,21 @@ function __print_error_code() {
   exit $code
 }
 
+export -f __print_error_code
+
 function __enable_error_checking() {
   set -o pipefail
   trap '__print_error_code $?; exit $?' ERR
 }
 
+export -f __enable_error_checking
+
 function __disable_error_checking() {
   set +o pipefail
   trap '' ERR
 }
+
+export -f __disable_error_checking
 
 __enable_error_checking
 
