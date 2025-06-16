@@ -205,7 +205,7 @@ function __create_base_instance() {
   local instance_lifecycle_manager="standalone"
 
   local instance_install_datetime
-  instance_install_datetime=$(date +"%Y-%m-%d %H:%M:%S")
+  instance_install_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
   local instance_manage_file="${instance_working_dir}/${instance_name}.manage.sh"
 
