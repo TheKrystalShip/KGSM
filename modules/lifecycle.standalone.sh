@@ -161,12 +161,14 @@ while [[ $# -gt 0 ]]; do
       exit $?
       ;;
     *)
-      __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
       ;;
     esac
     ;;
   *)
-    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
     ;;
   esac
   shift

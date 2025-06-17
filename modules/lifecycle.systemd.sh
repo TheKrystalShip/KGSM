@@ -129,45 +129,49 @@ function _get_logs() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --logs)
+  --logs | --is-active | --start | --stop | --restart)
+    command=$1
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    instance="$1"
-    shift
-    follow=""
-    if [[ "$1" == "--follow" ]]; then
-      follow="--follow"
-    fi
-    _get_logs "$instance" "$follow"
-    exit $?
-    ;;
-  --is-active)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    _is_instance_active "$1"
-    exit $?
-    ;;
-  --start)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    _start_instance "$1"
-    exit $?
-    ;;
-  --stop)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    _stop_instance "$1"
-    exit $?
-    ;;
-  --restart)
-    shift
-    [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    _restart_instance "$1"
-    exit $?
+    instance=$1
+    case "$command" in
+    --logs)
+      shift
+      follow=""
+      if [[ "$1" == "--follow" || "$1" == "-f" ]]; then
+        follow="--follow"
+        shift
+      fi
+      _get_logs "$instance" "$follow"
+      ;;
+    --is-active)
+      _is_instance_active "$instance"
+      exit $?
+      ;;
+    --start)
+      _start_instance "$instance"
+      exit $?
+      ;;
+    --stop)
+      _stop_instance "$instance"
+      exit $?
+      ;;
+    --restart)
+      _restart_instance "$instance"
+      exit $?
+      ;;
+    *)
+      __print_error "Invalid argument $1"
+      exit $EC_INVALID_ARG
+      ;;
+    esac
     ;;
   *)
-    __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
+    __print_error "Invalid argument $1"
+    exit $EC_INVALID_ARG
     ;;
   esac
   shift
 done
+
+exit $?
