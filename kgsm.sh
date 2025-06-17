@@ -205,7 +205,6 @@ function _install() {
   local identifier=${4:-}
 
   __print_info "Creating a new instance of $blueprint in $install_dir..."
-  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
 
   local instance
 
@@ -220,6 +219,9 @@ function _install() {
       ${identifier:+--name $identifier} \
       $debug
   )"
+
+  # Emit after the instance has been created, so we can use the identifier
+  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
 
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
@@ -401,7 +403,10 @@ function process_instances() {
     case "$1" in
     --detailed) detailed=1 ;;
     --list) ;; # Allowed but no action needed
-    *) blueprint=$1; break;;
+    *)
+      blueprint=$1
+      break
+      ;;
     esac
     shift
   done
