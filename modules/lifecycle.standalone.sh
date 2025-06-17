@@ -136,10 +136,11 @@ while [[ $# -gt 0 ]]; do
     instance=$1
     case "$command" in
     --logs)
+      shift
       follow=""
-      # shellcheck disable=SC2199
-      if [[ "$@" =~ "--follow" ]]; then
+      if [[ "$1" == "--follow" || "$1" == "-f" ]]; then
         follow="--follow"
+        shift
       fi
       _get_logs "$instance" "$follow"
       ;;
