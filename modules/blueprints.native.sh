@@ -187,6 +187,7 @@ function _print_native_blueprint() {
     '{
       Name: $name,
       Ports: $ports,
+      BlueprintType: "Native",
       SteamAppId: $steam_app_id,
       IsSteamAccountRequired: $is_steam_account_required,
       ExecutableFile: $executable_file,

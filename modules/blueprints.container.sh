@@ -169,12 +169,32 @@ function _print_container_blueprint() {
     return $?
   fi
 
-  # For container blueprints, parse the docker-compose.yml file
-  # This is just basic JSON output - you might want to enhance this based on your needs
-  local compose_content
-  compose_content=$(cat "$blueprint_path")
+  # For container blueprints, extract structured data from docker-compose.yml
+  local name ports
 
-  jq -n --arg content "$compose_content" '{content: $content}'
+  # Extract the blueprint name
+  name="$blueprint"
+
+  # Use the parser function to extract ports from docker-compose.yml
+  ports=$(__parse_docker_compose_to_ufw_ports "$blueprint_path")
+
+  # Return the same structure as native blueprints for consistency
+  jq -n \
+    --arg name "$name" \
+    --arg ports "$ports" \
+    '{
+      Name: $name,
+      Ports: $ports,
+      BlueprintType: "Container",
+      SteamAppId: "",
+      IsSteamAccountRequired: "",
+      ExecutableFile: "",
+      LevelName: "",
+      ExecutableSubdirectory: "",
+      ExecutableArguments: "",
+      StopCommand: "",
+      SaveCommand: ""
+    }'
 }
 
 function __find_container_blueprint() {
