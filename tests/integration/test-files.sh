@@ -53,8 +53,15 @@ log_info "Test: Generate instance files"
 assert_equals "$?" "0" "File creation should succeed"
 log_info "File creation completed"
 
+# Test 1.5: Verify instance configuration file is copied to working directory
+log_info "Test: Verify instance configuration file is copied to working directory"
+instance_config_file="${TEST_ENV_DIR}/instances/$blueprint_name/$instance_name.ini"
+instance_config_copy="${install_dir}/${instance_name}/${instance_name}.ini"
+assert_file_exists "$instance_config_copy" "Instance configuration file should be copied to working directory"
+log_info "Instance configuration file copy verified"
+
 # Test 2: Verify generated files
-instance_dir="$install_dir/$blueprint_name/$instance_name"
+instance_dir="$install_dir/$instance_name"
 manage_file="$instance_dir/$instance_name.manage.sh"
 assert_file_exists "$manage_file" "Management script should be created"
 assert_command_success "[[ -x \"$manage_file\" ]]" "Management script should be executable"

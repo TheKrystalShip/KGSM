@@ -136,6 +136,9 @@ function _create() {
 
 function _remove() {
 
+  # Use the files.management.sh module to remove management file and config copy
+  "$(__find_module files.management.sh)" --instance "$instance" --remove || return $?
+
   # When uninstalling files, we read the $instance_ variables from the instance config file.
   # This is necessary to determine if we need to remove systemd service files,
   # the firewall rules, or command shortcuts.

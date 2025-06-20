@@ -25,6 +25,7 @@ ${UNDERLINE}Options:${END}
 ${UNDERLINE}Commands:${END}
   --create                    Generate a management file for the specified instance
                               Creates necessary configuration files for proper server operation
+  --remove                    Remove the management file and the copied configuration file
 
 ${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --create
@@ -317,7 +318,51 @@ function _create_manage_file() {
     return $EC_PERMISSION
   fi
 
+  # Copy instance configuration file to instance working directory
+  local instance_config_filename
+  instance_config_filename=$(basename "$instance_config_file")
+  local instance_config_copy="${instance_working_dir}/${instance_config_filename}"
+
+  __print_info "Copying instance configuration to $instance_config_copy..."
+
+  if ! cp -f "$instance_config_file" "$instance_config_copy"; then
+    __print_error "Failed to copy instance configuration file to $instance_config_copy"
+    return $EC_FAILED_CP
+  fi
+
+  # Make sure the copied config file has the same ownership
+  if ! chown "$instance_user":"$instance_user" "$instance_config_copy"; then
+    __print_error "Failed to assign $instance_config_copy to user $instance_user"
+    return $EC_PERMISSION
+  fi
+
+  __print_success "Instance configuration copied to $instance_config_copy"
+
   __print_success "Management file created"
+
+  return 0
+}
+
+function _remove_manage_file() {
+  # Remove the management file
+  if [[ -f "$instance_management_file" ]]; then
+    if ! rm -f "$instance_management_file"; then
+      __print_error "Failed to remove management file: $instance_management_file"
+      return $EC_FAILED_RM
+    fi
+  fi
+
+  # Remove the copied configuration file
+  local instance_config_filename
+  instance_config_filename=$(basename "$instance_config_file")
+  local instance_config_copy="${instance_working_dir}/${instance_config_filename}"
+
+  if [[ -f "$instance_config_copy" ]]; then
+    if ! rm -f "$instance_config_copy"; then
+      __print_error "Failed to remove copied configuration file: $instance_config_copy"
+      return $EC_FAILED_RM
+    fi
+  fi
 
   return 0
 }
@@ -333,6 +378,10 @@ while [ $# -gt 0 ]; do
   case "$1" in
   --create)
     _create_manage_file
+    exit $?
+    ;;
+  --remove)
+    _remove_manage_file
     exit $?
     ;;
   *)
