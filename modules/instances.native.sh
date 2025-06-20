@@ -103,7 +103,7 @@ function __create_native_instance_config() {
 
     # Servers launching with global binaries
     case "$blueprint_executable_file" in
-    java | docker | wine)
+    java | docker | wine | wine64)
       # Don't change since they are global
       ;;
     *)
@@ -117,11 +117,6 @@ function __create_native_instance_config() {
   if [[ -n "${blueprint_executable_arguments:-}" ]]; then
     blueprint_executable_arguments="$(grep "executable_arguments=" <"$blueprint_abs_path" | cut -d "=" -f2- | tr -d '"')"
   fi
-
-  # shellcheck disable=SC2154
-  export instance_socket_file="${instance_working_dir}/.${instance_name}.stdin"
-  export instance_pid_file="${instance_working_dir}/.${instance_name}.pid"
-  export tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
 
   # UPnP port configuration if applicable
   export instance_enable_port_forwarding="${config_enable_port_forwarding:-false}"
@@ -137,11 +132,8 @@ function __create_native_instance_config() {
   {
     echo "instance_runtime=\"native\""
     echo "instance_ports=\"${blueprint_ports:-}\""
-    echo "instance_socket_file=\"${instance_socket_file:-}\""
     echo "instance_stop_command=\"${blueprint_stop_command:-}\""
     echo "instance_save_command=\"${blueprint_save_command:-}\""
-    echo "instance_pid_file=\"${instance_pid_file:-}\""
-    echo "instance_tail_pid_file=\"${tail_pid_file:-}\""
     echo "instance_platform=\"${blueprint_platform:-linux}\""
     echo "instance_level_name=\"${blueprint_level_name:-default}\""
     echo "instance_steam_app_id=\"${blueprint_steam_app_id:-0}\""

@@ -199,15 +199,19 @@ function __create_base_instance() {
   local blueprint_abs_path="$3"
   local install_dir="$4"
 
-  local instance_working_dir="${install_dir}/${instance_name}"
-  local instance_version_file="${instance_working_dir}/.${instance_name}.version"
+  export instance_working_dir="${install_dir}/${instance_name}"
+  export instance_version_file="${instance_working_dir}/.${instance_name}.version"
 
-  local instance_lifecycle_manager="standalone"
+  export instance_lifecycle_manager="standalone"
 
-  local instance_install_datetime
-  instance_install_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
+  export instance_install_datetime="$(date +"%Y-%m-%dT%H:%M:%S")"
 
-  local instance_manage_file="${instance_working_dir}/${instance_name}.manage.sh"
+  export instance_manage_file="${instance_working_dir}/${instance_name}.manage.sh"
+
+  export instance_pid_file="${instance_working_dir}/.${instance_name}.pid"
+  export tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
+
+  export instance_socket_file="${instance_working_dir}/.${instance_name}.stdin"
 
   # Write configuration to file with a single redirect
   # This avoids multiple file descriptor opens and is more efficient
@@ -220,6 +224,9 @@ function __create_base_instance() {
     echo "instance_lifecycle_manager=\"$instance_lifecycle_manager\""
     echo "instance_management_file=\"$instance_manage_file\""
     echo "instance_auto_update=\"${config_instance_auto_update_before_start:-false}\""
+    echo "instance_pid_file=\"${instance_pid_file:-}\""
+    echo "instance_tail_pid_file=\"${tail_pid_file:-}\""
+    echo "instance_socket_file=\"${instance_socket_file:-}\""
 
   } >>"$instance_config_file"
 
