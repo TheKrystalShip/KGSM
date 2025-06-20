@@ -151,10 +151,16 @@ function _disable_upnp() {
   __print_success "UPnP disabled"
 }
 
+# Cleanup function for SIGINT, SIGTERM, and EXIT
+function _term_cleanup() {
+  [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp
+  _exit_print_logs
+}
+
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp' INT TERM
+trap '_term_cleanup' INT TERM EXIT
 
 # Start the server in the current terminal
 function _start() {
@@ -198,15 +204,41 @@ function _send_save_command() {
 function _send_input() {
   local command=$1
   __print_info "Sending command: $command"
-  # This implementation would depend on how the specific game container accepts commands
-  # For most Docker containers, this might require docker exec to run a command inside the container
+
+  # Check if the container is running using the existing _is_active function
+  if ! _is_active &>/dev/null; then
+    __print_error "Container '$instance_name' is not running"
+    return 1
+  fi
+
+  # Get the management file path from the container's environment
+  local management_file
+  management_file=$(docker exec "$instance_name" bash -c 'echo $MANAGEMENT_FILE')
+
+  if [[ -z "$management_file" ]]; then
+    __print_error "Could not determine management script path in container. \$MANAGEMENT_FILE not set."
+    return 1
+  fi
+
+  # Call the container's internal management script with the --input flag
+  if ! docker exec -i "$instance_name" "$management_file" --input "$command"; then
+    __print_error "Failed to send command to container '$instance_name'"
+    return 1
+  fi
+
+  __print_success "Command sent to container"
   return 0
 }
 
 function _is_active() {
   # Check if the container is running using docker compose
   # Run in the working directory where docker-compose.yml is located
-  if (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" ps --services --filter "status=running" | grep -q .); then
+  cd "$instance_working_dir" || {
+    __print_error "Failed to change to working directory: $instance_working_dir"
+    return 1
+  }
+
+  if docker compose -f "$instance_compose_file" ps --services --filter "status=running" | grep -q .; then
     __print_info "Active"
     return 0
   fi
@@ -214,15 +246,6 @@ function _is_active() {
   __print_info "Inactive"
   return 1
 }
-
-# For closing the log reader background process
-tail_pid=
-# shellcheck disable=SC2317
-function _exit_print_logs() {
-  [[ -n "$tail_pid" ]] && kill "$tail_pid" &>/dev/null
-}
-
-trap '_exit_print_logs' TERM EXIT INT
 
 function _print_logs() {
   local follow=$1
