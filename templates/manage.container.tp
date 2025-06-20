@@ -23,8 +23,15 @@ if [[ $@ =~ "--debug" ]]; then
   done
 fi
 
-# === BEGIN INJECT CONFIG ===
-# === END INJECT CONFIG ===
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source the instance configuration file
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/$(basename "$SCRIPT_DIR").ini" || {
+  echo "ERROR: Failed to source instance configuration file"
+  exit 1
+}
 
 self=$(basename "$0")
 
