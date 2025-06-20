@@ -24,8 +24,11 @@ function setup_test_instance() {
 
 function cleanup_test_instance() {
   # Remove the test instance
-  ./modules/files.sh -i "$instance_name" --remove >/dev/null
+  ./modules/files.sh -i "$instance_name" --remove --manage >/dev/null
   assert_equals "$?" "0" "File removal should succeed"
+
+  ./modules/files.sh -i "$instance_name" --remove --config >/dev/null
+  assert_equals "$?" "0" "Configuration file removal should succeed"
 
   ./modules/directories.sh -i "$instance_name" --remove >/dev/null
   assert_equals "$?" "0" "Directory removal should succeed"
@@ -53,8 +56,10 @@ log_info "Test: Generate instance files"
 assert_equals "$?" "0" "File creation should succeed"
 log_info "File creation completed"
 
-# Test 1.5: Verify instance configuration file is copied to working directory
-log_info "Test: Verify instance configuration file is copied to working directory"
+# Test 1.5: Copy instance configuration file
+log_info "Test: Copy instance configuration file to working directory"
+./modules/files.sh -i "$instance_name" --create --config >/dev/null
+assert_equals "$?" "0" "Configuration file copy should succeed"
 instance_config_file="${TEST_ENV_DIR}/instances/$blueprint_name/$instance_name.ini"
 instance_config_copy="${install_dir}/${instance_name}/${instance_name}.ini"
 assert_file_exists "$instance_config_copy" "Instance configuration file should be copied to working directory"
@@ -69,9 +74,16 @@ log_info "Generated files verified"
 
 # Test 3: Remove Instance Files
 log_info "Test: Remove instance files"
-./modules/files.sh -i "$instance_name" --remove >/dev/null
+./modules/files.sh -i "$instance_name" --remove --manage >/dev/null
 assert_equals "$?" "0" "File removal should succeed"
 log_info "File removal completed"
+
+# Test 3.5: Remove Instance Configuration File
+log_info "Test: Remove instance configuration file"
+./modules/files.sh -i "$instance_name" --remove --config >/dev/null
+assert_equals "$?" "0" "Configuration file removal should succeed"
+assert_false "[[ -f \"$instance_config_copy\" ]]" "Instance configuration file should be removed"
+log_info "Configuration file removal verified"
 
 # Test 4: Verify files are removed
 assert_false "[[ -f \"$manage_file\" ]]" "Management script should be removed"

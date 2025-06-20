@@ -10,9 +10,9 @@ function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
 
-  echo -e "${UNDERLINE}Command Shortcut Management for Krystal Game Server Manager${END}
+  echo -e "${UNDERLINE}Instance Configuration Management for Krystal Game Server Manager${END}
 
-Creates and manages command shortcuts (symlinks) for easier access to game server instances.
+Manages instance configuration files for game server instances.
 
 ${UNDERLINE}Usage:${END}
   $(basename "$0") [OPTIONS] [COMMAND]
@@ -23,10 +23,8 @@ ${UNDERLINE}Options:${END}
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
-  --install                   Create a system-wide command shortcut for the instance
-                              Makes a symlink in your PATH for direct management access
-  --uninstall                 Remove the command shortcut for the instance
-                              Removes the previously created symlink
+  --install                   Copy the instance configuration file to the working directory
+  --uninstall                 Remove the instance configuration file from the working directory
 
 ${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --install
@@ -85,23 +83,50 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function _upnp_install() {
-  local key="instance_enable_port_forwarding"
-  __add_or_update_config "$instance_config_file" "$key" "true" || return $?
+function _config_install() {
+  # Copy instance configuration file to instance working directory with .config.ini suffix
+  local instance_name
+  instance_name=$(basename "$instance_config_file" .ini)
+  local instance_config_copy="${instance_working_dir}/${instance_name}.config.ini"
 
-  if [[ -f "$instance_management_file" ]]; then
-    __add_or_update_config "$instance_management_file" "$key" "true" || return $?
+  __print_info "Copying instance configuration to $instance_config_copy..."
+
+  if ! cp -f "$instance_config_file" "$instance_config_copy"; then
+    __print_error "Failed to copy instance configuration file to $instance_config_copy"
+    return $EC_FAILED_CP
   fi
+
+  # Make sure the copied config file has the same ownership
+  instance_user=$USER
+  if [ "$EUID" -eq 0 ]; then
+    instance_user=$SUDO_USER
+  fi
+
+  if ! chown "$instance_user":"$instance_user" "$instance_config_copy"; then
+    __print_error "Failed to assign $instance_config_copy to user $instance_user"
+    return $EC_PERMISSION
+  fi
+
+  __print_success "Instance configuration copied to $instance_config_copy"
 
   return 0
 }
 
-function _upnp_uninstall() {
-  local key="instance_enable_port_forwarding"
-  __add_or_update_config "$instance_config_file" "$key" "false" || return $?
+function _config_uninstall() {
+  # Remove the copied configuration file with .config.ini suffix
+  local instance_name
+  instance_name=$(basename "$instance_config_file" .ini)
+  local instance_config_copy="${instance_working_dir}/${instance_name}.config.ini"
 
-  if [[ -f "$instance_management_file" ]]; then
-    __add_or_update_config "$instance_management_file" "$key" "false" || return $?
+  if [[ -f "$instance_config_copy" ]]; then
+    __print_info "Removing instance configuration file from working directory..."
+
+    if ! rm -f "$instance_config_copy"; then
+      __print_error "Failed to remove copied configuration file: $instance_config_copy"
+      return $EC_FAILED_RM
+    fi
+
+    __print_success "Instance configuration file removed from working directory"
   fi
 
   return 0
@@ -117,11 +142,11 @@ __source_instance "$instance"
 while [ $# -gt 0 ]; do
   case "$1" in
   --install)
-    _upnp_install
+    _config_install
     exit $?
     ;;
   --uninstall)
-    _upnp_uninstall
+    _config_uninstall
     exit $?
     ;;
   *)

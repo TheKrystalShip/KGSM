@@ -110,21 +110,21 @@ function _migrate_instance() {
       INSTANCE_NAME | INSTANCE_FULL_NAME)
         # Use INSTANCE_FULL_NAME if available, otherwise use INSTANCE_NAME
         if [[ "$key" == "INSTANCE_FULL_NAME" ]]; then
-          echo "instance_name=\"$value\"" >>"$temp_file"
+          echo "name=\"$value\"" >>"$temp_file"
         fi
         ;;
-      INSTANCE_BLUEPRINT_FILE) echo "instance_blueprint_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_WORKING_DIR) echo "instance_working_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_SAVES_DIR) echo "instance_saves_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_INSTALL_DIR) echo "instance_install_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_TEMP_DIR) echo "instance_temp_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_BACKUPS_DIR) echo "instance_backups_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_LOGS_DIR) echo "instance_logs_dir=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_INSTALL_DATETIME) echo "instance_install_datetime=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_LIFECYCLE_MANAGER) echo "instance_lifecycle_manager=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_MANAGE_FILE) echo "instance_management_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_PORT) echo "instance_ports=$value" >>"$temp_file" ;;
-      INSTANCE_LAUNCH_BIN) echo "instance_executable_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_BLUEPRINT_FILE) echo "blueprint_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_WORKING_DIR) echo "working_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_SAVES_DIR) echo "saves_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_INSTALL_DIR) echo "install_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_TEMP_DIR) echo "temp_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_BACKUPS_DIR) echo "backups_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_LOGS_DIR) echo "logs_dir=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_INSTALL_DATETIME) echo "install_datetime=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_LIFECYCLE_MANAGER) echo "lifecycle_manager=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_MANAGE_FILE) echo "management_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_PORT) echo "ports=$value" >>"$temp_file" ;;
+      INSTANCE_LAUNCH_BIN) echo "executable_file=\"$value\"" >>"$temp_file" ;;
       INSTANCE_LAUNCH_ARGS)
         # Replace references to old variables with new lowercase ones
         local new_args="$value"
@@ -135,32 +135,32 @@ function _migrate_instance() {
           "INSTANCE_PORT" "INSTANCE_LAUNCH_BIN" "INSTANCE_SOCKET_FILE")
         for old_var in "${old_vars[@]}"; do
           # Convert to new variable name format
-          local new_var="instance_${old_var#INSTANCE_}"
+          local new_var="${old_var#INSTANCE_}"
           new_var="${new_var,,}"
           # Replace in arguments string
           new_args="${new_args//\$$old_var/\$$new_var}"
         done
-        echo "instance_executable_arguments=\"$new_args\"" >>"$temp_file"
+        echo "executable_arguments=\"$new_args\"" >>"$temp_file"
         ;;
-      INSTANCE_SOCKET_FILE) echo "instance_socket_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_STOP_COMMAND) echo "instance_stop_command=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_SAVE_COMMAND) echo "instance_save_command=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_PID_FILE) echo "instance_pid_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_LEVEL_NAME) echo "instance_level_name=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_APP_ID) echo "instance_steam_app_id=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_UFW_FILE) echo "instance_ufw_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_TAIL_PID_FILE) echo "instance_tail_pid_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_SYSTEMD_SERVICE_FILE) echo "instance_systemd_service_file=\"$value\"" >>"$temp_file" ;;
-      INSTANCE_SYSTEMD_SOCKET_FILE) echo "instance_systemd_socket_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_SOCKET_FILE) echo "socket_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_STOP_COMMAND) echo "stop_command=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_SAVE_COMMAND) echo "save_command=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_PID_FILE) echo "pid_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_LEVEL_NAME) echo "level_name=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_APP_ID) echo "steam_app_id=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_UFW_FILE) echo "ufw_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_TAIL_PID_FILE) echo "tail_pid_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_SYSTEMD_SERVICE_FILE) echo "systemd_service_file=\"$value\"" >>"$temp_file" ;;
+      INSTANCE_SYSTEMD_SOCKET_FILE) echo "systemd_socket_file=\"$value\"" >>"$temp_file" ;;
       INSTANCE_STEAM_ACCOUNT_NEEDED)
         # Convert 0/1 to false/true
         if [[ "$value" == "0" ]]; then
-          echo "instance_is_steam_account_required=\"false\"" >>"$temp_file"
+          echo "is_steam_account_required=\"false\"" >>"$temp_file"
         elif [[ "$value" == "1" ]]; then
-          echo "instance_is_steam_account_required=\"true\"" >>"$temp_file"
+          echo "is_steam_account_required=\"true\"" >>"$temp_file"
         else
           # Keep the original value if it's not 0/1
-          echo "instance_is_steam_account_required=\"$value\"" >>"$temp_file"
+          echo "is_steam_account_required=\"$value\"" >>"$temp_file"
         fi
         ;;
       # Skip these fields, they are not used in the new format
@@ -169,7 +169,7 @@ function _migrate_instance() {
         ;;
       *)
         # For any other fields, convert to lowercase and keep them
-        local new_key="instance_${key#INSTANCE_}"
+        local new_key="${key#INSTANCE_}"
         new_key="${new_key,,}"
         echo "${new_key}=\"$value\"" >>"$temp_file"
         ;;
@@ -178,24 +178,24 @@ function _migrate_instance() {
   done <"$instance_config_file"
 
   # Add instance_runtime if it doesn't exist
-  if ! grep -q "instance_runtime" "$temp_file"; then
-    echo "instance_runtime=\"native\"" >>"$temp_file"
+  if ! grep -q "runtime" "$temp_file"; then
+    echo "runtime=\"native\"" >>"$temp_file"
   fi
 
-  if ! grep -q "instance_save_command_timeout_seconds" "$temp_file"; then
-    echo "instance_save_command_timeout_seconds=\"${config_instance_save_command_timeout_seconds:-5}\"" >>"$temp_file"
+  if ! grep -q "save_command_timeout_seconds" "$temp_file"; then
+    echo "save_command_timeout_seconds=\"${config_instance_save_command_timeout_seconds:-5}\"" >>"$temp_file"
   fi
 
-  if ! grep -q "instance_stop_command_timeout_seconds" "$temp_file"; then
-    echo "instance_stop_command_timeout_seconds=\"${config_instance_stop_command_timeout_seconds:-30}\"" >>"$temp_file"
+  if ! grep -q "stop_command_timeout_seconds" "$temp_file"; then
+    echo "stop_command_timeout_seconds=\"${config_instance_stop_command_timeout_seconds:-30}\"" >>"$temp_file"
   fi
 
-  if ! grep -q "instance_compress_backups" "$temp_file"; then
-    echo "instance_compress_backups=\"${config_enable_backup_compression:-false}\"" >>"$temp_file"
+  if ! grep -q "compress_backups" "$temp_file"; then
+    echo "compress_backups=\"${config_enable_backup_compression:-false}\"" >>"$temp_file"
   fi
 
-  if ! grep -q "instance_enable_port_forwarding" "$temp_file"; then
-    echo "instance_enable_port_forwarding=\"${config_instance_enable_port_forwarding:-false}\"" >>"$temp_file"
+  if ! grep -q "enable_port_forwarding" "$temp_file"; then
+    echo "enable_port_forwarding=\"${config_instance_enable_port_forwarding:-false}\"" >>"$temp_file"
   fi
 
   {
@@ -205,32 +205,32 @@ function _migrate_instance() {
       if [[ -n "$instance_ports" ]]; then
         # shellcheck disable=SC2207
         local instance_upnp_ports=($(__parse_ufw_to_upnp_ports "$instance_ports"))
-        echo "instance_upnp_ports=(${instance_upnp_ports[*]})" >>"$temp_file"
+        echo "upnp_ports=(${instance_upnp_ports[*]})" >>"$temp_file"
       fi
 
       if [[ -n "$instance_systemd_service_file" ]] && [[ -n "$instance_systemd_socket_file" ]]; then
-        echo "instance_enable_systemd=\"true\"" >>"$temp_file"
+        echo "enable_systemd=\"true\"" >>"$temp_file"
       else
-        echo "instance_enable_systemd=\"false\"" >>"$temp_file"
+        echo "enable_systemd=\"false\"" >>"$temp_file"
       fi
 
       if [[ -n "$instance_ufw_file" ]]; then
-        echo "instance_enable_firewall_management=\"true\"" >>"$temp_file"
+        echo "enable_firewall_management=\"true\"" >>"$temp_file"
       else
-        echo "instance_enable_firewall_management=\"false\"" >>"$temp_file"
+        echo "enable_firewall_management=\"false\"" >>"$temp_file"
       fi
 
       if [[ -z "$instance_tail_pid_file" ]]; then
         # shellcheck disable=SC2154
         instance_tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
-        echo "instance_tail_pid_file=\"$instance_tail_pid_file\"" >>"$temp_file"
+        echo "tail_pid_file=\"$instance_tail_pid_file\"" >>"$temp_file"
       fi
     fi
   }
 
   # This is a new feature in KGSM 2.0, none of the old instances had this setting
-  if ! grep -q "instance_enable_command_shortcuts" "$temp_file"; then
-    echo "instance_enable_command_shortcuts=\"false\"" >>"$temp_file"
+  if ! grep -q "enable_command_shortcuts" "$temp_file"; then
+    echo "enable_command_shortcuts=\"false\"" >>"$temp_file"
   fi
 
   # Replace the original file with the new format

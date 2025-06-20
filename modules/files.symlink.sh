@@ -174,8 +174,8 @@ function _symlink_install() {
 
 # Load the instance configuration
 instance_config_file=$(__find_instance_config "$instance")
-# shellcheck disable=SC1090
-source "$instance_config_file" || exit $EC_FAILED_SOURCE
+# Use __source_instance to load the config with proper prefixing
+__source_instance "$instance"
 
 [[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
 

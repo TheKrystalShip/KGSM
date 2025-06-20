@@ -135,11 +135,28 @@ function __create_container_instance_config() {
 
   # Append the necessary variables to the instance config file
   {
-    echo "instance_runtime=\"container\""
-    echo "instance_ports=\"${instance_ports[*]}\""
-    echo "instance_compose_file=\"${instance_name}.docker-compose.yml\""
-    echo "instance_enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
-    echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
+    echo "# --- Container Instance Specific Configuration ---"
+    echo ""
+
+    echo "# Specifies that this is a container-based game server"
+    echo "runtime=\"container\""
+    echo ""
+
+    echo "# Network ports used by the container in UFW format"
+    echo "ports=\"${instance_ports[*]}\""
+    echo ""
+
+    echo "# Name of the docker-compose file for this instance"
+    echo "compose_file=\"${instance_name}.docker-compose.yml\""
+    echo ""
+
+    echo "# Whether to enable UPnP port forwarding"
+    echo "enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
+    echo ""
+
+    echo "# List of ports to forward via UPnP"
+    echo "upnp_ports=(${instance_upnp_ports[*]})"
+    echo ""
 
   } >>"$instance_config_file"
 

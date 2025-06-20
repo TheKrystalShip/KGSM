@@ -130,22 +130,68 @@ function __create_native_instance_config() {
 
   # Write native specific configuration
   {
-    echo "instance_runtime=\"native\""
-    echo "instance_ports=\"${blueprint_ports:-}\""
-    echo "instance_stop_command=\"${blueprint_stop_command:-}\""
-    echo "instance_save_command=\"${blueprint_save_command:-}\""
-    echo "instance_platform=\"${blueprint_platform:-linux}\""
-    echo "instance_level_name=\"${blueprint_level_name:-default}\""
-    echo "instance_steam_app_id=\"${blueprint_steam_app_id:-0}\""
-    echo "instance_is_steam_account_required=\"${blueprint_is_steam_account_required:-0}\""
-    echo "instance_save_command_timeout_seconds=\"${config_instance_save_command_timeout_seconds:-5}\""
-    echo "instance_stop_command_timeout_seconds=\"${config_instance_stop_command_timeout_seconds:-30}\""
-    echo "instance_compress_backups=\"${config_enable_backup_compression:-0}\""
-    echo "instance_enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
-    echo "instance_upnp_ports=(${instance_upnp_ports[*]})"
-    # These two are at the end because executable_argument can use the variables above
-    echo "instance_executable_file=\"${blueprint_executable_file:-}\""
-    echo "instance_executable_arguments=\"${blueprint_executable_arguments:-}\""
+    echo "# --- Native Instance Specific Configuration ---"
+    echo ""
+
+    echo "# Specifies that this is a native (non-containerized) game server"
+    echo "runtime=\"native\""
+    echo ""
+
+    echo "# Network ports used by the game server in UFW format"
+    echo "ports=\"${blueprint_ports:-}\""
+    echo ""
+
+    echo "# Command to gracefully stop the server"
+    echo "stop_command=\"${blueprint_stop_command:-}\""
+    echo ""
+
+    echo "# Command to save the game state"
+    echo "save_command=\"${blueprint_save_command:-}\""
+    echo ""
+
+    echo "# Target platform for the game server (usually linux)"
+    echo "platform=\"${blueprint_platform:-linux}\""
+    echo ""
+
+    echo "# Default level/world name for the game server"
+    echo "level_name=\"${blueprint_level_name:-default}\""
+    echo ""
+
+    echo "# Steam App ID for SteamCMD downloads"
+    echo "steam_app_id=\"${blueprint_steam_app_id:-0}\""
+    echo ""
+
+    echo "# Whether a Steam account is required for downloading (0=no, 1=yes)"
+    echo "is_steam_account_required=\"${blueprint_is_steam_account_required:-0}\""
+    echo ""
+
+    echo "# Timeout in seconds to wait after sending save command"
+    echo "save_command_timeout_seconds=\"${config_instance_save_command_timeout_seconds:-5}\""
+    echo ""
+
+    echo "# Timeout in seconds to wait after sending stop command"
+    echo "stop_command_timeout_seconds=\"${config_instance_stop_command_timeout_seconds:-30}\""
+    echo ""
+
+    echo "# Whether to compress backups to save space"
+    echo "compress_backups=\"${config_enable_backup_compression:-0}\""
+    echo ""
+
+    echo "# Whether to enable UPnP port forwarding"
+    echo "enable_port_forwarding=\"${instance_enable_port_forwarding:-false}\""
+    echo ""
+
+    echo "# List of ports to forward via UPnP"
+    echo "upnp_ports=(${instance_upnp_ports[*]})"
+    echo ""
+
+    echo "# Path to the game server executable"
+    echo "executable_file=\"${blueprint_executable_file:-}\""
+    echo ""
+
+    echo "# Command line arguments for the game server executable"
+    echo "executable_arguments=\"${blueprint_executable_arguments:-}\""
+    echo ""
 
   } >>"$instance_config_file"
 

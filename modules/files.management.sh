@@ -83,60 +83,6 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function __inject_native_management_variables() {
-  # Get the executable subdirectory from the blueprint file
-  local instance_install_subdir
-  instance_install_subdir=$(grep "blueprint_executable_subdirectory=" <"$instance_blueprint_file" | cut -d "=" -f2 | tr -d '"')
-
-  # Calculate the launch directory
-  local instance_launch_dir="$instance_install_dir"
-  if [[ -n "$instance_install_subdir" ]]; then
-    instance_launch_dir="$instance_install_dir/$instance_install_subdir"
-  fi
-
-  # Log redirection into file happens when the instance is launched
-  # as a background process.
-  # The log file is named after the instance and the current date/time.
-  # It is stored in the instance logs directory.
-  # shellcheck disable=SC2140
-  local stdout_file="\$instance_logs_dir/\$instance_name-\$(date +\"%Y-%m-%dT%H:%M:%S\").log"
-  local instance_logs_redirect="$stdout_file"
-
-  # Add these variables to the instance config file
-  __print_info "Adding native management variables to instance config file..."
-
-  {
-    echo ""
-    echo "# Log redirection into file"
-    echo "instance_logs_redirect=\"$instance_logs_redirect\""
-    echo ""
-    echo "# Directory from which to launch the instance binary"
-    echo "instance_launch_dir=\"$instance_launch_dir\""
-    echo ""
-    echo "# If there's a specific subdirectory for the executable"
-    echo "instance_install_subdir=\"$instance_install_subdir\""
-  } >> "$instance_config_file"
-
-  __print_success "Native management variables added to instance config file"
-  return 0
-}
-
-function __inject_container_management_variables() {
-  # For container instances, we need to add the compose file path to the config
-  local instance_compose_file="${instance_name}.docker-compose.yml"
-
-  __print_info "Adding container management variables to instance config file..."
-
-  {
-    echo ""
-    echo "# Docker compose file for container management"
-    echo "instance_compose_file=\"$instance_compose_file\""
-  } >> "$instance_config_file"
-
-  __print_success "Container management variables added to instance config file"
-  return 0
-}
-
 function __create_container_file_template() {
   # Fetch the container blueprint file, which will be a docker-compose file with some
   # placeholder variables that need replacing with variables from the instance config file.
@@ -251,17 +197,9 @@ function _create_manage_file() {
   # Inject config
   case "$instance_runtime" in
   native)
-    __inject_native_management_variables || {
-      __print_error "Failed to inject native management variables into $instance_management_file"
-      return $EC_FAILED_TEMPLATE
-    }
+    # Do nothing
     ;;
   container)
-    __inject_container_management_variables || {
-      __print_error "Failed to inject docker management variables into $instance_management_file"
-      return $EC_FAILED_TEMPLATE
-    }
-
     __create_container_file_template "$instance_blueprint_file" || {
       __print_error "Failed to create container file template for $instance_blueprint_file"
       return $EC_FAILED_TEMPLATE
@@ -297,26 +235,6 @@ function _create_manage_file() {
     return $EC_PERMISSION
   fi
 
-  # Copy instance configuration file to instance working directory
-  local instance_config_filename
-  instance_config_filename=$(basename "$instance_config_file")
-  local instance_config_copy="${instance_working_dir}/${instance_config_filename}"
-
-  __print_info "Copying instance configuration to $instance_config_copy..."
-
-  if ! cp -f "$instance_config_file" "$instance_config_copy"; then
-    __print_error "Failed to copy instance configuration file to $instance_config_copy"
-    return $EC_FAILED_CP
-  fi
-
-  # Make sure the copied config file has the same ownership
-  if ! chown "$instance_user":"$instance_user" "$instance_config_copy"; then
-    __print_error "Failed to assign $instance_config_copy to user $instance_user"
-    return $EC_PERMISSION
-  fi
-
-  __print_success "Instance configuration copied to $instance_config_copy"
-
   __print_success "Management file created"
 
   return 0
@@ -331,25 +249,13 @@ function _remove_manage_file() {
     fi
   fi
 
-  # Remove the copied configuration file
-  local instance_config_filename
-  instance_config_filename=$(basename "$instance_config_file")
-  local instance_config_copy="${instance_working_dir}/${instance_config_filename}"
-
-  if [[ -f "$instance_config_copy" ]]; then
-    if ! rm -f "$instance_config_copy"; then
-      __print_error "Failed to remove copied configuration file: $instance_config_copy"
-      return $EC_FAILED_RM
-    fi
-  fi
-
   return 0
 }
 
 # Load the instance configuration
 instance_config_file=$(__find_instance_config "$instance")
-# shellcheck disable=SC1090
-source "$instance_config_file" || exit $EC_FAILED_SOURCE
+# Use __source_instance to load the config with proper prefixing
+__source_instance "$instance"
 
 [[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
 

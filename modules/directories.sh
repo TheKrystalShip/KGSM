@@ -80,8 +80,8 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 instance_config_file=$(__find_instance_config "$instance")
-# shellcheck disable=SC1090
-source "$instance_config_file" || exit $EC_FAILED_SOURCE
+# Use __source_instance to load the config with proper prefixing
+__source_instance "$instance"
 
 # Check if instance_working_dir is set
 if [[ -z "$instance_working_dir" ]]; then
@@ -96,12 +96,12 @@ if [[ ! "$instance_working_dir" = /* ]]; then
 fi
 
 declare -A DIR_ARRAY=(
-  ["instance_working_dir"]="$instance_working_dir"
-  ["instance_backups_dir"]="${instance_working_dir}/backups"
-  ["instance_install_dir"]="${instance_working_dir}/install"
-  ["instance_saves_dir"]="${instance_working_dir}/saves"
-  ["instance_temp_dir"]="${instance_working_dir}/temp"
-  ["instance_logs_dir"]="${instance_working_dir}/logs"
+  ["working_dir"]="$instance_working_dir"
+  ["backups_dir"]="${instance_working_dir}/backups"
+  ["install_dir"]="${instance_working_dir}/install"
+  ["saves_dir"]="${instance_working_dir}/saves"
+  ["temp_dir"]="${instance_working_dir}/temp"
+  ["logs_dir"]="${instance_working_dir}/logs"
 )
 
 function _create() {
@@ -115,7 +115,7 @@ function _create() {
 
     __create_dir "$dir_value"
 
-    __add_or_update_config "$instance_config_file" "$dir_key" \""$dir_value"\" "instance_working_dir" || {
+    __add_or_update_config "$instance_config_file" "$dir_key" \""$dir_value"\" "working_dir" || {
       __print_error "Failed to add or update $dir_key in $instance_config_file"
       return $?
     }

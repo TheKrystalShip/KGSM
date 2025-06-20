@@ -221,7 +221,7 @@ function __find_override() {
 
   # grep the instance blueprint file from the config
   local instance_blueprint_file
-  instance_blueprint_file=$(grep -E '^instance_blueprint_file\s*=' "$instance_config_file" | cut -d'=' -f2 | tr -d '"')
+  instance_blueprint_file=$(grep -E '^blueprint_file\s*=' "$instance_config_file" | cut -d'=' -f2 | tr -d '"')
 
   if [[ -z "$instance_blueprint_file" ]]; then
     __print_error "No blueprint file specified for instance '$instance_name'."
@@ -314,9 +314,33 @@ function __source_instance() {
     exit $EC_FILE_NOT_FOUND
   fi
 
-  # Source the instance config file
-  # shellcheck disable=SC1090
-  source "$instance_config_file"
+  # Source the instance config file and prefix all variables with "instance_" if needed
+  # This allows us to handle both formats (with and without the "instance_" prefix)
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    # Skip comments and empty lines
+    [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+
+    # Remove leading/trailing whitespace
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+
+    # Remove quotes from value
+    value="${value#\"}"
+    value="${value%\"}"
+    value="${value#\'}"
+    value="${value%\'}"
+
+    # Check if the key already starts with "instance_"
+    if [[ "$key" =~ ^instance_ ]]; then
+      # If it already has the prefix, export it as is
+      export "${key}=${value}"
+    else
+      # Otherwise, add the "instance_" prefix
+      export "instance_${key}=${value}"
+    fi
+  done < <(grep -v '^[[:space:]]*$' "$instance_config_file")
 }
 
 export -f __source_instance

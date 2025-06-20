@@ -281,8 +281,8 @@ KGSM - Interactive menu
 
     # Get the instance management file path
     instance_config_file=$(__find_instance_config "$blueprint_or_instance")
-    # shellcheck disable=SC1090
-    source "$instance_config_file" || return "$EC_FAILED_SOURCE"
+    # Use __source_instance to load the config with proper prefixing
+    __source_instance "$blueprint_or_instance"
 
     # shellcheck disable=SC2207
     backups_array=($("$instance_management_file" --list-backups $debug))

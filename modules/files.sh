@@ -42,6 +42,7 @@ ${UNDERLINE}Commands:${END}
                                 - UPnP configuration files (if applicable)
   ${UNDERLINE}Subcommands:${END}
     --manage                   Create instance.manage.sh
+    --config                   Copy instance configuration file to working directory
     --systemd                  Generate systemd service/socket files
     --ufw                      Generate and enable UFW firewall rule
     --symlink                  Create a symlink to the management file in the
@@ -57,6 +58,8 @@ ${UNDERLINE}Commands:${END}
     --ufw                      Remove UFW firewall rules
     --symlink                  Remove the symlink to the management file
     --upnp                     Remove UPnP configuration files
+    --config                   Remove the instance configuration file from working directory
+    --manage                   Remove the management file
 
 ${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --create
@@ -103,13 +106,14 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 # Load the instance configuration to determine which manager to use
-instance_config_file=$(__find_instance_config "$instance")
-# shellcheck disable=SC1090
-source "$instance_config_file" || exit $EC_FAILED_SOURCE
+__source_instance "$instance"
 
 function _create() {
   # Use the files.management.sh module
   "$(__find_module files.management.sh)" --instance "$instance" --create || return $?
+
+  # Use the files.config.sh module to copy the instance config file
+  "$(__find_module files.config.sh)" --instance "$instance" --install || return $?
 
   # When creating files, we read the $config_ variables from the KGSM config file.
   # This is necessary to determine if we need to create systemd service files,
@@ -135,9 +139,11 @@ function _create() {
 }
 
 function _remove() {
-
-  # Use the files.management.sh module to remove management file and config copy
+  # Use the files.management.sh module to remove management file
   "$(__find_module files.management.sh)" --instance "$instance" --remove || return $?
+
+  # Use the files.config.sh module to remove the instance config file copy
+  "$(__find_module files.config.sh)" --instance "$instance" --uninstall || return $?
 
   # When uninstalling files, we read the $instance_ variables from the instance config file.
   # This is necessary to determine if we need to remove systemd service files,
@@ -174,6 +180,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
     --manage)
       "$(__find_module files.management.sh)" --instance "$instance" --create
+      exit $?
+      ;;
+    --config)
+      "$(__find_module files.config.sh)" --instance "$instance" --install
       exit $?
       ;;
     --systemd)
@@ -219,6 +229,14 @@ while [ $# -gt 0 ]; do
       ;;
     --upnp)
       "$(__find_module files.upnp.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    --config)
+      "$(__find_module files.config.sh)" --instance "$instance" --uninstall
+      exit $?
+      ;;
+    --manage)
+      "$(__find_module files.management.sh)" --instance "$instance" --remove
       exit $?
       ;;
     *)

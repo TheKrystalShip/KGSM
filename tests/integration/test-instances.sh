@@ -21,9 +21,11 @@ function setup_test_instance() {
   ./modules/files.sh -i "$instance_name" --create --manage >/dev/null
   assert_equals "$?" "0" "File creation should succeed"
 
-  # shellcheck disable=SC1090
-  source "$(./modules/instances.sh --find "$instance_name")"
-  assert_true "[[ -n \"$instance_name\" ]]" "Should create an instance and return its ID"
+  __source_instance "$instance_name"
+
+  assert_true "[[ -n \"$instance_name\" ]]" "Instance name should be set"
+  assert_true "[[ -n \"$instance_working_dir\" ]]" "Instance working directory should be set"
+  assert_true "[[ -n \"$instance_version_file\" ]]" "Instance version file should be set"
 
   echo "1.0.0" > "$instance_version_file"
   assert_file_exists "$instance_version_file" "Instance version file should exist"

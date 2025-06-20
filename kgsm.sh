@@ -231,8 +231,8 @@ function _install() {
   # From this point on, we will use the instance managment file to handle
   # the next installation steps.
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
+  __source_instance "$instance"
+
   if [[ "$version" == 0 ]]; then
     # shellcheck disable=SC2154
     version=$("$instance_management_file" --version --latest $debug)
@@ -421,8 +421,7 @@ function process_instance() {
   require_arg "<instance>" "$1"
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || exit $EC_FAILED_SOURCE
+  __source_instance "$instance"
   shift
   require_arg "[OPTION]" "$1"
 
