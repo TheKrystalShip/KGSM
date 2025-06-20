@@ -116,6 +116,7 @@ while [[ $# -gt 0 ]]; do
         follow="--follow"
       fi
       "$lifecycle_manager" --logs "$instance" $follow $debug
+      exit $?
       ;;
     --is-active)
       "$lifecycle_manager" --is-active "$instance" $debug

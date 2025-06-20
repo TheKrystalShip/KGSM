@@ -143,6 +143,7 @@ while [[ $# -gt 0 ]]; do
         shift
       fi
       _get_logs "$instance" "$follow"
+      exit $?
       ;;
     --is-active)
       _is_instance_active "$instance"
