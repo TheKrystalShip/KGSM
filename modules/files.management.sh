@@ -84,13 +84,12 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function __inject_native_management_variables() {
-  # UPnP ports on startup & disabled them on shutdown
-  export config_enable_port_forwarding
+  # Get the executable subdirectory from the blueprint file
+  local instance_install_subdir
+  instance_install_subdir=$(grep "blueprint_executable_subdirectory=" <"$instance_blueprint_file" | cut -d "=" -f2 | tr -d '"')
 
-  # shellcheck disable=SC2155
-  local instance_install_subdir=$(grep "blueprint_executable_subdirectory=" <"$instance_blueprint_file" | cut -d "=" -f2 | tr -d '"')
-
-  instance_launch_dir="$instance_install_dir"
+  # Calculate the launch directory
+  local instance_launch_dir="$instance_install_dir"
   if [[ -n "$instance_install_subdir" ]]; then
     instance_launch_dir="$instance_install_dir/$instance_install_subdir"
   fi
@@ -100,61 +99,41 @@ function __inject_native_management_variables() {
   # The log file is named after the instance and the current date/time.
   # It is stored in the instance logs directory.
   # shellcheck disable=SC2140
-  stdout_file="\$instance_logs_dir/\$instance_name-\$(date +"%Y-%m-%dT%H:%M:%S").log"
-  export instance_logs_redirect="$stdout_file"
+  local stdout_file="\$instance_logs_dir/\$instance_name-\$(date +\"%Y-%m-%dT%H:%M:%S\").log"
+  local instance_logs_redirect="$stdout_file"
 
-  # Avoid evaluating instance_executable_arguments as it can contain variables that need
-  # to just be passed along, not evaluated
-  local instance_launch_args
-  instance_launch_args="$(grep "instance_executable_arguments=" <"$instance_config_file" | cut -d '"' -f2 | tr -d '"')"
-  export instance_launch_args
+  # Add these variables to the instance config file
+  __print_info "Adding native management variables to instance config file..."
 
-  local injected_config
-  injected_config=$(
-    cat <<EOF
-# Log redirection into file
-instance_logs_redirect="$instance_logs_redirect"
+  {
+    echo ""
+    echo "# Log redirection into file"
+    echo "instance_logs_redirect=\"$instance_logs_redirect\""
+    echo ""
+    echo "# Directory from which to launch the instance binary"
+    echo "instance_launch_dir=\"$instance_launch_dir\""
+    echo ""
+    echo "# If there's a specific subdirectory for the executable"
+    echo "instance_install_subdir=\"$instance_install_subdir\""
+  } >> "$instance_config_file"
 
-# Directory from which to launch the instance binary
-instance_launch_dir="$instance_launch_dir"
-
-$(<"$instance_config_file")
-EOF
-  )
-
-  local marker="# === BEGIN INJECT CONFIG ==="
-
-  # Replace the marker with the injected config
-  if ! sed -i "/${marker}/{
-      r /dev/stdin
-      d
-  }" "$instance_management_file" <<<"$injected_config"; then
-    __print_error "Failed to inject config into $instance_management_file"
-    return $EC_FAILED_TEMPLATE
-  fi
-
+  __print_success "Native management variables added to instance config file"
   return 0
 }
 
 function __inject_container_management_variables() {
-  local injected_config
-  injected_config=$(
-    cat <<EOF
-$(<"$instance_config_file")
-EOF
-  )
+  # For container instances, we need to add the compose file path to the config
+  local instance_compose_file="${instance_name}.docker-compose.yml"
 
-  local marker="# === BEGIN INJECT CONFIG ==="
+  __print_info "Adding container management variables to instance config file..."
 
-  # Replace the marker with the injected config
-  if ! sed -i "/${marker}/{
-      r /dev/stdin
-      d
-  }" "$instance_management_file" <<<"$injected_config"; then
-    __print_error "Failed to inject config into $instance_management_file"
-    exit $EC_FAILED_TEMPLATE
-  fi
+  {
+    echo ""
+    echo "# Docker compose file for container management"
+    echo "instance_compose_file=\"$instance_compose_file\""
+  } >> "$instance_config_file"
 
+  __print_success "Container management variables added to instance config file"
   return 0
 }
 
