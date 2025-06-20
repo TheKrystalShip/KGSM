@@ -225,7 +225,7 @@ function _start_background() {
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
   tail -f /dev/null >"$instance_socket_file" &
-  echo $! >"$TAIL_PID_FILE"
+  echo $! >"$instance_tail_pid_file"
 }
 
 # Kill the server process and all its children
@@ -233,11 +233,12 @@ function _start_background() {
 function _kill_all_processes() {
 
   # Kill the tail process
-  if [[ -f "$TAIL_PID_FILE" ]]; then
+  if [[ -f "$instance_tail_pid_file" ]]; then
     local tail_pid
-    tail_pid=$(<"$TAIL_PID_FILE")
+    tail_pid=$(<"$instance_tail_pid_file")
     if kill -0 "$tail_pid" 2>/dev/null; then
       kill -TERM "$tail_pid"
+      rm -f "$instance_tail_pid_file"
     fi
   fi
 
@@ -317,7 +318,7 @@ function _stop_server() {
 
   [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
   [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
-  [[ -f "$TAIL_PID_FILE" ]] && rm -f "$TAIL_PID_FILE"
+  [[ -f "$instance_tail_pid_file" ]] && rm -f "$instance_tail_pid_file"
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _disable_upnp
@@ -372,40 +373,57 @@ function _send_input() {
 # and verifying if the process with that PID is still running
 # If the PID file is empty or does not exist, it will return inactive
 function _is_active() {
+  # Check if PID file exists
   if [[ ! -f "$instance_pid_file" ]]; then
     __print_info "Inactive" && return 1
   fi
 
+  # Check if PID file is empty
   local server_pid
   server_pid=$(<"$instance_pid_file")
 
   if [[ -z "$server_pid" ]]; then
     __print_error "Instance PID file present but empty, removing"
-    rm -rf "$instance_pid_file"
-
+    rm -f "$instance_pid_file"
     __print_info "Inactive" && return 1
   fi
 
-  # Just test if a process with that PID exists
+  # Check if the process with that PID is running
   if kill -0 "$server_pid" 2>/dev/null; then
     __print_info "Active" && return 0
+  else
+    # Process is not running anymore, remove PID file
+    __print_error "Instance PID file references non-existent process, removing"
+    rm -f "$instance_pid_file"
+    __print_info "Inactive" && return 1
   fi
-
-  __print_info "Inactive" && return 1
 }
 
 # For closing the log reader background process
-tail_pid=
 # shellcheck disable=SC2317
 function _exit_print_logs() {
-  if [[ -z "$tail_pid" ]]; then
+  if [[ ! -f "$instance_tail_pid_file" ]]; then
     return 0
   fi
 
-  if pgrep "$tail_pid"; then
+  local tail_pid="$(<"$instance_tail_pid_file")"
+
+  if [[ -z "$tail_pid" ]]; then
+    __print_error "Instance tail PID file present but empty, removing"
+    rm -f "$instance_tail_pid_file"
+    return 0
+  fi
+
+  if kill -0 "$tail_pid" 2>/dev/null; then
     __print_info "Stopping log reader..."
     kill "$tail_pid"
+    rm -f "$instance_tail_pid_file"
+    return 0
   fi
+
+  __print_error "Instance tail PID file references non-existent process, removing"
+  rm -f "$instance_tail_pid_file"
+  return 0
 }
 
 trap '_exit_print_logs' TERM EXIT INT
