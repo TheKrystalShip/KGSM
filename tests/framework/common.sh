@@ -1,128 +1,413 @@
 #!/usr/bin/env bash
+
+# KGSM Test Framework - Common Test Utilities
 #
-# Common utilities for KGSM testing framework
+# Author: The Krystal Ship Team
+# Version: 3.0
+#
+# Common functions and utilities shared across all test files
 
-# Disable shellcheck warnings for sourced files
-# shellcheck disable=SC1091
+set -euo pipefail
 
-# We don't use 'set -e' because we want tests to continue even if some fail
-# Only use 'set -o pipefail' to catch errors in pipelines
-set -o pipefail
+# =============================================================================
+# CONSTANTS
+# =============================================================================
 
-# Color codes for terminal output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
+# Exit codes (only define if not already defined)
+if [[ -z "${EC_SUCCESS:-}" ]]; then
+    readonly EC_SUCCESS=0
+    readonly EC_FAILURE=1
+    readonly EC_SKIP=77
+    readonly EC_ERROR=2
+fi
 
-# Load required framework components
-export FRAMEWORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Color codes
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly WHITE='\033[1;37m'
+readonly GRAY='\033[0;37m'
+readonly NC='\033[0m'
+readonly BOLD='\033[1m'
 
-# Logger import
+# Test games for E2E testing (small download size)
+readonly TEST_GAMES=("factorio" "necesse" "vrising")
 
-source "$FRAMEWORK_DIR/logger.sh" || {
-  echo "${RED}ERROR: Failed to source logger.sh${NC}"
-  exit 1
-}
+# =============================================================================
+# ENVIRONMENT SETUP
+# =============================================================================
 
-# Assertion import
-source "$FRAMEWORK_DIR/assert.sh" || {
-  log_error "Failed to source assert.sh"
-  exit 1
-}
-
-# Environment setup import
-source "$FRAMEWORK_DIR/env-setup.sh" || {
-  log_error "Failed to source env-setup.sh"
-  exit 1
-}
-
-# Report utilities import
-source "$FRAMEWORK_DIR/report.sh" || {
-  log_error "Failed to source report.sh"
-  exit 1
-}
-
-# Global variables
-export TEST_TIMEOUT=300  # 5 minutes default timeout for tests
-
-# Check required dependencies
-function check_dependencies() {
-  local missing=0
-  local required_deps=("grep" "jq" "wget" "unzip" "tar" "sed" "find")
-
-  log_info "Checking required dependencies..."
-
-  for dep in "${required_deps[@]}"; do
-    if ! command -v "$dep" &> /dev/null; then
-      log_error "Required dependency not found: $dep"
-      missing=1
+# Initialize test environment
+setup_test_environment() {
+    # Ensure required environment variables are set
+    if [[ -z "${KGSM_ROOT:-}" ]]; then
+        echo "ERROR: KGSM_ROOT not set" >&2
+        exit $EC_ERROR
     fi
-  done
 
-  if [[ "$missing" -eq 1 ]]; then
-    log_error "Missing dependencies. Please install the required packages."
-    exit 1
-  else
-    log_success "All required dependencies are available."
-  fi
-}
-
-# Function to run a test with timeout
-function run_with_timeout() {
-  local timeout=$1
-  local cmd="${@:2}"
-
-  # Create a background process
-  (
-    # Start subshell with its own error handling
-    set +e
-
-    # Execute the command
-    $cmd
-    exit $?
-  ) & pid=$!
-
-  # Timer loop
-  local start_time=$(date +%s)
-  local end_time=$((start_time + timeout))
-
-  while [[ $(date +%s) -lt $end_time ]]; do
-    if ! kill -0 $pid 2> /dev/null; then
-      # Process has finished
-      wait $pid
-      return $?
+    if [[ -z "${KGSM_TEST_SANDBOX:-}" ]]; then
+        echo "ERROR: KGSM_TEST_SANDBOX not set" >&2
+        exit $EC_ERROR
     fi
-    sleep 1
-  done
 
-  # If we get here, the process timed out
-  log_error "Command timed out after $timeout seconds"
-  kill -9 $pid &> /dev/null || true
-  wait $pid &> /dev/null || true
-  return 124  # Standard timeout exit code
+    # Source assertion framework
+    local assert_lib="$(dirname "${BASH_SOURCE[0]}")/assert.sh"
+    if [[ -f "$assert_lib" ]]; then
+        # shellcheck disable=SC1090
+        source "$assert_lib"
+    else
+        echo "ERROR: Could not find assertion library: $assert_lib" >&2
+        exit $EC_ERROR
+    fi
+
+    # Set up paths
+    export KGSM_CONFIG_FILE="$KGSM_ROOT/config.ini"
+    export KGSM_INSTANCES_DIR="$KGSM_ROOT/instances"
+    export KGSM_LOGS_DIR="$KGSM_ROOT/logs"
+
+    # Ensure test directories exist
+    mkdir -p "$KGSM_INSTANCES_DIR"
+    mkdir -p "$KGSM_LOGS_DIR"
+
+    log_test "Test environment initialized"
+    log_test "KGSM_ROOT: $KGSM_ROOT"
+    log_test "KGSM_TEST_SANDBOX: $KGSM_TEST_SANDBOX"
 }
 
-# Execute a command within the test environment
-function in_test_environment() {
-  if [[ ! -d "$TEST_ENV_DIR" ]]; then
-    log_error "Test environment does not exist. Call create_test_environment first."
-    return 1
-  fi
+# =============================================================================
+# LOGGING UTILITIES
+# =============================================================================
 
-  cd "$TEST_ENV_DIR" || {
-    log_error "Failed to change to test environment directory: $TEST_ENV_DIR"
-    return 1
-  }
+# Log test message
+log_test() {
+    local message="$1"
+    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
-  "$@"
-  return $?
+    if [[ -n "${KGSM_TEST_LOG:-}" ]]; then
+        echo "[$timestamp] [TEST] $message" >> "$KGSM_TEST_LOG"
+    fi
+
+    if [[ "${KGSM_DEBUG:-false}" == "true" ]]; then
+        printf "${PURPLE}[DEBUG]${NC} %s\n" "$message" >&2
+    fi
 }
 
-# Export functions
-export -f check_dependencies
-export -f cleanup_test_environment
-export -f run_with_timeout
-export -f in_test_environment
+# Log test step
+log_step() {
+    local step_name="$1"
+    printf "${CYAN}[STEP]${NC} %s\n" "$step_name" >&2
+    log_test "STEP: $step_name"
+}
+
+# Log test info
+log_info() {
+    local message="$1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$message" >&2
+    log_test "INFO: $message"
+}
+
+# =============================================================================
+# TEST UTILITIES
+# =============================================================================
+
+# Wait for condition with timeout
+wait_for_condition() {
+    local condition="$1"
+    local timeout="${2:-30}"
+    local interval="${3:-1}"
+    local description="${4:-condition}"
+
+    log_test "Waiting for $description (timeout: ${timeout}s)"
+
+    local elapsed=0
+    while (( elapsed < timeout )); do
+        if eval "$condition"; then
+            log_test "$description met after ${elapsed}s"
+            return $EC_SUCCESS
+        fi
+
+        sleep "$interval"
+        ((elapsed += interval))
+    done
+
+    log_test "$description not met within ${timeout}s"
+    return $EC_FAILURE
+}
+
+# Generate random test ID
+generate_test_id() {
+    local prefix="${1:-test}"
+    echo "${prefix}_$(date +%s)_$$"
+}
+
+# Clean up test resources
+cleanup_test_resources() {
+    local test_id="${1:-}"
+
+    if [[ -n "$test_id" ]]; then
+        log_test "Cleaning up resources for test: $test_id"
+
+        # Clean up any instances created during test
+        if [[ -d "$KGSM_INSTANCES_DIR" ]]; then
+            find "$KGSM_INSTANCES_DIR" -name "*${test_id}*" -type d -exec rm -rf {} + 2>/dev/null || true
+        fi
+
+        # Clean up any temporary files
+        find /tmp -name "*kgsm*${test_id}*" -type f -delete 2>/dev/null || true
+    fi
+}
+
+# =============================================================================
+# KGSM-SPECIFIC UTILITIES
+# =============================================================================
+
+# Run KGSM command with error handling
+run_kgsm() {
+    local args="$1"
+    local expected_exit_code="${2:-0}"
+
+    log_test "Running KGSM command: kgsm.sh $args"
+
+    local output
+    local exit_code
+
+    if output=$("$KGSM_ROOT/kgsm.sh" $args 2>&1); then
+        exit_code=0
+    else
+        exit_code=$?
+    fi
+
+    log_test "KGSM command exited with code: $exit_code"
+
+    if [[ -n "$output" ]]; then
+        log_test "KGSM output: $output"
+    fi
+
+    if [[ $exit_code -eq $expected_exit_code ]]; then
+        return $EC_SUCCESS
+    else
+        return $EC_FAILURE
+    fi
+}
+
+# Create test instance
+create_test_instance() {
+    local blueprint="$1"
+    local test_id="$2"
+    local install_dir="${3:-$KGSM_INSTANCES_DIR}"
+
+    log_step "Creating test instance: $test_id using blueprint $blueprint"
+
+    local instance_name
+    if instance_name=$("$KGSM_ROOT/modules/instances.sh" --create "$blueprint" --install-dir "$install_dir" --name "$test_id"); then
+        log_test "Instance created successfully: $instance_name"
+        echo "$instance_name"
+        return $EC_SUCCESS
+    else
+        log_test "Failed to create instance"
+        return $EC_FAILURE
+    fi
+}
+
+# Remove test instance
+remove_test_instance() {
+    local instance_name="$1"
+
+    log_step "Removing test instance: $instance_name"
+
+    if "$KGSM_ROOT/modules/instances.sh" --remove "$instance_name" >/dev/null 2>&1; then
+        log_test "Instance removed successfully: $instance_name"
+        return $EC_SUCCESS
+    else
+        log_test "Failed to remove instance: $instance_name"
+        return $EC_FAILURE
+    fi
+}
+
+# Check if instance exists
+instance_exists() {
+    local instance_name="$1"
+
+    if "$KGSM_ROOT/modules/instances.sh" --find "$instance_name" >/dev/null 2>&1; then
+        return $EC_SUCCESS
+    else
+        return $EC_FAILURE
+    fi
+}
+
+# Get instance status
+get_instance_status() {
+    local instance_name="$1"
+
+    "$KGSM_ROOT/modules/instances.sh" --status "$instance_name" 2>/dev/null || echo "unknown"
+}
+
+# =============================================================================
+# FILE AND DIRECTORY UTILITIES
+# =============================================================================
+
+# Create temporary test directory
+create_temp_dir() {
+    local prefix="${1:-kgsm-test}"
+    local temp_dir
+
+    temp_dir=$(mktemp -d -t "${prefix}-XXXXXX")
+    log_test "Created temporary directory: $temp_dir"
+    echo "$temp_dir"
+}
+
+# Create temporary test file
+create_temp_file() {
+    local prefix="${1:-kgsm-test}"
+    local temp_file
+
+    temp_file=$(mktemp -t "${prefix}-XXXXXX")
+    log_test "Created temporary file: $temp_file"
+    echo "$temp_file"
+}
+
+# Wait for file to exist
+wait_for_file() {
+    local file_path="$1"
+    local timeout="${2:-30}"
+
+    wait_for_condition "[[ -f '$file_path' ]]" "$timeout" 1 "file $file_path to exist"
+}
+
+# Wait for directory to exist
+wait_for_dir() {
+    local dir_path="$1"
+    local timeout="${2:-30}"
+
+    wait_for_condition "[[ -d '$dir_path' ]]" "$timeout" 1 "directory $dir_path to exist"
+}
+
+# =============================================================================
+# NETWORK UTILITIES
+# =============================================================================
+
+# Check if port is open
+is_port_open() {
+    local host="${1:-localhost}"
+    local port="$2"
+    local timeout="${3:-5}"
+
+    if command -v nc >/dev/null 2>&1; then
+        nc -z -w "$timeout" "$host" "$port" >/dev/null 2>&1
+    elif command -v timeout >/dev/null 2>&1; then
+        timeout "$timeout" bash -c "cat < /dev/null > /dev/tcp/$host/$port" >/dev/null 2>&1
+    else
+        # Fallback method
+        exec 6<>/dev/tcp/"$host"/"$port" 2>/dev/null && exec 6<&- && exec 6>&-
+    fi
+}
+
+# Wait for port to be open
+wait_for_port() {
+    local host="${1:-localhost}"
+    local port="$2"
+    local timeout="${3:-60}"
+
+    wait_for_condition "is_port_open '$host' '$port'" "$timeout" 2 "port $port to be open on $host"
+}
+
+# =============================================================================
+# PROCESS UTILITIES
+# =============================================================================
+
+# Check if process is running by PID
+is_process_running() {
+    local pid="$1"
+
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+        return $EC_SUCCESS
+    else
+        return $EC_FAILURE
+    fi
+}
+
+# Wait for process to start
+wait_for_process() {
+    local pid_file="$1"
+    local timeout="${2:-30}"
+
+    wait_for_condition "[[ -f '$pid_file' ]] && is_process_running \"\$(cat '$pid_file')\"" "$timeout" 1 "process to start"
+}
+
+# Wait for process to stop
+wait_for_process_stop() {
+    local pid_file="$1"
+    local timeout="${2:-30}"
+
+    wait_for_condition "[[ ! -f '$pid_file' ]] || ! is_process_running \"\$(cat '$pid_file' 2>/dev/null)\"" "$timeout" 1 "process to stop"
+}
+
+# =============================================================================
+# STEAM/GAME UTILITIES
+# =============================================================================
+
+# Check if SteamCMD is available
+is_steamcmd_available() {
+    command -v steamcmd >/dev/null 2>&1
+}
+
+# Skip test if SteamCMD is not available
+require_steamcmd() {
+    if ! is_steamcmd_available; then
+        skip_test "SteamCMD not available"
+    fi
+}
+
+# Check if Docker is available
+is_docker_available() {
+    command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
+}
+
+# Skip test if Docker is not available
+require_docker() {
+    if ! is_docker_available; then
+        skip_test "Docker not available"
+    fi
+}
+
+# =============================================================================
+# TEST RESULT UTILITIES
+# =============================================================================
+
+# Mark test as passed
+pass_test() {
+    local message="${1:-Test passed}"
+    log_test "PASS: $message"
+    exit $EC_SUCCESS
+}
+
+# Mark test as failed
+fail_test() {
+    local message="${1:-Test failed}"
+    log_test "FAIL: $message"
+    printf "${RED}[FAIL]${NC} %s\n" "$message" >&2
+    exit $EC_FAILURE
+}
+
+# Mark test as skipped
+skip_test() {
+    local reason="${1:-Test skipped}"
+    log_test "SKIP: $reason"
+    printf "${YELLOW}[SKIP]${NC} %s\n" "$reason" >&2
+    exit $EC_SKIP
+}
+
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+# Auto-setup when sourced (if not in main script)
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    # Only setup if we're in a test environment
+    if [[ "${KGSM_TEST_MODE:-false}" == "true" ]]; then
+        setup_test_environment
+    fi
+fi

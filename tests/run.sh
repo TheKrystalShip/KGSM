@@ -1,166 +1,271 @@
 #!/usr/bin/env bash
+
+# KGSM Test Framework - Main Entry Point
 #
-# Main entry point for running KGSM tests
+# Author: The Krystal Ship Team
+# Version: 3.0
+#
+# This is the main entry point for running KGSM tests.
+# It provides a convenient interface to the test runner.
 
-# We intentionally don't use 'set -e' because we want the script to continue
-# even if individual tests fail
+set -euo pipefail
 
-# Absolute path to this script
-# shellcheck disable=SC2155
-export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export TEST_ROOT="$SCRIPT_DIR"
-export KGSM_ROOT="$(dirname "$TEST_ROOT")"
-export LOG_FILE="$TEST_ROOT/logs/test-$(date +%Y%m%d-%H%M%S).log"
+# =============================================================================
+# SCRIPT SETUP
+# =============================================================================
 
-# Import common testing utilities
-# shellcheck disable=SC1091
-source "$TEST_ROOT/framework/common.sh" || {
-  echo "ERROR: Failed to source common.sh"
-  exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FRAMEWORK_DIR="$SCRIPT_DIR/framework"
+RUNNER_SCRIPT="$FRAMEWORK_DIR/runner.sh"
+
+# Color codes
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly WHITE='\033[1;37m'
+readonly GRAY='\033[0;37m'
+readonly NC='\033[0m'
+readonly BOLD='\033[1m'
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+print_banner() {
+    echo -e "${CYAN}${BOLD}"
+    echo "============================================================"
+    echo "  KGSM Test Framework"
+    echo "============================================================"
+    echo -e "${NC}"
 }
 
-# Initialize log file
-{
-  echo "KGSM Testing Framework"
-  echo "======================"
-  echo "Started: $(date)"
-  echo "KGSM Root: $KGSM_ROOT"
-  echo "Test Root: $TEST_ROOT"
-  echo
-} >"$LOG_FILE"
+print_usage() {
+    echo -e "
+${BOLD}KGSM Test Framework${NC}
 
-function usage() {
-  echo "KGSM Testing Framework"
-  echo
-  echo "Usage:"
-  echo "  $(basename "$0") [OPTIONS]"
-  echo
-  echo "Options:"
-  echo "  --help           Display this help message"
-  echo "  --unit           Run only unit tests"
-  echo "  --integration    Run only integration tests"
-  echo "  --e2e            Run only end-to-end tests"
-  echo "  --test FILE      Run a specific test file"
-  echo "  --verbose        Show verbose output"
-  echo "  --no-cleanup     Don't clean up test environment after tests"
-  echo
+${BOLD}USAGE:${NC}
+    $(basename "$0") [OPTIONS] [TEST_TYPES...]
+
+${BOLD}OPTIONS:${NC}
+    -h, --help          Show this help message
+    -d, --debug         Enable debug mode (preserves test environments)
+    -v, --verbose       Enable verbose output
+    -q, --quiet         Suppress non-essential output
+    -l, --list          List available tests without running them
+    -c, --config FILE   Use specific test configuration file
+    --clean-logs        Remove old test logs (keeps last 10)
+
+${BOLD}FILTERING:${NC}
+    --pattern REGEX     Only run tests matching pattern
+    --exclude REGEX     Exclude tests matching pattern
+
+${BOLD}TEST TYPES:${NC}
+    unit                Run unit tests (fast, no dependencies)
+    integration         Run integration tests (medium speed)
+    e2e                 Run end-to-end tests (slow, requires network)
+    all                 Run all test types (default)
+
+${BOLD}EXAMPLES:${NC}
+    $(basename "$0")                           # Run all tests
+    $(basename "$0") unit                      # Run only unit tests
+    $(basename "$0") --debug e2e               # Run e2e tests with debug
+    $(basename "$0") --pattern "instance"     # Run tests matching "instance"
+    $(basename "$0") --verbose --exclude "long"  # Verbose mode, exclude long tests
+
+${BOLD}CONFIGURATION:${NC}
+    Test behavior can be customized by editing:
+    ${SCRIPT_DIR}/config/test.conf
+
+    Individual tests can be skipped by setting:
+    SKIP_<TEST_NAME>=true
+
+${BOLD}REQUIREMENTS:${NC}
+    - Bash 4.0+
+    - Standard Unix utilities (grep, jq, wget, etc.)
+    - SteamCMD (for Steam-based game tests)
+    - Docker (for container-based game tests)
+
+${BOLD}OUTPUT:${NC}
+    - Test results are displayed with colored output
+    - Detailed logs are saved to tests/logs/ with timestamps
+    - CSV results file is generated for analysis
+    - Failed tests show last 10 lines of logs in verbose mode
+    - Use --clean-logs to manage old log directories
+
+For more information, see: ${SCRIPT_DIR}/README.md
+"
 }
 
-# Parse arguments
-export RUN_UNIT=1
-export RUN_INTEGRATION=1
-export RUN_E2E=1
-export SPECIFIC_TEST=""
-export VERBOSE=0
-export NO_CLEANUP=0
+check_dependencies() {
+    local missing_deps=()
 
-while [[ "$#" -gt 0 ]]; do
-  case "$1" in
-  --help)
-    usage
-    exit 0
-    ;;
-  --unit)
-    RUN_UNIT=1
-    RUN_INTEGRATION=0
-    RUN_E2E=0
-    ;;
-  --integration)
-    RUN_UNIT=0
-    RUN_INTEGRATION=1
-    RUN_E2E=0
-    ;;
-  --e2e)
-    RUN_UNIT=0
-    RUN_INTEGRATION=0
-    RUN_E2E=1
-    ;;
-  --test)
-    shift
-    if [[ -z "$1" ]]; then
-      echo "ERROR: --test requires a file argument"
-      exit 1
+    # Check for runner script
+    if [[ ! -f "$RUNNER_SCRIPT" ]]; then
+        echo -e "${RED}ERROR: Test runner not found: $RUNNER_SCRIPT${NC}" >&2
+        exit 1
     fi
-    SPECIFIC_TEST="$1"
-    RUN_UNIT=0
-    RUN_INTEGRATION=0
-    RUN_E2E=0
-    ;;
-  --verbose)
-    VERBOSE=1
-    ;;
-  --no-cleanup)
-    NO_CLEANUP=1
-    ;;
-  *)
-    echo "Unknown option: $1"
-    usage
-    exit 1
-    ;;
-  esac
-  shift
-done
 
-# Print intro header
-log_header "KGSM Test Runner"
-log_info "Starting test run at $(date)"
-log_info "KGSM Root: $KGSM_ROOT"
-log_info "Test Root: $TEST_ROOT"
-log_info "Log File: $LOG_FILE"
+    # Check for required commands
+    local required_commands=("bash" "grep" "find" "mktemp" "date")
 
-# Record dependency versions
-log_header "Environment Information"
-bash_version=$(bash --version | head -n 1)
-log_info "Bash: $bash_version"
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_deps+=("$cmd")
+        fi
+    done
 
-# Dependency check
-check_dependencies
+    # Check optional but recommended commands
+    local optional_commands=("jq" "steamcmd" "docker")
+    local missing_optional=()
 
-# Initialize test stats
-export total_tests=0
-export passed_tests=0
-export failed_tests=0
+    for cmd in "${optional_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_optional+=("$cmd")
+        fi
+    done
 
-# Prepare arguments for the runner
-runner_args=()
+    # Report missing dependencies
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        echo -e "${RED}ERROR: Missing required dependencies:${NC}" >&2
+        printf "${RED}  - %s${NC}\n" "${missing_deps[@]}" >&2
+        echo -e "${RED}Please install these commands before running tests.${NC}" >&2
+        exit 1
+    fi
 
-# Add unit tests if enabled
-if [[ "$RUN_UNIT" -eq 1 ]]; then
-  runner_args+=("--unit")
-fi
+    if [[ ${#missing_optional[@]} -gt 0 ]]; then
+        echo -e "${YELLOW}WARNING: Missing optional dependencies:${NC}" >&2
+        printf "${YELLOW}  - %s${NC}\n" "${missing_optional[@]}" >&2
+        echo -e "${YELLOW}Some tests may be skipped without these dependencies.${NC}" >&2
+        echo ""
+    fi
+}
 
-# Add integration tests if enabled
-if [[ "$RUN_INTEGRATION" -eq 1 ]]; then
-  runner_args+=("--integration")
-fi
+list_available_tests() {
+    echo -e "${BOLD}Available Tests:${NC}\n"
 
-# Add e2e tests if enabled
-if [[ "$RUN_E2E" -eq 1 ]]; then
-  runner_args+=("--e2e")
-fi
+    for test_type in "unit" "integration" "e2e"; do
+        local test_dir="$SCRIPT_DIR/$test_type"
 
-# Add specific test if provided
-if [[ -n "$SPECIFIC_TEST" ]]; then
-  log_header "Running specific test: $SPECIFIC_TEST"
-  runner_args+=("--test" "$SPECIFIC_TEST")
-fi
+        if [[ -d "$test_dir" ]]; then
+            echo -e "${CYAN}${BOLD}$test_type tests:${NC}"
 
-# Add verbose flag if enabled
-if [[ "$VERBOSE" -eq 1 ]]; then
-  runner_args+=("--verbose")
-fi
+            local test_files
+            mapfile -t test_files < <(find "$test_dir" -name "test_*.sh" -type f | sort)
 
-# Run the test runner with appropriate arguments
-export total_tests passed_tests failed_tests
-"$TEST_ROOT/framework/runner.sh" "${runner_args[@]}"
+            if [[ ${#test_files[@]} -eq 0 ]]; then
+                echo "  (no tests found)"
+            else
+                for test_file in "${test_files[@]}"; do
+                    local test_name
+                    test_name="$(basename "$test_file" .sh)"
+                    test_name="${test_name#test_}"
 
-# Print test summary
-log_header "Test Summary"
-log_info "Total tests: $total_tests"
-log_success "Passed tests: $passed_tests"
-log_error "Failed tests: $failed_tests"
-log_info "Detailed logs available at: $LOG_FILE"
+                    # Check if test would be skipped
+                    local skip_var="SKIP_${test_name^^}"
+                    local skip_status=""
 
-# Exit code depends on whether all tests passed
-# shellcheck disable=SC2046
-exit $([[ "$failed_tests" -eq 0 ]] && echo 0 || echo 1)
+                    # Source config to check skip status
+                    local test_config="$SCRIPT_DIR/config/test.conf"
+                    if [[ -f "$test_config" ]]; then
+                        # shellcheck disable=SC1090
+                        source "$test_config" 2>/dev/null || true
+                        if [[ "${!skip_var:-false}" == "true" ]]; then
+                            skip_status=" ${YELLOW}(SKIPPED)${NC}"
+                        fi
+                    fi
+
+                    echo -e "  - $test_name$skip_status"
+                done
+            fi
+            echo ""
+        fi
+    done
+
+    echo -e "${GRAY}Use --pattern or --exclude to filter tests${NC}"
+    echo -e "${GRAY}Configure test.conf to skip specific tests${NC}"
+}
+
+validate_test_environment() {
+    # Check that we're in the right directory structure
+    if [[ ! -f "$SCRIPT_DIR/../kgsm.sh" ]]; then
+        echo -e "${RED}ERROR: KGSM directory not found.${NC}" >&2
+        echo -e "${RED}Tests must be run from within the KGSM project directory.${NC}" >&2
+        exit 1
+    fi
+
+    # Check that essential test framework files exist
+    local essential_files=(
+        "$FRAMEWORK_DIR/runner.sh"
+        "$FRAMEWORK_DIR/common.sh"
+        "$FRAMEWORK_DIR/assert.sh"
+    )
+
+    for file in "${essential_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            echo -e "${RED}ERROR: Essential test file missing: $file${NC}" >&2
+            exit 1
+        fi
+    done
+
+    # Make sure runner is executable
+    chmod +x "$RUNNER_SCRIPT"
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+main() {
+    # Parse special options first
+    local show_help=false
+    local list_tests=false
+    local config_file=""
+
+    for arg in "$@"; do
+        case "$arg" in
+            -h|--help)
+                show_help=true
+                ;;
+            -l|--list)
+                list_tests=true
+                ;;
+            -c|--config)
+                # This will be handled by the runner
+                ;;
+        esac
+    done
+
+    # Show help if requested
+    if [[ "$show_help" == "true" ]]; then
+        print_banner
+        print_usage
+        exit 0
+    fi
+
+    # List tests if requested
+    if [[ "$list_tests" == "true" ]]; then
+        print_banner
+        list_available_tests
+        exit 0
+    fi
+
+    # Normal execution
+    print_banner
+
+    echo -e "${BLUE}Checking dependencies...${NC}"
+    check_dependencies
+
+    echo -e "${BLUE}Validating test environment...${NC}"
+    validate_test_environment
+
+    echo -e "${BLUE}Starting test execution...${NC}"
+    echo ""
+
+    # Execute the test runner with all arguments
+    exec "$RUNNER_SCRIPT" "$@"
+}
+
+# Run main function
+main "$@"

@@ -1,281 +1,584 @@
 #!/usr/bin/env bash
+
+# KGSM Test Framework - Main Test Runner
 #
-# Test runner for KGSM testing framework
+# Author: The Krystal Ship Team
+# Version: 3.0
+#
+# This is a comprehensive testing framework for KGSM that provides:
+# - Sandboxed environments for each test suite
+# - Real code testing (no mocking)
+# - Detailed logging and reporting
+# - Colored console output
+# - Debug capabilities
+# - Test skip functionality
+# - Modular design following SOLID principles
 
-function usage() {
-  echo "KGSM Test Runner
+set -euo pipefail
 
-Usage:
-  $(basename "$0") [OPTIONS]
+# =============================================================================
+# CONSTANTS AND CONFIGURATION
+# =============================================================================
 
-Options:
-  -h, --help              Display this help message
-  --unit                  Run unit tests
-  --integration           Run integration tests
-  --e2e                   Run end-to-end tests
-  --test <file>           Run a specific test file
-  --verbose               Enable verbose output
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly TESTS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export KGSM_ROOT="$(cd "$TESTS_ROOT/.." && pwd)"
 
-Examples:
-  $(basename "$0") --unit
-  $(basename "$0") --integration
-  $(basename "$0") --e2e
-  $(basename "$0") --test unit/test-parser.sh
-"
+# Test configuration file
+readonly TEST_CONFIG="${TESTS_ROOT}/config/test.conf"
+
+# Exit codes
+readonly EC_SUCCESS=0
+readonly EC_FAILURE=1
+readonly EC_SKIP=77
+readonly EC_ERROR=2
+
+# Color codes
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly CYAN='\033[0;36m'
+readonly WHITE='\033[1;37m'
+readonly GRAY='\033[0;37m'
+readonly NC='\033[0m' # No Color
+readonly BOLD='\033[1m'
+
+# Test types
+readonly TEST_TYPE_UNIT="unit"
+readonly TEST_TYPE_INTEGRATION="integration"
+readonly TEST_TYPE_E2E="e2e"
+
+# Default test games (small download size)
+readonly DEFAULT_TEST_GAMES=("factorio" "necesse" "vrising")
+
+# =============================================================================
+# GLOBAL VARIABLES
+# =============================================================================
+
+declare -g TEST_DEBUG=false
+declare -g TEST_VERBOSE=false
+declare -g TEST_QUIET=false
+declare -g TEST_PARALLEL=false
+declare -g TEST_SANDBOX_ROOT=""
+declare -g TEST_LOG_DIR=""
+declare -g TEST_RESULTS_FILE=""
+
+# Test counters
+declare -g TESTS_TOTAL=0
+declare -g TESTS_PASSED=0
+declare -g TESTS_FAILED=0
+declare -g TESTS_SKIPPED=0
+declare -g TESTS_ERRORS=0
+
+# Test filters
+declare -ga TEST_TYPES=()
+declare -ga TEST_PATTERNS=()
+declare -ga TEST_EXCLUDE=()
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+# Print colored output
+print_color() {
+    local color="$1"
+    shift
+    if [[ "$TEST_QUIET" != "true" ]]; then
+        printf "${color}%s${NC}\n" "$*"
+    fi
 }
 
-# Source framework if being run directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  # This script is being run directly, not sourced
-  # Initialize variables that would normally be set by the parent
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  TEST_ROOT="$(dirname "$SCRIPT_DIR")"
-  KGSM_ROOT="$(dirname "$TEST_ROOT")"
+print_info() { print_color "$BLUE" "[INFO] $*"; }
+print_success() { print_color "$GREEN" "[SUCCESS] $*"; }
+print_warning() { print_color "$YELLOW" "[WARNING] $*"; }
+print_error() { print_color "$RED" "[ERROR] $*"; }
+print_debug() {
+    if [[ "$TEST_DEBUG" == "true" ]]; then
+        print_color "$CYAN" "[DEBUG] $*"
+    fi
+}
 
-  # Import common testing utilities
-  # shellcheck disable=SC1091
-  source "$SCRIPT_DIR/common.sh" || {
-    echo "ERROR: Failed to source common.sh"
-    exit 1
-  }
+# Logging function
+log_message() {
+    local level="$1"
+    shift
+    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
-  # Initialize counters
-  total_tests=0
-  passed_tests=0
-  failed_tests=0
-else
-  # This script is being sourced, assume environment is set up
-  [[ -z "$TEST_ROOT" ]] && echo "ERROR: TEST_ROOT not set" && exit 1
-
-  # Ensure common.sh is loaded
-  if [[ -z "$FRAMEWORK_DIR" ]]; then
-    # shellcheck disable=SC1091
-    source "$TEST_ROOT/framework/common.sh" || {
-      echo "ERROR: Failed to source common.sh"
-      exit 1
-    }
-  fi
-fi
-
-# Variables to hold options
-RUN_INTEGRATION=0
-RUN_E2E=0
-SPECIFIC_TEST=""
-VERBOSE=0
-
-# Function to run a single test
-function _run_test() {
-  local test_file="$1"
-  local test_name
-
-  test_name=$(basename "$test_file" .sh)
-  log_test_start "$test_name"
-
-  # Run test in a subshell to isolate it
-  (
-    # Reset assertion counters
-    reset_assertions
-
-    # Setup test environment
-    setup_test_environment "$test_name"
-
-    # Start timer
-    start_test_timer
-
-    # Run the test file
-    # shellcheck disable=SC1090
-    source "$test_file"
-    test_exit_code=$?
-
-    # Get test duration
-    duration=$(end_test_timer)
-
-    # Get assertion stats
-    read -r assertion_count failed_assertions < <(get_assertion_stats)
-
-    # Calculate overall test result
-    if [[ "$test_exit_code" -ne 0 || "$failed_assertions" -gt 0 ]]; then
-      result=1 # Fail
-    else
-      result=0 # Pass
+    if [[ -n "$TEST_LOG_DIR" ]]; then
+        echo "[$timestamp] [$level] $*" >> "$TEST_LOG_DIR/runner.log"
     fi
 
-    # Tear down test environment
-    teardown_test_environment
-
-    # Report test result
-    log_test_result "$test_name" "$result" "$duration"
-    report_test_result "$test_name" "$result" "$duration" "Assertions: $assertion_count, Failed: $failed_assertions"
-
-    # Return result without stopping test execution
-    return $result
-  )
-
-  local test_result=$?
-
-  # Update global counters
-  if [[ "$test_result" -eq 0 ]]; then
-    passed_tests=$((passed_tests + 1))
-  else
-    failed_tests=$((failed_tests + 1))
-  fi
-  total_tests=$((total_tests + 1))
-
-  return $test_result
+    case "$level" in
+        "INFO") print_info "$*" ;;
+        "SUCCESS") print_success "$*" ;;
+        "WARNING") print_warning "$*" ;;
+        "ERROR") print_error "$*" ;;
+        "DEBUG") print_debug "$*" ;;
+    esac
 }
 
-# Function to run integration tests
-function _run_integration_tests() {
-  log_header "Running Integration Tests"
+# =============================================================================
+# CONFIGURATION MANAGEMENT
+# =============================================================================
 
-  # Find all integration test files
-  local integration_tests
-  integration_tests=$(find "$TEST_ROOT/integration" -type f -name "test-*.sh" | sort)
-
-  for test_file in $integration_tests; do
-    _run_test "$test_file"
-  done
-
-  return 0
+load_test_config() {
+    if [[ -f "$TEST_CONFIG" ]]; then
+        # shellcheck disable=SC1090
+        source "$TEST_CONFIG"
+        log_message "DEBUG" "Loaded test configuration from $TEST_CONFIG"
+    else
+        log_message "WARNING" "Test configuration file not found: $TEST_CONFIG"
+        log_message "INFO" "Using default configuration"
+    fi
 }
 
-# Function to run end-to-end tests
-function _run_e2e_tests() {
-  log_header "Running End-to-End Tests"
+# =============================================================================
+# SANDBOX ENVIRONMENT MANAGEMENT
+# =============================================================================
 
-  # Find all e2e test files
-  local e2e_tests
-  e2e_tests=$(find "$TEST_ROOT/e2e" -type f -name "test-*.sh" | sort)
+create_sandbox() {
+    local sandbox_id="$1"
+    local sandbox_path="$TEST_SANDBOX_ROOT/$sandbox_id"
 
-  for test_file in $e2e_tests; do
-    _run_test "$test_file"
-  done
+    # Remove existing sandbox if it exists
+    if [[ -d "$sandbox_path" ]]; then
+        rm -rf "$sandbox_path"
+    fi
 
-  return 0
+    # Create sandbox directory
+    mkdir -p "$sandbox_path"
+
+    # Copy KGSM to sandbox
+    cp -r "$KGSM_ROOT"/* "$sandbox_path/"
+
+    # Create test-specific config
+    create_test_config "$sandbox_path"
+
+    # Set permissions
+    chmod +x "$sandbox_path/kgsm.sh"
+    find "$sandbox_path/modules" -name "*.sh" -exec chmod +x {} \;
+
+    echo "$sandbox_path"
 }
 
-# Function to run unit tests
-function _run_unit_tests() {
-  log_header "Running Unit Tests"
+create_test_config() {
+    local sandbox_path="$1"
+    local config_file="$sandbox_path/config.ini"
 
-  # Find all unit test files
-  local unit_tests
-  unit_tests=$(find "$TEST_ROOT/unit" -type f -name "test-*.sh" | sort)
+    # Copy default config
+    cp "$sandbox_path/config.default.ini" "$config_file"
 
-  for test_file in $unit_tests; do
-    _run_test "$test_file"
-  done
+    # Modify for test environment
+    cat >> "$config_file" << EOF
 
-  return 0
+# =============================================================================
+# TEST ENVIRONMENT OVERRIDES
+# =============================================================================
+
+# Disable features that require system integration for testing
+enable_systemd=false
+enable_firewall_management=false
+enable_port_forwarding=false
+enable_event_broadcasting=false
+enable_command_shortcuts=false
+
+# Set test-specific paths
+default_install_directory=$sandbox_path/instances
+log_max_size_kb=1024
+
+# Enable logging for tests
+enable_logging=true
+
+# Test-specific settings
+instance_suffix_length=3
+enable_backup_compression=false
+instance_save_command_timeout_seconds=2
+instance_stop_command_timeout_seconds=5
+instance_auto_update_before_start=false
+
+EOF
 }
 
-# Function to run a specific test
-function _run_specific_test() {
-  local test_file="$1"
+cleanup_sandbox() {
+    local sandbox_path="$1"
 
-  # Check if test file exists
-  if [[ ! -f "$test_file" ]]; then
-    # Try to find it in test directories
-    local potential_files=(
-      "$TEST_ROOT/unit/$test_file"
-      "$TEST_ROOT/integration/$test_file"
-      "$TEST_ROOT/e2e/$test_file"
-      "$TEST_ROOT/unit/test-$test_file.sh"
-      "$TEST_ROOT/integration/test-$test_file.sh"
-      "$TEST_ROOT/e2e/test-$test_file.sh"
-      "$TEST_ROOT/unit/test-$test_file"
-      "$TEST_ROOT/integration/test-$test_file"
-      "$TEST_ROOT/e2e/test-$test_file"
-    )
+    if [[ -d "$sandbox_path" ]]; then
+        log_message "DEBUG" "Cleaning up sandbox: $sandbox_path"
+        rm -rf "$sandbox_path"
+    fi
+}
 
-    for potential_file in "${potential_files[@]}"; do
-      if [[ -f "$potential_file" ]]; then
-        test_file="$potential_file"
-        break
-      fi
+# =============================================================================
+# TEST DISCOVERY AND EXECUTION
+# =============================================================================
+
+discover_tests() {
+    local test_type="$1"
+    local test_dir="$TESTS_ROOT/$test_type"
+
+    if [[ ! -d "$test_dir" ]]; then
+        log_message "WARNING" "Test directory not found: $test_dir"
+        return 0
+    fi
+
+    find "$test_dir" -name "test_*.sh" -type f | sort
+}
+
+should_run_test() {
+    local test_file="$1"
+    local test_name="$(basename "$test_file" .sh)"
+
+    # Check if test should be skipped based on configuration
+    local skip_var="SKIP_${test_name^^}"
+    if [[ "${!skip_var:-false}" == "true" ]]; then
+        return 1
+    fi
+
+    # Check test patterns
+    if [[ ${#TEST_PATTERNS[@]} -gt 0 ]]; then
+        local match=false
+        for pattern in "${TEST_PATTERNS[@]}"; do
+            if [[ "$test_name" =~ $pattern ]]; then
+                match=true
+                break
+            fi
+        done
+        if [[ "$match" != "true" ]]; then
+            return 1
+        fi
+    fi
+
+    # Check exclude patterns
+    for exclude in "${TEST_EXCLUDE[@]}"; do
+        if [[ "$test_name" =~ $exclude ]]; then
+            return 1
+        fi
     done
 
-    # If still not found
-    if [[ ! -f "$test_file" ]]; then
-      log_error "Test file not found: $1"
-      return 1
+    return 0
+}
+
+execute_test() {
+    local test_file="$1"
+    local test_type="$2"
+    local test_name="$(basename "$test_file" .sh)"
+    local sandbox_id="${test_type}_${test_name}_$$"
+    local sandbox_path=""
+
+    log_message "INFO" "Running $test_type test: $test_name"
+
+    # Create test log file
+    local test_log="$TEST_LOG_DIR/${test_name}.log"
+    echo "=== Test: $test_name ===" > "$test_log"
+    echo "Type: $test_type" >> "$test_log"
+    echo "Started: $(date)" >> "$test_log"
+    echo "" >> "$test_log"
+
+    # Create sandbox environment first
+    sandbox_path="$(create_sandbox "$sandbox_id")"
+
+    # Set all test environment variables before running test
+    local original_kgsm_root="$KGSM_ROOT"
+    export KGSM_ROOT="$sandbox_path"
+    export KGSM_TEST_MODE="true"
+    export KGSM_TEST_LOG="$test_log"
+    export KGSM_TEST_SANDBOX="$sandbox_path"
+
+    if [[ "$TEST_DEBUG" == "true" ]]; then
+        export KGSM_DEBUG="true"
+        set -x
     fi
-  fi
 
-  _run_test "$test_file"
-  return $?
+    local start_time="$(date +%s)"
+    local exit_code=0
+
+    # Execute the test
+    if bash "$test_file" >> "$test_log" 2>&1; then
+        exit_code=$EC_SUCCESS
+    else
+        exit_code=$?
+    fi
+
+    local end_time="$(date +%s)"
+    local duration=$((end_time - start_time))
+
+    # Log test completion
+    echo "" >> "$test_log"
+    echo "Completed: $(date)" >> "$test_log"
+    echo "Duration: ${duration}s" >> "$test_log"
+    echo "Exit code: $exit_code" >> "$test_log"
+
+    # Update counters and report result
+    case $exit_code in
+        $EC_SUCCESS)
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            log_message "SUCCESS" "✓ $test_name (${duration}s)"
+            ;;
+        $EC_SKIP)
+            TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
+            log_message "WARNING" "⊘ $test_name (skipped)"
+            ;;
+        *)
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            log_message "ERROR" "✗ $test_name (${duration}s) - Exit code: $exit_code"
+            if [[ "$TEST_VERBOSE" == "true" ]]; then
+                print_error "Last 10 lines of test log:"
+                tail -10 "$test_log" | while IFS= read -r line; do
+                    print_error "  $line"
+                done
+            fi
+            ;;
+    esac
+
+    # Record result
+    echo "$test_name,$test_type,$exit_code,$duration,$(date -Iseconds)" >> "$TEST_RESULTS_FILE"
+
+    # Restore original KGSM_ROOT
+    export KGSM_ROOT="$original_kgsm_root"
+
+    # Cleanup
+    if [[ "$TEST_DEBUG" != "true" ]]; then
+        cleanup_sandbox "$sandbox_path"
+        set +x 2>/dev/null || true
+    else
+        log_message "DEBUG" "Sandbox preserved for debugging: $sandbox_path"
+    fi
+
+    return $exit_code
 }
 
-# Main execution function
-function execute_tests() {
-  # Initialize test run
-  report_init
+run_test_suite() {
+    local test_type="$1"
 
-  if [[ "$RUN_UNIT" -eq 1 ]]; then
-    _run_unit_tests
-  fi
+    printf "\n"
+    print_color "$CYAN" "=== Running $test_type tests ==="
 
-  if [[ "$RUN_INTEGRATION" -eq 1 ]]; then
-    _run_integration_tests
-  fi
+    local tests
+    mapfile -t tests < <(discover_tests "$test_type")
 
-  if [[ "$RUN_E2E" -eq 1 ]]; then
-    _run_e2e_tests
-  fi
+    if [[ ${#tests[@]} -eq 0 ]]; then
+        log_message "WARNING" "No $test_type tests found"
+        return 0
+    fi
 
-  if [[ -n "$SPECIFIC_TEST" ]]; then
-    _run_specific_test "$SPECIFIC_TEST"
-  fi
-
-  # Generate report summary
-  report_summary
-
-  # Return success if all tests passed
-  [[ "$failed_tests" -eq 0 ]] && return 0 || return 1
+    for test_file in "${tests[@]}"; do
+        if should_run_test "$test_file"; then
+            TESTS_TOTAL=$((TESTS_TOTAL + 1))
+            execute_test "$test_file" "$test_type"
+        else
+            log_message "INFO" "Skipping test: $(basename "$test_file" .sh)"
+        fi
+    done
 }
 
-# If no arguments, show usage
-if [ "$#" -eq 0 ] && [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  usage
-  exit 1
-fi
+# =============================================================================
+# REPORTING
+# =============================================================================
 
-# Parse arguments
-while [[ "$#" -gt 0 ]]; do
-  case $1 in
-  -h | --help)
-    usage
-    exit 0
-    ;;
-  --unit)
-    RUN_UNIT=1
-    ;;
-  --integration)
-    RUN_INTEGRATION=1
-    ;;
-  --e2e)
-    RUN_E2E=1
-    ;;
-  --test)
-    shift
-    [[ -z "$1" ]] && echo "${0##*/} ERROR: Missing argument for --test" >&2 && exit 1
-    SPECIFIC_TEST="$1"
-    ;;
-  --verbose)
-    VERBOSE=1
-    export VERBOSE
-    ;;
-  *)
-    echo "${0##*/} ERROR: Unknown option $1" >&2
-    usage
-    exit 1
-    ;;
-  esac
-  shift
-done
+generate_summary() {
+    local total_runtime=$(($(date +%s) - ${START_TIME:-$(date +%s)}))
 
-# Execute tests if script is being run directly
+    printf "\n"
+    print_color "$WHITE" "$(printf '=%.0s' {1..60})"
+    print_color "$WHITE" "TEST SUMMARY"
+    print_color "$WHITE" "$(printf '=%.0s' {1..60})"
+
+    printf "%-20s %s\n" "Total tests:" "$TESTS_TOTAL"
+    printf "${GREEN}%-20s %s${NC}\n" "Passed:" "$TESTS_PASSED"
+    printf "${RED}%-20s %s${NC}\n" "Failed:" "$TESTS_FAILED"
+    printf "${YELLOW}%-20s %s${NC}\n" "Skipped:" "$TESTS_SKIPPED"
+    printf "%-20s %s\n" "Runtime:" "${total_runtime}s"
+
+    if [[ -f "$TEST_RESULTS_FILE" ]]; then
+        printf "%-20s %s\n" "Results file:" "$TEST_RESULTS_FILE"
+    fi
+
+    if [[ -d "$TEST_LOG_DIR" ]]; then
+        printf "%-20s %s\n" "Logs directory:" "$TEST_LOG_DIR"
+    fi
+
+    print_color "$WHITE" "$(printf '=%.0s' {1..60})"
+
+    # Determine exit code
+    if [[ $TESTS_FAILED -gt 0 ]]; then
+        return $EC_FAILURE
+    else
+        return $EC_SUCCESS
+    fi
+}
+
+# =============================================================================
+# LOG MANAGEMENT
+# =============================================================================
+
+clean_old_logs() {
+    local logs_dir="$TESTS_ROOT/logs"
+
+    if [[ ! -d "$logs_dir" ]]; then
+        print_info "No logs directory found"
+        return 0
+    fi
+
+    print_info "Cleaning old test logs..."
+
+        # Count current log directories (match new timestamp format YYYY-MM-DD_HH-MM-SS)
+    local log_count=$(find "$logs_dir" -maxdepth 1 -type d -name "20*-*-*_*-*-*" | wc -l)
+
+    if [[ $log_count -le 10 ]]; then
+        print_info "Found $log_count log directories (keeping all, threshold is 10)"
+        return 0
+    fi
+
+    # Remove all but the 10 most recent log directories
+    find "$logs_dir" -maxdepth 1 -type d -name "20*-*-*_*-*-*" -printf '%T@ %p\n' | \
+        sort -n | head -n -10 | cut -d' ' -f2- | \
+        while IFS= read -r dir; do
+            print_info "Removing old log directory: $(basename "$dir")"
+            rm -rf "$dir"
+        done
+
+    local remaining=$(find "$logs_dir" -maxdepth 1 -type d -name "20*-*-*_*-*-*" | wc -l)
+    print_success "Log cleanup complete. $remaining directories remaining."
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+show_usage() {
+    cat << EOF
+KGSM Test Framework Runner
+
+Usage: $(basename "$0") [OPTIONS] [TEST_TYPES...]
+
+OPTIONS:
+    -h, --help          Show this help message
+    -d, --debug         Enable debug mode (preserves sandboxes)
+    -v, --verbose       Enable verbose output
+    -q, --quiet         Suppress non-essential output
+    -p, --parallel      Run tests in parallel (where possible)
+    --clean-logs        Remove old test logs (keeps last 10)
+
+FILTERING:
+    --pattern REGEX     Only run tests matching pattern
+    --exclude REGEX     Exclude tests matching pattern
+
+TEST TYPES:
+    unit                Run unit tests
+    integration         Run integration tests
+    e2e                 Run end-to-end tests
+    all                 Run all test types (default)
+
+EXAMPLES:
+    $(basename "$0")                    # Run all tests
+    $(basename "$0") unit               # Run only unit tests
+    $(basename "$0") --debug e2e        # Run e2e tests with debug
+    $(basename "$0") --pattern "instance"  # Run tests matching "instance"
+    $(basename "$0") --clean-logs       # Clean up old test logs
+
+LOGS:
+    Test logs are saved in tests/logs/ with timestamped directories.
+    Use --clean-logs to remove old logs (keeps most recent 10).
+
+EOF
+}
+
+main() {
+    export START_TIME="$(date +%s)"
+
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_usage
+                exit $EC_SUCCESS
+                ;;
+            -d|--debug)
+                TEST_DEBUG=true
+                ;;
+            -v|--verbose)
+                TEST_VERBOSE=true
+                ;;
+            -q|--quiet)
+                TEST_QUIET=true
+                ;;
+            -p|--parallel)
+                TEST_PARALLEL=true
+                ;;
+            --clean-logs)
+                clean_old_logs
+                exit $EC_SUCCESS
+                ;;
+            --pattern)
+                shift
+                TEST_PATTERNS+=("$1")
+                ;;
+            --exclude)
+                shift
+                TEST_EXCLUDE+=("$1")
+                ;;
+            unit|integration|e2e)
+                TEST_TYPES+=("$1")
+                ;;
+            all)
+                TEST_TYPES=("unit" "integration" "e2e")
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_usage
+                exit $EC_ERROR
+                ;;
+        esac
+        shift
+    done
+
+    # Default to all tests if none specified
+    if [[ ${#TEST_TYPES[@]} -eq 0 ]]; then
+        TEST_TYPES=("unit" "integration" "e2e")
+    fi
+
+    # Initialize testing environment
+    TEST_SANDBOX_ROOT="$(mktemp -d -t kgsm-test-sandbox-XXXXXX)"
+
+    # Create timestamped log directory in project
+    local timestamp="$(date '+%Y-%m-%d_%H-%M-%S')"
+    TEST_LOG_DIR="$TESTS_ROOT/logs/$timestamp"
+    mkdir -p "$TEST_LOG_DIR"
+    TEST_RESULTS_FILE="$TEST_LOG_DIR/results.csv"
+
+    # Create results header
+    echo "test_name,test_type,exit_code,duration_seconds,timestamp" > "$TEST_RESULTS_FILE"
+
+    print_color "$BOLD$CYAN" "KGSM Test Framework Runner"
+    print_color "$GRAY" "Sandbox: $TEST_SANDBOX_ROOT"
+    print_color "$GREEN" "Logs: $TEST_LOG_DIR"
+    print_color "$GRAY" "Logs will be preserved in the project directory for easy access"
+
+    # Load configuration
+    load_test_config
+
+    # Set up signal handlers for cleanup
+    trap 'cleanup_all' EXIT INT TERM
+
+    # Run test suites
+    for test_type in "${TEST_TYPES[@]}"; do
+        run_test_suite "$test_type"
+    done
+
+    # Generate final summary
+    generate_summary
+}
+
+cleanup_all() {
+    if [[ "$TEST_DEBUG" != "true" && -n "$TEST_SANDBOX_ROOT" ]]; then
+        rm -rf "$TEST_SANDBOX_ROOT"
+    fi
+    # Note: TEST_LOG_DIR is kept in project directory for easy access
+}
+
+# Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  execute_tests
-  exit $?
+    main "$@"
 fi
