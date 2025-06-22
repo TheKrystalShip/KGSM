@@ -3,89 +3,149 @@
 # KGSM Configuration Unit Tests
 # Tests the configuration file handling and validation
 
-echo "[INFO] Starting configuration unit tests"
+# =============================================================================
+# TEST SETUP
+# =============================================================================
 
-# Check environment
-if [[ -z "$KGSM_ROOT" ]]; then
-    echo "[FAIL] KGSM_ROOT not set"
-    exit 1
-fi
+# Source the test framework
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../framework/common.sh"
 
-# Test 1: Configuration files exist
-echo "[STEP] Testing configuration file existence"
-if [[ ! -f "$KGSM_ROOT/config.default.ini" ]]; then
-    echo "[FAIL] config.default.ini not found"
-    exit 1
-fi
+readonly TEST_NAME="configuration"
 
-if [[ ! -f "$KGSM_ROOT/config.ini" ]]; then
-    echo "[FAIL] config.ini not found"
-    exit 1
-fi
-echo "[PASS] Configuration files exist"
+# =============================================================================
+# TEST FUNCTIONS
+# =============================================================================
 
-# Test 2: Configuration files are readable
-echo "[STEP] Testing configuration file readability"
-if [[ ! -r "$KGSM_ROOT/config.default.ini" ]]; then
-    echo "[FAIL] config.default.ini is not readable"
-    exit 1
-fi
+function setup_test() {
+  log_step "Setting up configuration unit tests"
 
-if [[ ! -r "$KGSM_ROOT/config.ini" ]]; then
-    echo "[FAIL] config.ini is not readable"
-    exit 1
-fi
-echo "[PASS] Configuration files are readable"
+  # Verify test environment is properly initialized
+  assert_not_null "$KGSM_ROOT" "KGSM_ROOT should be set"
+  assert_dir_exists "$KGSM_ROOT" "KGSM root directory should exist"
 
-# Test 3: Configuration files contain expected sections
-echo "[STEP] Testing configuration file structure"
-if ! grep -q "enable_logging" "$KGSM_ROOT/config.ini"; then
-    echo "[FAIL] config.ini missing expected configuration options"
-    exit 1
-fi
+  log_test "Test environment validated"
+}
 
-if ! grep -q "default_install_directory" "$KGSM_ROOT/config.ini"; then
-    echo "[FAIL] config.ini missing default_install_directory"
-    exit 1
-fi
-echo "[PASS] Configuration files contain expected sections"
+function test_configuration_files_existence() {
+  log_step "Testing configuration file existence"
 
-# Test 4: Test environment overrides are applied
-echo "[STEP] Testing test environment overrides"
-if grep -q "TEST ENVIRONMENT OVERRIDES" "$KGSM_ROOT/config.ini"; then
-    echo "[PASS] Test environment overrides are applied"
-else
-    echo "[FAIL] Test environment overrides not found"
-    exit 1
-fi
+  assert_file_exists "$KGSM_ROOT/config.default.ini" "config.default.ini should exist"
+  assert_file_exists "$KGSM_ROOT/config.ini" "config.ini should exist"
+}
 
-# Test 5: Test that systemd is disabled in test environment
-echo "[STEP] Testing systemd disabled in test environment"
-if grep -q "enable_systemd=false" "$KGSM_ROOT/config.ini"; then
-    echo "[PASS] systemd is disabled in test environment"
-else
-    echo "[FAIL] systemd not properly disabled in test environment"
-    exit 1
-fi
+function test_configuration_files_readability() {
+  log_step "Testing configuration file readability"
 
-# Test 6: Test that firewall management is disabled
-echo "[STEP] Testing firewall management disabled in test environment"
-if grep -q "enable_firewall_management=false" "$KGSM_ROOT/config.ini"; then
-    echo "[PASS] firewall management is disabled in test environment"
-else
-    echo "[FAIL] firewall management not properly disabled in test environment"
-    exit 1
-fi
+  # Test default config readability
+  if [[ -r "$KGSM_ROOT/config.default.ini" ]]; then
+    assert_true "true" "config.default.ini should be readable"
+  else
+    assert_true "false" "config.default.ini should be readable"
+  fi
 
-# Test 7: Test configuration parsing (basic syntax check)
-echo "[STEP] Testing configuration syntax"
-# Check for basic ini file syntax - no obvious syntax errors
-if grep -E "^[a-zA-Z_][a-zA-Z0-9_]*=" "$KGSM_ROOT/config.ini" >/dev/null; then
-    echo "[PASS] Configuration syntax appears valid"
-else
-    echo "[FAIL] Configuration syntax issues detected"
-    exit 1
-fi
+  # Test main config readability
+  if [[ -r "$KGSM_ROOT/config.ini" ]]; then
+    assert_true "true" "config.ini should be readable"
+  else
+    assert_true "false" "config.ini should be readable"
+  fi
+}
 
-echo "[SUCCESS] All configuration unit tests passed"
-exit 0
+function test_configuration_structure() {
+  log_step "Testing configuration file structure"
+
+  # Test for expected configuration options
+  assert_file_contains "$KGSM_ROOT/config.ini" "enable_logging" "config.ini should contain enable_logging option"
+  assert_file_contains "$KGSM_ROOT/config.ini" "default_install_directory" "config.ini should contain default_install_directory option"
+}
+
+function test_environment_overrides() {
+  log_step "Testing test environment overrides"
+
+  assert_file_contains "$KGSM_ROOT/config.ini" "TEST ENVIRONMENT OVERRIDES" "config.ini should contain test environment overrides section"
+}
+
+function test_systemd_disabled() {
+  log_step "Testing systemd disabled in test environment"
+
+  assert_file_contains "$KGSM_ROOT/config.ini" "enable_systemd=false" "systemd should be disabled in test environment"
+}
+
+function test_firewall_management_disabled() {
+  log_step "Testing firewall management disabled in test environment"
+
+  assert_file_contains "$KGSM_ROOT/config.ini" "enable_firewall_management=false" "firewall management should be disabled in test environment"
+}
+
+function test_configuration_syntax() {
+  log_step "Testing configuration syntax"
+
+  # Check for basic ini file syntax - configuration key-value pairs
+  local syntax_check
+  if syntax_check=$(grep -E "^[a-zA-Z_][a-zA-Z0-9_]*=" "$KGSM_ROOT/config.ini"); then
+    assert_not_null "$syntax_check" "Configuration should contain valid key=value pairs"
+    log_test "Found valid configuration syntax"
+  else
+    assert_true "false" "Configuration syntax should be valid"
+  fi
+}
+
+function test_test_specific_settings() {
+  log_step "Testing test-specific configuration settings"
+
+  # Test for test-specific settings that should be present
+  assert_file_contains "$KGSM_ROOT/config.ini" "enable_logging=true" "logging should be enabled for tests"
+
+  # Check for port forwarding disabled (safer for tests)
+  if grep -q "enable_port_forwarding=false" "$KGSM_ROOT/config.ini"; then
+    log_test "Port forwarding is disabled in test environment"
+  else
+    log_test "Port forwarding setting not found (may use default)"
+  fi
+}
+
+function test_directory_settings() {
+  log_step "Testing directory configuration settings"
+
+  # The default install directory should be set to the sandbox
+  local install_dir_setting
+  if install_dir_setting=$(grep "default_install_directory=" "$KGSM_ROOT/config.ini"); then
+    assert_contains "$install_dir_setting" "$KGSM_ROOT" "Install directory should be within sandbox"
+    log_test "Install directory setting: $install_dir_setting"
+  else
+    assert_true "false" "default_install_directory should be configured"
+  fi
+}
+
+# =============================================================================
+# MAIN TEST EXECUTION
+# =============================================================================
+
+function main() {
+  log_test "Starting configuration unit tests"
+
+  # Initialize test environment
+  setup_test
+
+  # Execute all test functions
+  test_configuration_files_existence
+  test_configuration_files_readability
+  test_configuration_structure
+  test_environment_overrides
+  test_systemd_disabled
+  test_firewall_management_disabled
+  test_configuration_syntax
+  test_test_specific_settings
+  test_directory_settings
+
+  # Print summary and determine exit code
+  if print_assert_summary "$TEST_NAME"; then
+    pass_test "All configuration unit tests completed successfully"
+  else
+    fail_test "Some configuration unit tests failed"
+  fi
+}
+
+# Execute main function
+main "$@"

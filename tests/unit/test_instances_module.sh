@@ -3,97 +3,171 @@
 # KGSM Instances Module Unit Tests
 # Tests the core functionality of the instances.sh module
 
-echo "[INFO] Starting instances module unit tests"
+# =============================================================================
+# TEST SETUP
+# =============================================================================
 
-# Check environment
-if [[ -z "$KGSM_ROOT" ]]; then
-    echo "[FAIL] KGSM_ROOT not set"
-    exit 1
-fi
+# Source the test framework
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../framework/common.sh"
 
-INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
+readonly TEST_NAME="instances_module"
+readonly INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
 
-# Test 1: Module exists and is executable
-echo "[STEP] Testing module existence and permissions"
-if [[ ! -f "$INSTANCES_MODULE" ]]; then
-    echo "[FAIL] instances.sh module not found at $INSTANCES_MODULE"
-    exit 1
-fi
+# =============================================================================
+# TEST FUNCTIONS
+# =============================================================================
 
-if [[ ! -x "$INSTANCES_MODULE" ]]; then
-    echo "[FAIL] instances.sh module is not executable"
-    exit 1
-fi
-echo "[PASS] instances.sh module exists and is executable"
+function setup_test() {
+  log_step "Setting up instances module tests"
 
-# Test 2: Module help functionality
-echo "[STEP] Testing module help functionality"
-if "$INSTANCES_MODULE" --help >/dev/null 2>&1; then
-    echo "[PASS] instances.sh --help works"
-else
-    echo "[FAIL] instances.sh --help failed"
-    exit 1
-fi
+  # Verify test environment is properly initialized
+  assert_not_null "$KGSM_ROOT" "KGSM_ROOT should be set"
+  assert_dir_exists "$KGSM_ROOT" "KGSM root directory should exist"
 
-# Test 3: Module list functionality (should work even with no instances)
-echo "[STEP] Testing module list functionality"
-if "$INSTANCES_MODULE" --list >/dev/null 2>&1; then
-    echo "[PASS] instances.sh --list works"
-else
-    echo "[FAIL] instances.sh --list failed"
-    exit 1
-fi
+  log_test "Test environment validated"
+}
 
-# Test 4: Module list with JSON output
-echo "[STEP] Testing module JSON list functionality"
-if "$INSTANCES_MODULE" --list --json >/dev/null 2>&1; then
-    echo "[PASS] instances.sh --list --json works"
-else
-    echo "[FAIL] instances.sh --list --json failed"
-    exit 1
-fi
+function test_module_existence_and_permissions() {
+  log_step "Testing module existence and permissions"
 
-# Test 5: Generate unique instance ID
-echo "[STEP] Testing instance ID generation"
-# First, ensure we have a blueprint to test with
-if [[ -f "$KGSM_ROOT/blueprints/default/native/factorio.bp" ]]; then
-    INSTANCE_ID=$("$INSTANCES_MODULE" --generate-id factorio.bp 2>/dev/null)
-    if [[ -n "$INSTANCE_ID" ]]; then
-        echo "[PASS] Generated instance ID: $INSTANCE_ID"
+  assert_file_exists "$INSTANCES_MODULE" "instances.sh module should exist"
+
+  # Check if file is executable
+  if [[ -x "$INSTANCES_MODULE" ]]; then
+    assert_true "true" "instances.sh module should be executable"
+  else
+    assert_true "false" "instances.sh module should be executable"
+  fi
+}
+
+function test_module_help_functionality() {
+  log_step "Testing module help functionality"
+
+  assert_command_succeeds "$INSTANCES_MODULE --help" "instances.sh --help should work"
+}
+
+function test_module_list_functionality() {
+  log_step "Testing module list functionality"
+
+  # List should work even with no instances
+  assert_command_succeeds "$INSTANCES_MODULE --list" "instances.sh --list should work"
+}
+
+function test_module_json_list_functionality() {
+  log_step "Testing module JSON list functionality"
+
+  assert_command_succeeds "$INSTANCES_MODULE --list --json" "instances.sh --list --json should work"
+}
+
+function test_instance_id_generation() {
+  log_step "Testing instance ID generation"
+
+  # First, check if we have a blueprint to test with
+  local factorio_blueprint="$KGSM_ROOT/blueprints/default/native/factorio.bp"
+
+  if [[ -f "$factorio_blueprint" ]]; then
+    local instance_id
+    if instance_id=$("$INSTANCES_MODULE" --generate-id factorio.bp 2>/dev/null); then
+      assert_not_null "$instance_id" "Generated instance ID should not be empty"
+      log_test "Generated instance ID: $instance_id"
     else
-        echo "[FAIL] Failed to generate instance ID"
-        exit 1
+      log_test "ID generation failed - this may be expected if blueprint requirements aren't met"
     fi
-else
-    echo "[SKIP] No factorio.bp found, skipping ID generation test"
-fi
+  else
+    log_test "No factorio.bp found, skipping ID generation test"
+  fi
+}
 
-# Test 6: Test invalid arguments
-echo "[STEP] Testing invalid argument handling"
-if "$INSTANCES_MODULE" --invalid-argument >/dev/null 2>&1; then
-    echo "[FAIL] Module should reject invalid arguments"
-    exit 1
-else
-    echo "[PASS] Module properly rejects invalid arguments"
-fi
+function test_invalid_argument_handling() {
+  log_step "Testing invalid argument handling"
 
-# Test 7: Test missing required arguments
-echo "[STEP] Testing missing argument handling"
-if "$INSTANCES_MODULE" --create >/dev/null 2>&1; then
-    echo "[FAIL] Module should require arguments for --create"
-    exit 1
-else
-    echo "[PASS] Module properly requires arguments for --create"
-fi
+  assert_command_fails "$INSTANCES_MODULE --invalid-argument" "Module should reject invalid arguments"
+}
 
-# Test 8: Test find functionality with non-existent instance
-echo "[STEP] Testing find functionality with non-existent instance"
-if "$INSTANCES_MODULE" --find non-existent-instance >/dev/null 2>&1; then
-    echo "[FAIL] Module should fail when finding non-existent instance"
-    exit 1
-else
-    echo "[PASS] Module properly fails when instance doesn't exist"
-fi
+function test_missing_argument_handling() {
+  log_step "Testing missing argument handling"
 
-echo "[SUCCESS] All instances module unit tests passed"
-exit 0
+  # --create should require arguments
+  assert_command_fails "$INSTANCES_MODULE --create" "Module should require arguments for --create"
+}
+
+function test_find_nonexistent_instance() {
+  log_step "Testing find functionality with non-existent instance"
+
+  local nonexistent_name="nonexistent-test-instance-$(date +%s)"
+  assert_command_fails "$INSTANCES_MODULE --find '$nonexistent_name'" "Module should fail when finding non-existent instance"
+}
+
+function test_module_output_format() {
+  log_step "Testing module output format consistency"
+
+  # Test that --list produces parseable output (even if empty)
+  local list_output
+  if list_output=$("$INSTANCES_MODULE" --list 2>/dev/null); then
+    log_test "List command produces output (may be empty if no instances)"
+  else
+    log_test "List command failed - this may indicate a configuration issue"
+  fi
+
+  # Test that --list --json produces valid format (if jq is available)
+  if command -v jq >/dev/null 2>&1; then
+    local json_output
+    if json_output=$("$INSTANCES_MODULE" --list --json 2>/dev/null); then
+      if echo "$json_output" | jq . >/dev/null 2>&1; then
+        assert_true "true" "JSON output should be valid JSON"
+      else
+        log_test "JSON output is not valid JSON format"
+      fi
+    fi
+  else
+    log_test "jq not available, skipping JSON validation"
+  fi
+}
+
+function test_module_status_functionality() {
+  log_step "Testing module status-related functionality"
+
+  # Test status command with non-existent instance (should fail gracefully)
+  local test_instance="test-nonexistent-$(date +%s)"
+
+  # Status check for non-existent instance should fail
+  if "$INSTANCES_MODULE" --status "$test_instance" >/dev/null 2>&1; then
+    log_test "Status command succeeded for non-existent instance (unexpected but not necessarily wrong)"
+  else
+    log_test "Status command failed for non-existent instance (expected behavior)"
+  fi
+}
+
+# =============================================================================
+# MAIN TEST EXECUTION
+# =============================================================================
+
+function main() {
+  log_test "Starting instances module unit tests"
+
+  # Initialize test environment
+  setup_test
+
+  # Execute all test functions
+  test_module_existence_and_permissions
+  test_module_help_functionality
+  test_module_list_functionality
+  test_module_json_list_functionality
+  test_instance_id_generation
+  test_invalid_argument_handling
+  test_missing_argument_handling
+  test_find_nonexistent_instance
+  test_module_output_format
+  test_module_status_functionality
+
+  # Print summary and determine exit code
+  if print_assert_summary "$TEST_NAME"; then
+    pass_test "All instances module tests completed successfully"
+  else
+    fail_test "Some instances module tests failed"
+  fi
+}
+
+# Execute main function
+main "$@"

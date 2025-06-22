@@ -8,8 +8,6 @@
 # This is the main entry point for running KGSM tests.
 # It provides a convenient interface to the test runner.
 
-set -euo pipefail
-
 # =============================================================================
 # SCRIPT SETUP
 # =============================================================================

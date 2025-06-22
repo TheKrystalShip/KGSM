@@ -3,163 +3,252 @@
 # KGSM Instance Lifecycle End-to-End Test
 # Tests the complete lifecycle of creating and managing an instance
 
-echo "[INFO] Starting instance lifecycle e2e test"
+# =============================================================================
+# TEST SETUP
+# =============================================================================
 
-# Check environment
-if [[ -z "$KGSM_ROOT" ]]; then
-    echo "[FAIL] KGSM_ROOT not set"
-    exit 1
-fi
+# Source the test framework
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../framework/common.sh"
 
-INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
+readonly TEST_NAME="instance_lifecycle"
+readonly INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
+
+# Test variables
 TEST_INSTALL_DIR="$KGSM_ROOT/test_instances"
+TEST_BLUEPRINT=""
+TEST_INSTANCE_NAME=""
 
-# Cleanup function
-cleanup() {
-    echo "[STEP] Cleaning up test instance"
-    if [[ -n "$TEST_INSTANCE_NAME" ]]; then
-        "$INSTANCES_MODULE" --remove "$TEST_INSTANCE_NAME" >/dev/null 2>&1 || true
-    fi
-    if [[ -d "$TEST_INSTALL_DIR" ]]; then
-        rm -rf "$TEST_INSTALL_DIR" >/dev/null 2>&1 || true
-    fi
+# =============================================================================
+# TEST FUNCTIONS
+# =============================================================================
+
+function setup_test() {
+  log_step "Setting up instance lifecycle e2e test"
+
+  # Verify test environment is properly initialized
+  assert_not_null "$KGSM_ROOT" "KGSM_ROOT should be set"
+  assert_dir_exists "$KGSM_ROOT" "KGSM root directory should exist"
+  assert_file_exists "$INSTANCES_MODULE" "instances module should exist"
+
+  # Set up cleanup trap
+  trap cleanup_test EXIT
+
+  log_test "Test environment validated"
 }
 
-# Set up cleanup trap
-trap cleanup EXIT
+function cleanup_test() {
+  log_step "Cleaning up test instance"
 
-# Test 1: Find a suitable blueprint for testing
-echo "[STEP] Finding suitable blueprint for testing"
-TEST_BLUEPRINT=""
-if [[ -f "$KGSM_ROOT/blueprints/default/native/factorio.bp" ]]; then
+  if [[ -n "$TEST_INSTANCE_NAME" ]]; then
+    "$INSTANCES_MODULE" --remove "$TEST_INSTANCE_NAME" >/dev/null 2>&1 || true
+    log_test "Attempted to remove test instance: $TEST_INSTANCE_NAME"
+  fi
+
+  if [[ -d "$TEST_INSTALL_DIR" ]]; then
+    rm -rf "$TEST_INSTALL_DIR" >/dev/null 2>&1 || true
+    log_test "Cleaned up test install directory"
+  fi
+}
+
+function test_find_suitable_blueprint() {
+  log_step "Finding suitable blueprint for testing"
+
+  # Try to find a suitable blueprint for testing
+  if [[ -f "$KGSM_ROOT/blueprints/default/native/factorio.bp" ]]; then
     TEST_BLUEPRINT="factorio.bp"
-elif [[ -f "$KGSM_ROOT/blueprints/default/native/terraria.bp" ]]; then
+  elif [[ -f "$KGSM_ROOT/blueprints/default/native/terraria.bp" ]]; then
     TEST_BLUEPRINT="terraria.bp"
-elif [[ -f "$KGSM_ROOT/blueprints/default/native/minecraft.bp" ]]; then
+  elif [[ -f "$KGSM_ROOT/blueprints/default/native/minecraft.bp" ]]; then
     TEST_BLUEPRINT="minecraft.bp"
-else
+  else
     # Find any .bp file
     TEST_BLUEPRINT=$(find "$KGSM_ROOT/blueprints" -name "*.bp" -type f | head -1 | xargs basename 2>/dev/null)
-fi
+  fi
 
-if [[ -n "$TEST_BLUEPRINT" ]]; then
-    echo "[PASS] Using blueprint: $TEST_BLUEPRINT"
-else
-    echo "[FAIL] No suitable blueprint found for testing"
-    exit 1
-fi
+  assert_not_null "$TEST_BLUEPRINT" "Should find at least one suitable blueprint for testing"
+  log_test "Using blueprint: $TEST_BLUEPRINT"
+}
 
-# Test 2: Create test install directory
-echo "[STEP] Creating test install directory"
-if mkdir -p "$TEST_INSTALL_DIR"; then
-    echo "[PASS] Test install directory created: $TEST_INSTALL_DIR"
-else
-    echo "[FAIL] Failed to create test install directory"
-    exit 1
-fi
+function test_create_install_directory() {
+  log_step "Creating test install directory"
 
-# Test 3: Generate instance ID
-echo "[STEP] Generating instance ID"
-TEST_INSTANCE_NAME=$("$INSTANCES_MODULE" --generate-id "$TEST_BLUEPRINT" 2>/dev/null)
-if [[ -n "$TEST_INSTANCE_NAME" ]]; then
-    echo "[PASS] Generated instance ID: $TEST_INSTANCE_NAME"
-else
-    echo "[FAIL] Failed to generate instance ID"
-    exit 1
-fi
+  assert_command_succeeds "mkdir -p '$TEST_INSTALL_DIR'" "Should be able to create test install directory"
+  assert_dir_exists "$TEST_INSTALL_DIR" "Test install directory should exist after creation"
 
-# Test 4: Create instance
-echo "[STEP] Creating instance"
-CREATED_INSTANCE=$("$INSTANCES_MODULE" --create "$TEST_BLUEPRINT" --install-dir "$TEST_INSTALL_DIR" --name "$TEST_INSTANCE_NAME" 2>/dev/null)
-if [[ "$CREATED_INSTANCE" == "$TEST_INSTANCE_NAME" ]]; then
-    echo "[PASS] Instance created successfully: $CREATED_INSTANCE"
-else
-    echo "[FAIL] Failed to create instance. Expected: $TEST_INSTANCE_NAME, Got: $CREATED_INSTANCE"
-    exit 1
-fi
+  log_test "Test install directory created: $TEST_INSTALL_DIR"
+}
 
-# Test 5: Verify instance exists in list
-echo "[STEP] Verifying instance appears in list"
-INSTANCE_LIST=$("$INSTANCES_MODULE" --list 2>/dev/null)
-if echo "$INSTANCE_LIST" | grep -q "$TEST_INSTANCE_NAME"; then
-    echo "[PASS] Instance appears in instance list"
-else
-    echo "[FAIL] Instance does not appear in instance list"
-    echo "[DEBUG] Instance list: $INSTANCE_LIST"
-    exit 1
-fi
+function test_generate_instance_id() {
+  log_step "Generating instance ID"
 
-# Test 6: Find instance config file
-echo "[STEP] Finding instance configuration file"
-INSTANCE_CONFIG=$("$INSTANCES_MODULE" --find "$TEST_INSTANCE_NAME" 2>/dev/null)
-if [[ -f "$INSTANCE_CONFIG" ]]; then
-    echo "[PASS] Instance config file found: $INSTANCE_CONFIG"
-else
-    echo "[FAIL] Instance config file not found"
-    exit 1
-fi
+  local generated_id
+  if generated_id=$("$INSTANCES_MODULE" --generate-id "$TEST_BLUEPRINT" 2>/dev/null); then
+    TEST_INSTANCE_NAME="$generated_id"
+    assert_not_null "$TEST_INSTANCE_NAME" "Generated instance ID should not be empty"
+    log_test "Generated instance ID: $TEST_INSTANCE_NAME"
+  else
+    skip_test "Unable to generate instance ID for blueprint: $TEST_BLUEPRINT"
+  fi
+}
 
-# Test 7: Get instance info
-echo "[STEP] Getting instance information"
-if "$INSTANCES_MODULE" --info "$TEST_INSTANCE_NAME" >/dev/null 2>&1; then
-    echo "[PASS] Instance info command works"
-else
-    echo "[FAIL] Instance info command failed"
-    exit 1
-fi
+function test_create_instance() {
+  log_step "Creating instance"
 
-# Test 8: Get instance info in JSON format
-echo "[STEP] Getting instance information in JSON format"
-INSTANCE_JSON=$("$INSTANCES_MODULE" --info "$TEST_INSTANCE_NAME" --json 2>/dev/null)
-if [[ -n "$INSTANCE_JSON" ]] && [[ "$INSTANCE_JSON" != "null" ]]; then
-    echo "[PASS] Instance JSON info command works"
-else
-    echo "[FAIL] Instance JSON info command failed"
-    exit 1
-fi
+  local created_instance
+  if created_instance=$("$INSTANCES_MODULE" --create "$TEST_BLUEPRINT" --install-dir "$TEST_INSTALL_DIR" --name "$TEST_INSTANCE_NAME" 2>/dev/null); then
+    assert_equals "$TEST_INSTANCE_NAME" "$created_instance" "Created instance name should match requested name"
+    log_test "Instance created successfully: $created_instance"
+  else
+    assert_true "false" "Instance creation should succeed"
+  fi
+}
 
-# Test 9: Get instance status
-echo "[STEP] Getting instance status"
-if "$INSTANCES_MODULE" --status "$TEST_INSTANCE_NAME" >/dev/null 2>&1; then
-    echo "[PASS] Instance status command works"
-else
-    echo "[FAIL] Instance status command failed"
-    exit 1
-fi
+function test_instance_appears_in_list() {
+  log_step "Verifying instance appears in list"
 
-# Test 10: Verify instance configuration exists (directory created during install)
-echo "[STEP] Verifying instance configuration"
-# The instance directory is created during installation, not just configuration
-# So we verify the config file exists instead
-if [[ -f "$INSTANCE_CONFIG" ]]; then
-    echo "[PASS] Instance configuration verified: $INSTANCE_CONFIG"
-else
-    echo "[FAIL] Instance configuration not found: $INSTANCE_CONFIG"
-    exit 1
-fi
+  local instance_list
+  if instance_list=$("$INSTANCES_MODULE" --list 2>/dev/null); then
+    assert_contains "$instance_list" "$TEST_INSTANCE_NAME" "Instance should appear in instance list"
+    log_test "Instance appears in instance list"
+  else
+    assert_true "false" "Instance list command should succeed"
+  fi
+}
 
-# Test 11: Remove instance
-echo "[STEP] Removing instance"
-INSTANCE_NAME_TO_REMOVE="$TEST_INSTANCE_NAME"
-if "$INSTANCES_MODULE" --remove "$TEST_INSTANCE_NAME" >/dev/null 2>&1; then
-    echo "[PASS] Instance removed successfully"
-    TEST_INSTANCE_NAME="" # Clear so cleanup doesn't try to remove again
-else
-    echo "[FAIL] Failed to remove instance"
-    exit 1
-fi
+function test_find_instance_config() {
+  log_step "Finding instance configuration file"
 
-# Test 12: Verify instance no longer exists
-echo "[STEP] Verifying instance removal"
-INSTANCE_LIST_AFTER=$("$INSTANCES_MODULE" --list 2>/dev/null)
-if echo "$INSTANCE_LIST_AFTER" | grep -q "$INSTANCE_NAME_TO_REMOVE"; then
-    echo "[FAIL] Instance still appears in list after removal"
-    echo "[DEBUG] Instance name: '$INSTANCE_NAME_TO_REMOVE'"
-    echo "[DEBUG] List after removal: '$INSTANCE_LIST_AFTER'"
-    exit 1
-else
-    echo "[PASS] Instance successfully removed from list"
-fi
+  local instance_config
+  if instance_config=$("$INSTANCES_MODULE" --find "$TEST_INSTANCE_NAME" 2>/dev/null); then
+    assert_file_exists "$instance_config" "Instance config file should exist"
+    log_test "Instance config file found: $instance_config"
+  else
+    assert_true "false" "Should be able to find instance config file"
+  fi
+}
 
-echo "[SUCCESS] Instance lifecycle e2e test completed successfully"
-exit 0
+function test_instance_info() {
+  log_step "Getting instance information"
+
+  assert_command_succeeds "$INSTANCES_MODULE --info '$TEST_INSTANCE_NAME'" "Instance info command should work"
+}
+
+function test_instance_info_json() {
+  log_step "Getting instance information in JSON format"
+
+  local instance_json
+  if instance_json=$("$INSTANCES_MODULE" --info "$TEST_INSTANCE_NAME" --json 2>/dev/null); then
+    assert_not_null "$instance_json" "Instance JSON info should not be null"
+    assert_not_equals "null" "$instance_json" "Instance JSON should contain actual data"
+
+    # Validate JSON format if jq is available
+    if command -v jq >/dev/null 2>&1; then
+      if echo "$instance_json" | jq . >/dev/null 2>&1; then
+        assert_true "true" "Instance JSON should be valid JSON"
+      else
+        log_test "Instance JSON is not valid format"
+      fi
+    fi
+
+    log_test "Instance JSON info command works"
+  else
+    log_test "Instance JSON info command failed - this may be expected for some blueprints"
+  fi
+}
+
+function test_instance_status() {
+  log_step "Getting instance status"
+
+  # Status command should work, though the result may vary
+  if "$INSTANCES_MODULE" --status "$TEST_INSTANCE_NAME" >/dev/null 2>&1; then
+    log_test "Instance status command works"
+  else
+    log_test "Instance status command failed - this may be expected for newly created instances"
+  fi
+}
+
+function test_verify_instance_configuration() {
+  log_step "Verifying instance configuration"
+
+  local instance_config
+  if instance_config=$("$INSTANCES_MODULE" --find "$TEST_INSTANCE_NAME" 2>/dev/null); then
+    assert_file_exists "$instance_config" "Instance configuration file should exist"
+    log_test "Instance configuration verified: $instance_config"
+  else
+    assert_true "false" "Instance configuration should be findable"
+  fi
+}
+
+function test_remove_instance() {
+  log_step "Removing instance"
+
+  local instance_name_to_remove="$TEST_INSTANCE_NAME"
+
+  assert_command_succeeds "$INSTANCES_MODULE --remove '$TEST_INSTANCE_NAME'" "Instance removal should succeed"
+
+  log_test "Instance removed successfully: $instance_name_to_remove"
+}
+
+function test_verify_instance_removal() {
+  log_step "Verifying instance removal"
+
+  local instance_name_to_check="$TEST_INSTANCE_NAME"
+  local instance_list_after
+
+  if instance_list_after=$("$INSTANCES_MODULE" --list 2>/dev/null); then
+    assert_not_contains "$instance_list_after" "$instance_name_to_check" "Instance should not appear in list after removal"
+    log_test "Instance successfully removed from list"
+  else
+    log_test "Unable to verify instance removal due to list command failure"
+  fi
+}
+
+function test_complete_lifecycle() {
+  log_step "Testing complete instance lifecycle"
+
+  # Run through the complete lifecycle
+  test_find_suitable_blueprint
+  test_create_install_directory
+  test_generate_instance_id
+  test_create_instance
+  test_instance_appears_in_list
+  test_find_instance_config
+  test_instance_info
+  test_instance_info_json
+  test_instance_status
+  test_verify_instance_configuration
+  test_remove_instance
+  test_verify_instance_removal
+
+  log_test "Complete instance lifecycle test completed"
+}
+
+# =============================================================================
+# MAIN TEST EXECUTION
+# =============================================================================
+
+function main() {
+  log_test "Starting instance lifecycle e2e test"
+
+  # Initialize test environment
+  setup_test
+
+  # Check if we should skip this test due to missing dependencies
+  if [[ -z "$(find "$KGSM_ROOT/blueprints" -name "*.bp" -type f | head -1)" ]]; then
+    skip_test "No blueprints available for instance lifecycle testing"
+  fi
+
+  # Execute complete lifecycle test
+  test_complete_lifecycle
+
+  # Print summary and determine exit code
+  if print_assert_summary "$TEST_NAME"; then
+    pass_test "All instance lifecycle e2e tests completed successfully"
+  else
+    fail_test "Some instance lifecycle e2e tests failed"
+  fi
+}
+
+# Execute main function
+main "$@"

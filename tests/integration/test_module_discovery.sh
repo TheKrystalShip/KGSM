@@ -3,102 +3,123 @@
 # KGSM Module Discovery Integration Test
 # Tests the discovery and loading of KGSM modules
 
-echo "[INFO] Starting module discovery integration test"
+# =============================================================================
+# TEST SETUP
+# =============================================================================
 
-# Check environment
-if [[ -z "$KGSM_ROOT" ]]; then
-    echo "[FAIL] KGSM_ROOT not set"
-    exit 1
-fi
+# Source the test framework
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../framework/common.sh"
 
-# Test 1: Modules directory exists
-echo "[STEP] Testing modules directory existence"
-if [[ ! -d "$KGSM_ROOT/modules" ]]; then
-    echo "[FAIL] modules directory not found"
-    exit 1
-fi
-echo "[PASS] modules directory exists"
+readonly TEST_NAME="module_discovery"
 
-# Test 2: Core modules exist
-echo "[STEP] Testing core module existence"
-CORE_MODULES=(
-    "instances.sh"
-    "blueprints.sh"
-    "lifecycle.sh"
-    "files.sh"
-)
+# =============================================================================
+# TEST FUNCTIONS
+# =============================================================================
 
-for module in "${CORE_MODULES[@]}"; do
-    if [[ ! -f "$KGSM_ROOT/modules/$module" ]]; then
-        echo "[FAIL] Core module not found: $module"
-        exit 1
-    fi
+function setup_test() {
+  log_step "Setting up module discovery integration test"
 
-    if [[ ! -x "$KGSM_ROOT/modules/$module" ]]; then
-        echo "[FAIL] Core module not executable: $module"
-        exit 1
-    fi
-done
-echo "[PASS] Core modules exist and are executable"
+  # Verify test environment is properly initialized
+  assert_not_null "$KGSM_ROOT" "KGSM_ROOT should be set"
+  assert_dir_exists "$KGSM_ROOT" "KGSM root directory should exist"
 
-# Test 3: Include modules exist
-echo "[STEP] Testing include module existence"
-if [[ ! -d "$KGSM_ROOT/modules/include" ]]; then
-    echo "[FAIL] modules/include directory not found"
-    exit 1
-fi
+  log_test "Test environment validated"
+}
 
-INCLUDE_MODULES=(
-    "common.sh"
-    "config.sh"
-    "errors.sh"
-    "logging.sh"
-)
+function test_modules_directory_existence() {
+  log_step "Testing modules directory existence"
 
-for module in "${INCLUDE_MODULES[@]}"; do
-    if [[ ! -f "$KGSM_ROOT/modules/include/$module" ]]; then
-        echo "[FAIL] Include module not found: $module"
-        exit 1
-    fi
-done
-echo "[PASS] Include modules exist"
+  assert_dir_exists "$KGSM_ROOT/modules" "modules directory should exist"
+}
 
-# Test 4: Count total modules
-echo "[STEP] Testing module count"
-TOTAL_MODULES=$(find "$KGSM_ROOT/modules" -name "*.sh" -type f | wc -l)
-if [[ $TOTAL_MODULES -gt 10 ]]; then
-    echo "[PASS] Found $TOTAL_MODULES modules (expected > 10)"
-else
-    echo "[FAIL] Too few modules found: $TOTAL_MODULES (expected > 10)"
-    exit 1
-fi
+function test_core_modules_existence() {
+  log_step "Testing core module existence"
 
-# Test 5: Test module help functionality
-echo "[STEP] Testing module help functionality"
-TESTABLE_MODULES=(
-    "instances.sh"
-    "blueprints.sh"
-    "lifecycle.sh"
-)
+  local core_modules=("instances.sh" "blueprints.sh" "lifecycle.sh" "files.sh")
 
-for module in "${TESTABLE_MODULES[@]}"; do
-    if "$KGSM_ROOT/modules/$module" --help >/dev/null 2>&1; then
-        echo "[PASS] $module --help works"
+  for module in "${core_modules[@]}"; do
+    local module_path="$KGSM_ROOT/modules/$module"
+    assert_file_exists "$module_path" "Core module should exist: $module"
+
+    # Check if module is executable
+    if [[ -x "$module_path" ]]; then
+      assert_true "true" "Core module should be executable: $module"
     else
-        echo "[FAIL] $module --help failed"
-        exit 1
+      assert_true "false" "Core module should be executable: $module"
     fi
-done
+  done
+}
 
-# Test 6: Test that modules can find each other (dependency test)
-echo "[STEP] Testing module dependencies"
-# This tests that modules can load common dependencies
-if [[ -f "$KGSM_ROOT/modules/include/common.sh" ]]; then
-    echo "[PASS] Common module available for dependencies"
-else
-    echo "[FAIL] Common module not available"
-    exit 1
-fi
+function test_include_modules_existence() {
+  log_step "Testing include module existence"
 
-echo "[SUCCESS] Module discovery integration test passed"
-exit 0
+  assert_dir_exists "$KGSM_ROOT/modules/include" "modules/include directory should exist"
+
+  local include_modules=("common.sh" "config.sh" "errors.sh" "logging.sh")
+
+  for module in "${include_modules[@]}"; do
+    local module_path="$KGSM_ROOT/modules/include/$module"
+    assert_file_exists "$module_path" "Include module should exist: $module"
+  done
+}
+
+function test_module_count() {
+  log_step "Testing module count"
+
+  local total_modules
+  total_modules=$(find "$KGSM_ROOT/modules" -name "*.sh" -type f 2>/dev/null | wc -l)
+
+  assert_greater_than "$total_modules" 10 "Should have more than 10 modules total"
+  log_test "Found $total_modules modules total"
+}
+
+function test_module_help_functionality() {
+  log_step "Testing module help functionality"
+
+  local testable_modules=("instances.sh" "blueprints.sh" "lifecycle.sh")
+
+  for module in "${testable_modules[@]}"; do
+    local module_path="$KGSM_ROOT/modules/$module"
+    assert_command_succeeds "$module_path --help" "$module --help should work"
+  done
+}
+
+function test_module_dependencies() {
+  log_step "Testing module dependencies"
+
+  # Test that common dependencies are available
+  assert_file_exists "$KGSM_ROOT/modules/include/common.sh" "Common module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/modules/include/config.sh" "Config module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/modules/include/logging.sh" "Logging module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/modules/include/errors.sh" "Errors module should be available for dependencies"
+}
+
+# =============================================================================
+# MAIN TEST EXECUTION
+# =============================================================================
+
+function main() {
+  log_test "Starting module discovery integration test"
+
+  # Initialize test environment
+  setup_test
+
+  # Execute all test functions
+  test_modules_directory_existence
+  test_core_modules_existence
+  test_include_modules_existence
+  test_module_count
+  test_module_help_functionality
+  test_module_dependencies
+
+  # Print summary and determine exit code
+  if print_assert_summary "$TEST_NAME"; then
+    pass_test "All module discovery integration tests completed successfully"
+  else
+    fail_test "Some module discovery integration tests failed"
+  fi
+}
+
+# Execute main function
+main "$@"

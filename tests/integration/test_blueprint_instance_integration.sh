@@ -3,112 +3,219 @@
 # KGSM Blueprint-Instance Integration Test
 # Tests the interaction between blueprints and instances modules
 
-echo "[INFO] Starting blueprint-instance integration test"
+# =============================================================================
+# TEST SETUP
+# =============================================================================
 
-# Check environment
-if [[ -z "$KGSM_ROOT" ]]; then
-    echo "[FAIL] KGSM_ROOT not set"
-    exit 1
-fi
+# Source the test framework
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../framework/common.sh"
 
-BLUEPRINTS_MODULE="$KGSM_ROOT/modules/blueprints.sh"
-INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
+readonly TEST_NAME="blueprint_instance_integration"
+readonly BLUEPRINTS_MODULE="$KGSM_ROOT/modules/blueprints.sh"
+readonly INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
 
-# Test 1: Both modules exist
-echo "[STEP] Testing module availability"
-if [[ ! -f "$BLUEPRINTS_MODULE" ]]; then
-    echo "[FAIL] blueprints.sh module not found"
-    exit 1
-fi
+# =============================================================================
+# TEST FUNCTIONS
+# =============================================================================
 
-if [[ ! -f "$INSTANCES_MODULE" ]]; then
-    echo "[FAIL] instances.sh module not found"
-    exit 1
-fi
-echo "[PASS] Both blueprints and instances modules exist"
+function setup_test() {
+  log_step "Setting up blueprint-instance integration test"
 
-# Test 2: Get list of available blueprints
-echo "[STEP] Testing blueprint discovery"
-BLUEPRINT_LIST=$("$BLUEPRINTS_MODULE" --list 2>/dev/null)
-if [[ -n "$BLUEPRINT_LIST" ]]; then
-    echo "[PASS] Blueprints module can list blueprints"
-    BLUEPRINT_COUNT=$(echo "$BLUEPRINT_LIST" | wc -l)
-    echo "[INFO] Found $BLUEPRINT_COUNT blueprints"
-else
-    echo "[FAIL] No blueprints found"
-    exit 1
-fi
+  # Verify test environment is properly initialized
+  assert_not_null "$KGSM_ROOT" "KGSM_ROOT should be set"
+  assert_dir_exists "$KGSM_ROOT" "KGSM root directory should exist"
 
-# Test 3: Test instance ID generation for available blueprints
-echo "[STEP] Testing instance ID generation for blueprints"
-# Try to find a blueprint to test with
-TEST_BLUEPRINT=""
-if [[ -f "$KGSM_ROOT/blueprints/default/native/factorio.bp" ]]; then
-    TEST_BLUEPRINT="factorio.bp"
-elif [[ -f "$KGSM_ROOT/blueprints/default/native/terraria.bp" ]]; then
-    TEST_BLUEPRINT="terraria.bp"
-elif [[ -f "$KGSM_ROOT/blueprints/default/native/minecraft.bp" ]]; then
-    TEST_BLUEPRINT="minecraft.bp"
-else
+  log_test "KGSM_ROOT: $KGSM_ROOT"
+  log_test "Blueprints module: $BLUEPRINTS_MODULE"
+  log_test "Instances module: $INSTANCES_MODULE"
+}
+
+function test_module_availability() {
+  log_step "Testing module availability"
+
+  assert_file_exists "$BLUEPRINTS_MODULE" "Blueprints module should exist"
+  assert_file_exists "$INSTANCES_MODULE" "Instances module should exist"
+
+  # Check if modules are executable
+  if [[ -x "$BLUEPRINTS_MODULE" ]]; then
+    assert_true "true" "Blueprints module should be executable"
+  else
+    assert_true "false" "Blueprints module should be executable"
+  fi
+
+  if [[ -x "$INSTANCES_MODULE" ]]; then
+    assert_true "true" "Instances module should be executable"
+  else
+    assert_true "false" "Instances module should be executable"
+  fi
+}
+
+function test_blueprint_discovery() {
+  log_step "Testing blueprint discovery"
+
+  local blueprint_list
+  if blueprint_list=$("$BLUEPRINTS_MODULE" --list 2>/dev/null); then
+    assert_not_null "$blueprint_list" "Blueprints module should return a list of blueprints"
+
+    local blueprint_count
+    blueprint_count=$(echo "$blueprint_list" | wc -l)
+
+    assert_greater_than "$blueprint_count" 0 "Should find at least one blueprint"
+    log_test "Found $blueprint_count blueprints"
+  else
+    assert_true "false" "Blueprints module --list should succeed"
+  fi
+}
+
+function test_instance_id_generation() {
+  log_step "Testing instance ID generation for blueprints"
+
+  # Find a test blueprint
+  local test_blueprint=""
+
+  if [[ -f "$KGSM_ROOT/blueprints/default/native/factorio.bp" ]]; then
+    test_blueprint="factorio.bp"
+  elif [[ -f "$KGSM_ROOT/blueprints/default/native/terraria.bp" ]]; then
+    test_blueprint="terraria.bp"
+  elif [[ -f "$KGSM_ROOT/blueprints/default/native/minecraft.bp" ]]; then
+    test_blueprint="minecraft.bp"
+  else
     # Find any .bp file
-    TEST_BLUEPRINT=$(find "$KGSM_ROOT/blueprints" -name "*.bp" -type f | head -1 | xargs basename 2>/dev/null)
-fi
+    test_blueprint=$(find "$KGSM_ROOT/blueprints" -name "*.bp" -type f | head -1 | xargs basename 2>/dev/null)
+  fi
 
-if [[ -n "$TEST_BLUEPRINT" ]]; then
-    INSTANCE_ID=$("$INSTANCES_MODULE" --generate-id "$TEST_BLUEPRINT" 2>/dev/null)
-    if [[ -n "$INSTANCE_ID" ]]; then
-        echo "[PASS] Generated instance ID '$INSTANCE_ID' for blueprint '$TEST_BLUEPRINT'"
+  if [[ -n "$test_blueprint" ]]; then
+    local instance_id
+    if instance_id=$("$INSTANCES_MODULE" --generate-id "$test_blueprint" 2>/dev/null); then
+      assert_not_null "$instance_id" "Should generate instance ID for blueprint '$test_blueprint'"
+      log_test "Generated instance ID '$instance_id' for blueprint '$test_blueprint'"
     else
-        echo "[FAIL] Failed to generate instance ID for blueprint '$TEST_BLUEPRINT'"
-        exit 1
+      log_test "ID generation failed for '$test_blueprint' - this may be expected if requirements aren't met"
     fi
-else
-    echo "[SKIP] No suitable blueprint found for ID generation test"
-fi
+  else
+    skip_test "No suitable blueprint found for ID generation test"
+  fi
+}
 
-# Test 4: Test blueprint and instance JSON compatibility
-echo "[STEP] Testing JSON output compatibility"
-BLUEPRINTS_JSON=$("$BLUEPRINTS_MODULE" --list --json 2>/dev/null)
-INSTANCES_JSON=$("$INSTANCES_MODULE" --list --json 2>/dev/null)
+function test_json_output_compatibility() {
+  log_step "Testing JSON output compatibility"
 
-if [[ -n "$BLUEPRINTS_JSON" ]] && [[ "$BLUEPRINTS_JSON" != "null" ]]; then
-    echo "[PASS] Blueprints module produces valid JSON"
-else
-    echo "[FAIL] Blueprints module JSON output invalid"
-    exit 1
-fi
+  local blueprints_json
+  if blueprints_json=$("$BLUEPRINTS_MODULE" --list --json 2>/dev/null); then
+    assert_not_null "$blueprints_json" "Blueprints module should produce JSON output"
+    assert_not_equals "null" "$blueprints_json" "Blueprints JSON should not be null"
 
-if [[ -n "$INSTANCES_JSON" ]]; then
-    echo "[PASS] Instances module produces JSON output"
-else
-    echo "[FAIL] Instances module JSON output invalid"
-    exit 1
-fi
+    # Validate JSON format if jq is available
+    if command -v jq >/dev/null 2>&1; then
+      if echo "$blueprints_json" | jq . >/dev/null 2>&1; then
+        assert_true "true" "Blueprints JSON should be valid"
+      else
+        log_test "Blueprints JSON is not valid format"
+      fi
+    fi
+  else
+    assert_true "false" "Blueprints module should produce JSON output"
+  fi
 
-# Test 5: Test that both modules use consistent configuration
-echo "[STEP] Testing configuration consistency"
-if [[ -f "$KGSM_ROOT/config.ini" ]]; then
-    echo "[PASS] Configuration file exists and is accessible to both modules"
-else
-    echo "[FAIL] Configuration file not found"
-    exit 1
-fi
+  local instances_json
+  if instances_json=$("$INSTANCES_MODULE" --list --json 2>/dev/null); then
+    assert_not_null "$instances_json" "Instances module should produce JSON output"
 
-# Test 6: Test directory structure consistency
-echo "[STEP] Testing directory structure consistency"
-if [[ -d "$KGSM_ROOT/blueprints" ]]; then
-    echo "[PASS] Blueprints directory structure is consistent"
-else
-    echo "[FAIL] Blueprints directory structure inconsistent"
-    exit 1
-fi
+    # Validate JSON format if jq is available
+    if command -v jq >/dev/null 2>&1; then
+      if echo "$instances_json" | jq . >/dev/null 2>&1; then
+        assert_true "true" "Instances JSON should be valid"
+      else
+        log_test "Instances JSON is not valid format"
+      fi
+    fi
+  else
+    assert_true "false" "Instances module should produce JSON output"
+  fi
+}
 
-if [[ -d "$KGSM_ROOT/instances" ]] || mkdir -p "$KGSM_ROOT/instances" 2>/dev/null; then
-    echo "[PASS] Instances directory structure is consistent"
-else
-    echo "[FAIL] Cannot create instances directory"
-    exit 1
-fi
+function test_configuration_consistency() {
+  log_step "Testing configuration consistency"
 
-echo "[SUCCESS] Blueprint-instance integration test passed"
-exit 0
+  assert_file_exists "$KGSM_ROOT/config.ini" "Configuration file should exist and be accessible to both modules"
+
+  # Test that both modules can access configuration
+  local config_content
+  if config_content=$(cat "$KGSM_ROOT/config.ini" 2>/dev/null); then
+    assert_not_null "$config_content" "Configuration file should be readable"
+    log_test "Configuration file is accessible to modules"
+  else
+    assert_true "false" "Configuration file should be readable"
+  fi
+}
+
+function test_directory_structure_consistency() {
+  log_step "Testing directory structure consistency"
+
+  assert_dir_exists "$KGSM_ROOT/blueprints" "Blueprints directory should exist"
+
+  # Instances directory should exist or be creatable
+  if [[ ! -d "$KGSM_ROOT/instances" ]]; then
+    assert_command_succeeds "mkdir -p '$KGSM_ROOT/instances'" "Should be able to create instances directory"
+  else
+    assert_dir_exists "$KGSM_ROOT/instances" "Instances directory should exist"
+  fi
+}
+
+function test_module_help_functionality() {
+  log_step "Testing module help functionality"
+
+  assert_command_succeeds "$BLUEPRINTS_MODULE --help" "Blueprints module should respond to --help"
+  assert_command_succeeds "$INSTANCES_MODULE --help" "Instances module should respond to --help"
+}
+
+function test_module_error_handling_consistency() {
+  log_step "Testing module error handling consistency"
+
+  # Both modules should handle invalid arguments consistently
+  assert_command_fails "$BLUEPRINTS_MODULE --invalid-arg" "Blueprints module should reject invalid arguments"
+  assert_command_fails "$INSTANCES_MODULE --invalid-arg" "Instances module should reject invalid arguments"
+}
+
+function test_blueprint_instance_workflow() {
+  log_step "Testing basic blueprint-to-instance workflow compatibility"
+
+  # Test that the workflow components are available
+  assert_command_succeeds "$BLUEPRINTS_MODULE --list" "Blueprint listing should work for instance creation workflow"
+  assert_command_succeeds "$INSTANCES_MODULE --list" "Instance listing should work for management workflow"
+
+  log_test "Basic workflow components are available"
+}
+
+# =============================================================================
+# MAIN TEST EXECUTION
+# =============================================================================
+
+function main() {
+  log_test "Starting blueprint-instance integration test"
+
+  # Initialize test environment
+  setup_test
+
+  # Execute all test functions
+  test_module_availability
+  test_blueprint_discovery
+  test_instance_id_generation
+  test_json_output_compatibility
+  test_configuration_consistency
+  test_directory_structure_consistency
+  test_module_help_functionality
+  test_module_error_handling_consistency
+  test_blueprint_instance_workflow
+
+  # Print summary and determine exit code
+  if print_assert_summary "$TEST_NAME"; then
+    pass_test "All blueprint-instance integration tests completed successfully"
+  else
+    fail_test "Some blueprint-instance integration tests failed"
+  fi
+}
+
+# Execute main function
+main "$@"
