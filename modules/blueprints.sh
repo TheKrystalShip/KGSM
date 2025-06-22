@@ -66,6 +66,9 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
+# Disable error checking for this script to allow proper error handling
+__disable_error_checking
+
 if [[ "$#" -eq 0 ]]; then
   usage
   exit $EC_MISSING_ARG
@@ -261,6 +264,13 @@ function _list_detailed_blueprints() {
 function _print_blueprint() {
   local blueprint="$1"
 
+  # VALIDATION: Ensure blueprint exists and is valid before printing
+  validate_blueprint "$blueprint"
+  local validation_result=$?
+  if [[ $validation_result -ne 0 ]]; then
+    return $validation_result
+  fi
+
   # Try to get the blueprint from the native module
   local blueprint_content
   blueprint_content=$("$(__find_module blueprints.native.sh)" --info "$blueprint" 2>/dev/null)
@@ -281,6 +291,23 @@ function _print_blueprint() {
   fi
 
   return $EC_NOT_FOUND
+}
+
+function _find_blueprint() {
+  local blueprint="$1"
+
+  # VALIDATION: Ensure blueprint exists and is valid before finding path
+  validate_blueprint "$blueprint"
+  local validation_result=$?
+  if [[ $validation_result -ne 0 ]]; then
+    return $validation_result
+  fi
+
+  # If validation passed, get the blueprint path
+  local blueprint_path
+  blueprint_path=$(validate_blueprint_exists "$blueprint")
+  echo "$blueprint_path"
+  return 0
 }
 
 # shellcheck disable=SC2199
@@ -345,14 +372,8 @@ while [ $# -gt 0 ]; do
     fi
 
     blueprint=$1
-    blueprint_path=$(__find_blueprint "$blueprint")
-    if [[ -z "$blueprint_path" ]]; then
-      __print_error "Blueprint '$blueprint' not found"
-      exit $EC_NOT_FOUND
-    fi
-
-    echo "$blueprint_path"
-    exit 0
+    _find_blueprint "$blueprint"
+    exit $?
     ;;
   *)
     __print_error "Invalid argument $1"

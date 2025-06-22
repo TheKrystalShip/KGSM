@@ -67,5 +67,11 @@ if [[ -z "$KGSM_PARSER_LOADED" ]]; then
   source "$(__find_module parser.sh)" || exit $EC_FAILED_SOURCE
 fi
 
+# Validation
+if [[ -z "$KGSM_VALIDATION_LOADED" ]]; then
+  # shellcheck disable=SC1090
+  source "$(__find_module validation.sh)" || exit $EC_FAILED_SOURCE
+fi
+
 # Export this to check before loading this file again
 export KGSM_COMMON_LOADED=1

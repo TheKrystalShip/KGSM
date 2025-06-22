@@ -109,6 +109,11 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function _generate_unique_instance_name() {
+  # VALIDATION: Ensure blueprint exists and is valid before generating ID
+  if ! validate_blueprint "$1"; then
+    return $EC_BLUEPRINT_NOT_FOUND
+  fi
+
   local blueprint_name
   blueprint_name="$(__extract_blueprint_name $1)"
   local instance_name
@@ -308,8 +313,26 @@ function _create_instance() {
   local install_dir=$2
   local identifier=${3:-}
 
+  # VALIDATION: Ensure blueprint exists and is valid before proceeding
+  if ! validate_blueprint "$blueprint"; then
+    return $EC_BLUEPRINT_NOT_FOUND
+  fi
+
+  # VALIDATION: Ensure install directory exists and is writable if provided
+  if [[ -n "$install_dir" ]]; then
+    if ! validate_directory_exists "$install_dir" "install directory"; then
+      return $EC_FILE_NOT_FOUND
+    fi
+    if ! validate_directory_writable "$install_dir" "install directory"; then
+      return $EC_PERMISSION
+    fi
+  fi
+
   local blueprint_abs_path
-  blueprint_abs_path="$(__find_blueprint "$blueprint")"
+  if ! blueprint_abs_path="$(__find_blueprint "$blueprint")"; then
+    __print_error "Could not find blueprint $blueprint"
+    return $EC_FILE_NOT_FOUND
+  fi
 
   # Extract the blueprint name from the path (remove extension and directory)
   local blueprint_name
@@ -651,6 +674,7 @@ while [[ $# -gt 0 ]]; do
   --generate-id)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <blueprint>" && exit $EC_MISSING_ARG
+
     _generate_unique_instance_name "$1"
     exit $?
     ;;
@@ -692,6 +716,7 @@ while [[ $# -gt 0 ]]; do
         shift
       done
     fi
+
     _create_instance "$blueprint" "$install_dir" $identifier
     exit $?
     ;;

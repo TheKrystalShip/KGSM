@@ -165,10 +165,9 @@ function __find_blueprint() {
     loaded_blueprint=$(__find_default_blueprint "$blueprint" 2>/dev/null)
   fi
 
-  # If no blueprint is found, we print an error and exit
+  # If no blueprint is found, we return an error code
   if [[ -z "$loaded_blueprint" ]]; then
-    __print_error "Could not find blueprint $blueprint"
-    exit $EC_FILE_NOT_FOUND
+    return $EC_FILE_NOT_FOUND
   fi
 
   # If we found a blueprint, we return it
@@ -254,10 +253,7 @@ function __source_blueprint() {
   # Use the __find_blueprint function to find the blueprint file.
   # This gives the absolute path to the blueprint file.
   local blueprint_absolute_path
-  blueprint_absolute_path=$(__find_blueprint "$blueprint_file")
-
-  # Check if the blueprint file was found
-  if [[ -z "$blueprint_absolute_path" ]]; then
+  if ! blueprint_absolute_path=$(__find_blueprint "$blueprint_file"); then
     __print_error "Blueprint file '$blueprint_file' not found."
     exit $EC_FILE_NOT_FOUND
   fi
