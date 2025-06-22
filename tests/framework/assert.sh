@@ -375,6 +375,21 @@ assert_dir_not_exists() {
   fi
 }
 
+# Assert that a file is executable
+assert_file_executable() {
+  local file_path="$1"
+  local message="${2:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if [[ -x "$file_path" ]]; then
+    print_assert_result "PASS" "$message: file '$file_path' is executable" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: file '$file_path' is not executable" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
 # Assert that a file contains specific content
 assert_file_contains() {
   local file_path="$1"
@@ -570,7 +585,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   export -f assert_matches assert_starts_with assert_ends_with
   export -f assert_numeric_equals assert_greater_than assert_less_than
   export -f assert_file_exists assert_file_not_exists assert_dir_exists assert_dir_not_exists
-  export -f assert_file_contains assert_command_succeeds assert_command_fails assert_command_output
+  export -f assert_file_executable assert_file_contains assert_command_succeeds assert_command_fails assert_command_output
   export -f get_assert_stats reset_assert_stats print_assert_summary skip_test
   export -f assert_kgsm_succeeds assert_kgsm_fails assert_instance_exists assert_instance_not_exists
 fi
