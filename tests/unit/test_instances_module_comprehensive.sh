@@ -437,6 +437,7 @@ function test_cleanup_instances() {
   log_step "Testing instance removal"
 
   # Remove instances that were created during testing
+  set -x
   for instance in "${CREATED_INSTANCES[@]}"; do
     if [[ -n "$instance" ]]; then
       assert_command_succeeds "$INSTANCES_MODULE --remove '$instance'" "Should be able to remove instance: $instance"
@@ -451,6 +452,7 @@ function test_cleanup_instances() {
       assert_command_fails "$INSTANCES_MODULE --find '$instance'" "Should not be able to find removed instance: $instance"
     fi
   done
+  set +x
 
   # Clear the array since instances are removed
   CREATED_INSTANCES=()

@@ -207,7 +207,7 @@ function __create_base_instance() {
   export instance_working_dir="${install_dir}/${instance_name}"
   export instance_version_file="${instance_working_dir}/.${instance_name}.version"
 
-  export instance_config_file="${instance_working_dir}/${instance_name}.config.ini"
+  export instance_config_file_path="${instance_working_dir}/${instance_name}.config.ini"
 
   export instance_lifecycle_manager="standalone"
 
@@ -254,7 +254,7 @@ function __create_base_instance() {
     echo ""
 
     echo "# Path to the instance configuration file"
-    echo "config_file=\"$instance_config_file\""
+    echo "config_file=\"$instance_config_file_path\""
     echo ""
 
     echo "# Timestamp when the instance was installed"
