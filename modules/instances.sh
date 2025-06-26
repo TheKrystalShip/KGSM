@@ -429,28 +429,17 @@ function _remove() {
 function _print_info() {
   local instance=$1
 
-  __source_instance "$instance"
-
   {
+    __source_instance "$instance"
+
     echo "Name:                $instance_name"
     echo "Lifecycle manager:   $instance_lifecycle_manager"
 
-    local status=""
-    if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-      # systemctl return exit code 3 but it gives correct response
-      if [[ $(type -t __disable_error_checking) == function ]]; then
-        __disable_error_checking
-      fi
-      status="$(systemctl is-active "$instance_name")"
-      if [[ $(type -t __enable_error_checking) == function ]]; then
-        __enable_error_checking
-      fi
-    else
-      status="$($instance_management_file --is-active &>/dev/null && echo "active" || echo "inactive")"
-    fi
+    local status
+    status=$($(__find_module lifecycle.sh) --is-active "$instance" $debug &>/dev/null && echo "active" || echo "inactive")
 
     echo "Status:              $status"
-    echo "Configuration file:  $instance_config_file"
+    echo "Config file:         $instance_config_file"
 
     if [[ -f "$instance_pid_file" ]]; then
       echo "PID:                 $(cat "$instance_pid_file")"
@@ -485,55 +474,45 @@ function _print_info() {
 function _print_info_json() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
 
-  local status=""
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    __disable_error_checking
-    status="$(systemctl is-active "$instance_name")"
-    __enable_error_checking
-  else
-    status="$([[ -f "$instance_pid_file" ]] && echo "active" || echo "inactive")"
-  fi
+  local status
+  status=$($(__find_module lifecycle.sh) --is-active "$instance" $debug &>/dev/null && echo "active" || echo "inactive")
 
   local pid
   pid=$([[ -f "$instance_pid_file" ]] && cat "$instance_pid_file" || echo "None")
-  local logs_dir
-  logs_dir=$([[ "$instance_lifecycle_manager" == "standalone" ]] && echo "$instance_logs_dir" || echo "None")
   local service_file
   service_file=$([[ "$instance_lifecycle_manager" == "systemd" ]] && [[ -f "$instance_systemd_service_file" ]] && echo "$instance_systemd_service_file" || echo "")
-  local socket_file
-  socket_file=$([[ "$instance_lifecycle_manager" == "systemd" ]] && [[ -n "$instance_socket_file" ]] && echo "$instance_socket_file" || echo "")
-  local firewall_rule
-  firewall_rule=$([[ "$config_enable_firewall_management" == "true" ]] && [[ -f "$instance_ufw_file" ]] && echo "$instance_ufw_file" || echo "")
+
+  local installed_version
+  installed_version=$($instance_management_file --version)
 
   jq -n \
-    --arg instance "$instance_name" \
-    --arg lifecycleManager "$instance_lifecycle_manager" \
+    --arg instance_name "$instance_name" \
+    --arg lifecycle_manager "$instance_lifecycle_manager" \
     --arg status "$status" \
     --arg pid "$pid" \
-    --arg logsDir "$logs_dir" \
+    --arg logs_dir "$instance_logs_dir" \
     --arg directory "$instance_working_dir" \
-    --arg installDate "$instance_install_datetime" \
-    --arg version "$INSTANCE_INSTALLED_VERSION" \
+    --arg install_date "$instance_install_datetime" \
+    --arg version "$installed_version" \
     --arg blueprint "$instance_blueprint_file" \
-    --arg serviceFile "$service_file" \
-    --arg socketFile "$socket_file" \
-    --arg firewallRule "$firewall_rule" \
+    --arg service_file "$service_file" \
+    --arg socket_file "$instance_socket_file" \
+    --arg firewall_rule "$instance_ufw_file" \
     '{
-      Name: $instance,
-      LifecycleManager: $lifecycleManager,
+      Name: $instance_name,
+      LifecycleManager: $lifecycle_manager,
       Status: $status,
       PID: $pid,
-      LogsDirectory: $logsDir,
+      LogsDirectory: $logs_dir,
       Directory: $directory,
-      InstallationDate: $installDate,
+      InstallationDate: $install_date,
       Version: $version,
       Blueprint: $blueprint,
-      ServiceFile: $serviceFile,
-      SocketFile: $socketFile,
-      FirewallRule: $firewallRule
+      ServiceFile: $service_file,
+      SocketFile: $socket_file,
+      FirewallRule: $firewall_rule
     }'
 }
 
@@ -603,8 +582,7 @@ function _list_instances_json() {
 function _get_instance_status() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
 
   if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     # systemctl status doesn't require sudo
@@ -620,8 +598,7 @@ function _get_instance_status() {
 function _send_save_to_instance() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
 
   "$instance_management_file" --save $debug
 }
@@ -630,8 +607,7 @@ function _send_input_to_instance() {
   local instance=$1
   local command=$2
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
 
   "$instance_management_file" --input "$command" $debug
 }

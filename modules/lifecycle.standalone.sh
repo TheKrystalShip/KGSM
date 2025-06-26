@@ -86,8 +86,7 @@ fi
 function _start_instance() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
   "$instance_management_file" --start --background $debug
 
   __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
@@ -96,8 +95,7 @@ function _start_instance() {
 function _stop_instance() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
   "$instance_management_file" --stop $debug
 
   __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
@@ -113,8 +111,7 @@ function _restart_instance() {
 function _is_instance_active() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
   "$instance_management_file" --is-active
 }
 
@@ -122,8 +119,7 @@ function _get_logs() {
   local instance=$1
   local follow=$2
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return "$EC_FAILED_SOURCE"
+  __source_instance "$instance"
   "$instance_management_file" --logs $follow $debug
 }
 

@@ -91,8 +91,7 @@ fi
 function _get_lifecycle_manager() {
   local instance=$1
 
-  # shellcheck disable=SC1090
-  source "$(__find_instance_config "$instance")" || return $EC_FAILED_SOURCE
+  __source_instance "$instance"
 
   local lifecycle_manager
   lifecycle_manager="$(__find_module "lifecycle.${instance_lifecycle_manager}.sh")"

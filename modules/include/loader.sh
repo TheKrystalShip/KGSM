@@ -276,7 +276,7 @@ function __source_blueprint() {
     value="${value#\"}"
     value="${value%\'}"
     value="${value#\'}"
-    eval "${prefix}${key}=\"${value}\""
+    declare -g "${prefix}${key}=${value}"
   done < <(grep -v '^[[:space:]]*$' "$blueprint_absolute_path" | grep -v '^[[:space:]]*#')
 }
 
@@ -330,13 +330,13 @@ function __source_instance() {
 
     # Check if the key already starts with "instance_"
     if [[ "$key" =~ ^instance_ ]]; then
-      # If it already has the prefix, export it as is
-      export "${key}=${value}"
+      # If it already has the prefix, set it in the current shell
+      declare -g "${key}=${value}"
     else
-      # Otherwise, add the "instance_" prefix
-      export "instance_${key}=${value}"
+      # Otherwise, add the "instance_" prefix and set it in the current shell
+      declare -g "instance_${key}=${value}"
     fi
-  done < <(grep -v '^[[:space:]]*$' "$instance_config_file")
+  done < <(grep -v '^[[:space:]]*$' "$instance_config_file" | grep -v '^[[:space:]]*#')
 }
 
 export -f __source_instance

@@ -234,12 +234,6 @@ function validate_container_blueprint_format() {
     fi
   else
     # Fallback: basic checks without yq
-    # Check for basic docker-compose structure
-    if ! grep -q "version:" "$blueprint_path"; then
-      __print_error "Missing 'version:' field in docker-compose blueprint: $blueprint_path"
-      return $EC_INVALID_ARG
-    fi
-
     if ! grep -q "services:" "$blueprint_path"; then
       __print_error "Missing 'services:' field in docker-compose blueprint: $blueprint_path"
       return $EC_INVALID_ARG

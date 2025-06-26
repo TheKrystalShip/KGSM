@@ -38,8 +38,8 @@ if [[ -z "$KGSM_CONFIG_LOADED" ]]; then
   while IFS= read -r line || [ -n "$line" ]; do
     # Ignore comment lines and empty lines
     if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    # Export each config with a prefix
-    export "config_${line?}"
+    # Set each config with a prefix globally
+    declare -g "config_${line?}"
   done <"$CONFIG_FILE"
 
   export KGSM_CONFIG_LOADED=1
