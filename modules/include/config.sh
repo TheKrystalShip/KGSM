@@ -38,8 +38,13 @@ if [[ -z "$KGSM_CONFIG_LOADED" ]]; then
   while IFS= read -r line || [ -n "$line" ]; do
     # Ignore comment lines and empty lines
     if [[ "$line" =~ ^#.*$ ]] || [[ -z "$line" ]]; then continue; fi
-    # Set each config with a prefix globally
-    declare -g "config_${line?}"
+    # Parse key=value and set each config with a prefix globally and export it
+    if [[ "$line" =~ ^([^=]+)=(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+      declare -g "config_${key}=${value}"
+      export "config_${key}"
+    fi
   done <"$CONFIG_FILE"
 
   export KGSM_CONFIG_LOADED=1
@@ -136,7 +141,8 @@ function __add_or_update_config() {
   local value="$3"
   local after_key="${4:-}"
 
-  if [[ -z "$key" || -z "$value" || -z "$config_file" ]]; then
+  # We specifically don't check for value because it can be explicitly set to ""
+  if [[ -z "$key" || -z "$config_file" ]]; then
     __print_error "Invalid arguments provided to __add_or_update_config_key."
     return $EC_INVALID_ARG
   fi
@@ -147,19 +153,25 @@ function __add_or_update_config() {
     return $EC_FILE_NOT_FOUND
   fi
 
-  # Check if the key already exists in the config filee
-  if grep -q "^$key=" "$config_file"; then
-    # If it exists, modify in-place
-    if ! sed -i "/^$key=/c$key=$value" "$config_file" >/dev/null; then
-      __print_error "Failed to update key '$key' in '$config_file'."
+  # Resolve symlinks to preserve bidirectional updates
+  local target_file="$config_file"
+  if [[ -L "$config_file" ]]; then
+    target_file="$(readlink -f "$config_file")"
+  fi
+
+  # Check if the key already exists in the config file
+  if grep -q "^$key=" "$target_file"; then
+    # If it exists, modify in-place on the target file
+    if ! sed -i "/^$key=/c$key=$value" "$target_file" >/dev/null; then
+      __print_error "Failed to update key '$key' in '$target_file'."
       return $EC_FAILED_SED
     fi
   else
     # If it doesn't exist, append after the specified key or at the end
-    if [[ -n "$after_key" ]] && grep -q "^$after_key=" "$config_file"; then
-      sed -i "/^$after_key=/a$key=$value" "$config_file"
+    if [[ -n "$after_key" ]] && grep -q "^$after_key=" "$target_file"; then
+      sed -i "/^$after_key=/a$key=$value" "$target_file"
     else
-      echo "$key=$value" >>"$config_file"
+      echo "$key=$value" >>"$target_file"
     fi
   fi
 }
@@ -182,27 +194,33 @@ function __remove_config() {
     return $EC_FILE_NOT_FOUND
   fi
 
+  # Resolve symlinks to preserve bidirectional updates
+  local target_file="$config_file"
+  if [[ -L "$config_file" ]]; then
+    target_file="$(readlink -f "$config_file")"
+  fi
+
   # Check if the file is readable
-  if [[ ! -r "$config_file" ]]; then
-    __print_error "Config file '$config_file' is not readable."
+  if [[ ! -r "$target_file" ]]; then
+    __print_error "Config file '$target_file' is not readable."
     return $EC_PERMISSION
   fi
 
   # Check if the file is writable
-  if [[ ! -w "$config_file" ]]; then
-    __print_error "Config file '$config_file' is not writable."
+  if [[ ! -w "$target_file" ]]; then
+    __print_error "Config file '$target_file' is not writable."
     return $EC_PERMISSION
   fi
 
   # Check if the key exists in the config file
-  if ! grep -q "^$key=" "$config_file"; then
-    __print_error "Key '$key' does not exist in '$config_file'."
+  if ! grep -q "^$key=" "$target_file"; then
+    __print_error "Key '$key' does not exist in '$target_file'."
     return $EC_KEY_NOT_FOUND
   fi
 
   # Remove the key from the config file
-  if ! sed -i "/^$key=/d" "$config_file" >/dev/null; then
-    __print_error "Failed to remove key '$key' from '$config_file'."
+  if ! sed -i "/^$key=/d" "$target_file" >/dev/null; then
+    __print_error "Failed to remove key '$key' from '$target_file'."
     return $EC_FAILED_SED
   fi
 
@@ -232,13 +250,19 @@ function __get_config_value() {
     return $EC_FILE_NOT_FOUND
   fi
 
+  # Resolve symlinks to preserve bidirectional updates
+  local target_file="$config_file"
+  if [[ -L "$config_file" ]]; then
+    target_file="$(readlink -f "$config_file")"
+  fi
+
   # Extract the value using grep and cut
   local value
-  value=$(grep -m 1 "^$key=" "$config_file" | cut -d '=' -f2 | tr -d '"')
+  value=$(grep -m 1 "^$key=" "$target_file" | cut -d '=' -f2 | tr -d '"')
 
   # Check if the key was found
   if [[ -z "$value" ]]; then
-    __print_error "Key '$key' not found in '$config_file'."
+    __print_error "Key '$key' not found in '$target_file'."
     return $EC_KEY_NOT_FOUND
   fi
 

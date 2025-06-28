@@ -197,10 +197,15 @@ function _disable_upnp() {
   __print_success "UPnP disabled"
 }
 
+function _term_cleanup() {
+  [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp
+  _exit_print_logs
+}
+
 # Make sure to disable UPnP if it was enabled
 # This is done to prevent leaving UPnP ports open
 # when the script is interrupted
-trap '[[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp' INT TERM
+trap '_term_cleanup' INT TERM EXIT
 
 # Start the server in the current terminal
 function _start() {
@@ -454,8 +459,6 @@ function _exit_print_logs() {
   rm -f "$instance_tail_pid_file"
   return 0
 }
-
-trap '_exit_print_logs' TERM EXIT INT
 
 function _print_logs() {
   local follow=${1:-}

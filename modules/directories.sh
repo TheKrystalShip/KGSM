@@ -115,7 +115,7 @@ function _create() {
 
     __create_dir "$dir_value"
 
-    __add_or_update_config "$instance_config_file" "$dir_key" \""$dir_value"\" "working_dir" || {
+    __add_or_update_config "$instance_config_file" "$dir_key" \""$dir_value"\" || {
       __print_error "Failed to add or update $dir_key in $instance_config_file"
       return $?
     }

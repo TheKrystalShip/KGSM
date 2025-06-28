@@ -23,14 +23,24 @@ ${UNDERLINE}Options:${END}
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
-  --install                   Create a system-wide command shortcut for the instance
-                              Makes a symlink in your PATH for direct management access
-  --uninstall                 Remove the command shortcut for the instance
-                              Removes the previously created symlink
+  --enable                    Enable symlink integration for the instance
+                              Creates symlink and updates instance configuration
+  --disable                   Disable symlink integration for the instance
+                              Removes symlink and updates instance configuration
+
+${UNDERLINE}Legacy Commands (deprecated):${END}
+  --install                   Alias for --enable (maintained for compatibility)
+  --uninstall                 Alias for --disable (maintained for compatibility)
 
 ${UNDERLINE}Examples:${END}
-  $(basename "$0") --instance factorio-space-age --install
-  $(basename "$0") -i 7dtd-32 --uninstall
+  $(basename "$0") --instance factorio-space-age --enable
+  $(basename "$0") -i 7dtd-32 --disable
+  $(basename "$0") -i factorio-space-age --uninstall
+
+${UNDERLINE}Notes:${END}
+  • --enable/--install: Creates integration and marks it as enabled
+  • --disable/--uninstall: Removes integration and marks it as disabled
+  • All operations require a loaded instance configuration
 "
 }
 
@@ -85,16 +95,12 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function _symlink_uninstall() {
+# Core function: Remove symlink from external systems
+function __symlink_remove_external() {
+  local instance_name="$1"
 
-  # Remove the symlink from the $config_command_shortcuts_directory
-  # if it exists.
-
-  # Check if the symlink directory is set
-  if [[ -z "$config_command_shortcuts_directory" ]]; then
-    __print_error "config_command_shortcuts_directory is expected but it's not set"
-    return $EC_MISSING_ARG
-  fi
+  [[ -z "$config_command_shortcuts_directory" ]] && __print_error "config_command_shortcuts_directory is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
 
   local symlink_path="${config_command_shortcuts_directory}/${instance_name}"
 
@@ -109,32 +115,15 @@ function _symlink_uninstall() {
     __print_info "Symlink '$symlink_path' does not exist, nothing to remove"
   fi
 
-  # Remove the symlink entry from the instance config file
-  __add_or_update_config "$instance_config_file" "instance_enable_command_shortcuts" "false"
-  __remove_config "$instance_config_file" "instance_command_shortcut_file"
-
-  if [[ -f "$instance_management_file" ]]; then
-    __add_or_update_config "$instance_management_file" "instance_enable_command_shortcuts" "false"
-    __remove_config "$instance_management_file" "instance_command_shortcut_file"
-  fi
-
-  __print_success "Symlink for instance '$instance_name' removed from $config_command_shortcuts_directory"
-
   return 0
 }
 
-function _symlink_install() {
+# Core function: Create symlink in external systems (requires loaded instance config)
+function __symlink_create_external() {
 
-  # Create a symlink from the $instance_management_file into one of the directories
-  # on the PATH, iso that the instance can be managed from anywhere.
-
-  __print_info "Creating symlink for instance '$instance_name'..."
-
-  # Check if the symlink directory is set
-  if [[ -z "$config_command_shortcuts_directory" ]]; then
-    __print_error "'command_shortcuts_directory' is expected but it's not set"
-    return $EC_MISSING_ARG
-  fi
+  [[ -z "$config_command_shortcuts_directory" ]] && __print_error "config_command_shortcuts_directory is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
+  [[ -z "$instance_management_file" ]] && __print_error "instance_management_file is required" && return $EC_MISSING_ARG
 
   # Check if the symlink directory exists
   if [[ ! -d "$config_command_shortcuts_directory" ]]; then
@@ -159,34 +148,72 @@ function _symlink_install() {
     return $EC_FAILED_LN
   fi
 
+  return 0
+}
+
+# Config-dependent operation: Disable symlink and update instance config
+function _symlink_disable() {
+
+  __print_info "Disabling symlink integration..."
+
+  [[ -z "$instance_command_shortcut_file" ]] && return 0
+  [[ ! -L "$instance_command_shortcut_file" ]] && return 0
+
+  if ! __symlink_remove_external "$instance_name"; then
+    return $?
+  fi
+
+  # Disable command shortcuts in the instance config file
+  __add_or_update_config "$instance_config_file" "enable_command_shortcuts" "false"
+  __add_or_update_config "$instance_config_file" "command_shortcut_file" ""
+
+  __print_success "Symlink integration disabled"
+  return 0
+}
+
+# Config-dependent operation: Enable symlink and update instance config
+function _symlink_enable() {
+
+  __print_info "Enabling symlink integration..."
+
+  [[ -z "$config_command_shortcuts_directory" ]] && __print_error "config_command_shortcuts_directory is expected but it's not set" && return "$EC_MISSING_ARG"
+
+  # If instance_command_shortcut_file is already defined, nothing to do
+  if [[ -n "$instance_command_shortcut_file" ]] && [[ -L "$instance_command_shortcut_file" ]]; then
+    __print_success "Symlink integration already enabled"
+    return 0
+  fi
+
+  local symlink_path="${config_command_shortcuts_directory}/${instance_name}"
+
+  if ! __symlink_create_external; then
+    return $?
+  fi
+
   # Add the config in the instance config file
-  __add_or_update_config "$instance_config_file" "instance_enable_command_shortcuts" "true"
-  __add_or_update_config "$instance_config_file" "instance_command_shortcut_file" \""${symlink_path}"\"
+  __add_or_update_config "$instance_config_file" "enable_command_shortcuts" "true"
+  __add_or_update_config "$instance_config_file" "command_shortcut_file" "$symlink_path"
 
-  # Add the config in the instance management file
-  __add_or_update_config "$instance_management_file" "instance_enable_command_shortcuts" "true"
-  __add_or_update_config "$instance_management_file" "instance_command_shortcut_file" \""${symlink_path}"\"
-
-  __print_success "Instance \"${instance_name}\" symlink created in $config_command_shortcuts_directory"
+  __print_success "Symlink integration enabled"
 
   return 0
 }
 
-# Load the instance configuration
+[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
+
+# Load instance configuration
 instance_config_file=$(__find_instance_config "$instance")
 # Use __source_instance to load the config with proper prefixing
 __source_instance "$instance"
 
-[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
-
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
-    _symlink_install
+  --enable | --install)
+    _symlink_enable
     exit $?
     ;;
-  --uninstall)
-    _symlink_uninstall
+  --disable | --uninstall)
+    _symlink_disable
     exit $?
     ;;
   *)

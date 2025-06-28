@@ -84,15 +84,16 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function _config_install() {
-  # Copy instance configuration file to instance working directory with .config.ini suffix
+  # Copy instance configuration file to instance working directory and create symlink from KGSM
   local instance_name
   instance_name=$(basename "$instance_config_file" .ini)
-  local instance_config_copy="${instance_working_dir}/${instance_name}.config.ini"
+  local instance_config_standalone="${instance_working_dir}/${instance_name}.config.ini"
 
-  __print_info "Copying instance configuration to $instance_config_copy..."
+  __print_info "Installing standalone instance configuration..."
 
-  if ! cp -f "$instance_config_file" "$instance_config_copy"; then
-    __print_error "Failed to copy instance configuration file to $instance_config_copy"
+  # Copy the config file to the instance working directory (this becomes the source of truth)
+  if ! cp -f "$instance_config_file" "$instance_config_standalone"; then
+    __print_error "Failed to copy instance configuration file to $instance_config_standalone"
     return $EC_FAILED_CP
   fi
 
@@ -102,31 +103,61 @@ function _config_install() {
     instance_user=$SUDO_USER
   fi
 
-  if ! chown "$instance_user":"$instance_user" "$instance_config_copy"; then
-    __print_error "Failed to assign $instance_config_copy to user $instance_user"
+  if ! chown "$instance_user":"$instance_user" "$instance_config_standalone"; then
+    __print_error "Failed to assign $instance_config_standalone to user $instance_user"
     return $EC_PERMISSION
   fi
 
-  __print_success "Instance configuration copied to $instance_config_copy"
+  # Remove existing KGSM symlink if it exists
+  if [[ -e "$instance_config_file" || -L "$instance_config_file" ]]; then
+    if ! rm -f "$instance_config_file"; then
+      __print_error "Failed to remove existing KGSM config file/symlink at $instance_config_file"
+      return $EC_FAILED_RM
+    fi
+  fi
+
+  # Create symlink from KGSM pointing to the standalone config
+  if ! ln -s "$instance_config_standalone" "$instance_config_file"; then
+    __print_error "Failed to create KGSM symlink to standalone configuration file"
+    return $EC_FAILED_LN
+  fi
+
+  __print_success "Standalone instance configuration installed at $instance_config_standalone"
+  __print_success "KGSM symlink created pointing to standalone configuration"
 
   return 0
 }
 
 function _config_uninstall() {
-  # Remove the copied configuration file with .config.ini suffix
+  # Remove the KGSM symlink and optionally the standalone config file
   local instance_name
   instance_name=$(basename "$instance_config_file" .ini)
-  local instance_config_copy="${instance_working_dir}/${instance_name}.config.ini"
+  local instance_config_standalone="${instance_working_dir}/${instance_name}.config.ini"
 
-  if [[ -f "$instance_config_copy" ]]; then
-    __print_info "Removing instance configuration file from working directory..."
+  # Remove KGSM symlink
+  if [[ -L "$instance_config_file" ]]; then
+    __print_info "Removing KGSM symlink to instance configuration..."
 
-    if ! rm -f "$instance_config_copy"; then
-      __print_error "Failed to remove copied configuration file: $instance_config_copy"
+    if ! rm -f "$instance_config_file"; then
+      __print_error "Failed to remove KGSM symlink: $instance_config_file"
       return $EC_FAILED_RM
     fi
 
-    __print_success "Instance configuration file removed from working directory"
+    __print_success "KGSM symlink removed"
+  elif [[ -e "$instance_config_file" ]]; then
+    __print_warning "Found regular file instead of symlink at $instance_config_file - this may indicate an incomplete installation"
+  fi
+
+  # Remove the standalone config file from instance directory
+  if [[ -f "$instance_config_standalone" ]]; then
+    __print_info "Removing standalone configuration file from instance directory..."
+
+    if ! rm -f "$instance_config_standalone"; then
+      __print_error "Failed to remove standalone configuration file: $instance_config_standalone"
+      return $EC_FAILED_RM
+    fi
+
+    __print_success "Standalone configuration file removed from instance directory"
   fi
 
   return 0

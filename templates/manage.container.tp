@@ -125,6 +125,15 @@ if test -t 1; then
 
   # More than 8 means it supports colors
   if [[ $ncolors ]] && [[ "$ncolors" -gt 8 ]]; then
+    export COLOR_RED="\033[0;31m"
+    export COLOR_GREEN="\033[0;32m"
+    export COLOR_ORANGE="\033[0;33m"
+    export COLOR_BLUE="\033[0;34m"
+    export COLOR_END="\033[0m"
+
+    SUCCESS="${COLOR_GREEN}${SUCCESS}${COLOR_END}"
+    INFO="${COLOR_BLUE}${INFO}${COLOR_END}"
+    ERROR="${COLOR_RED}${ERROR}${COLOR_END}"
     WARNING="${COLOR_ORANGE}${WARNING}${COLOR_END}"
   fi
 fi
@@ -183,7 +192,6 @@ function _disable_upnp() {
 # Cleanup function for SIGINT, SIGTERM, and EXIT
 function _term_cleanup() {
   [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp
-  _exit_print_logs
 }
 
 # Make sure to disable UPnP if it was enabled

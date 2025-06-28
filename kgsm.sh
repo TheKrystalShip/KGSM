@@ -106,9 +106,11 @@ ${BOLD}${UNDERLINE}Blueprint Management:${END}
                               Note: Not applicable for Steam-based game servers
     [--name <name>]           Provide a custom instance name
                               Instead of using auto-generated name
+  --install BLUEPRINT         Alias for --create
 
 ${BOLD}${UNDERLINE}Instance Management:${END}
-  --uninstall <instance>      Remove a game server instance completely
+  --remove <instance>         Remove a game server instance completely
+  --uninstall <instance>      Alias for --remove
   --instances                 List all installed game server instances
   --instances <blueprint>     List instances of a specific blueprint/game type
   --instances --detailed      Show detailed information about all instances
@@ -196,7 +198,7 @@ module_lifecycle=$(__find_module lifecycle.sh)
 module_migrator=$(__find_module migrator.sh)
 # module_interactive is already loaded earlier
 
-function _install() {
+function _create() {
   local blueprint=$1
   local install_dir=$2
   # Value of 0 means get latest
@@ -221,7 +223,7 @@ function _install() {
   )"
 
   # Emit after the instance has been created, so we can use the identifier
-  __emit_instance_installation_started "${instance%.ini}" "${blueprint}"
+  __emit_instance_installation_started "${instance}" "${blueprint}"
 
   "$module_directories" -i "$instance" --create $debug || return $?
   "$module_files" -i "$instance" --create $debug || return $?
@@ -242,47 +244,43 @@ function _install() {
   # emit them manually during this process
 
   # Download the required files for the instance
-  __emit_instance_download_started "${instance%.ini}"
+  __emit_instance_download_started "${instance}"
   "$instance_management_file" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
-  __emit_instance_download_finished "${instance%.ini}"
-  __emit_instance_downloaded "${instance%.ini}"
+  __emit_instance_download_finished "${instance}"
+  __emit_instance_downloaded "${instance}"
 
   # Deploy the instance
-  __emit_instance_deploy_started "${instance%.ini}"
+  __emit_instance_deploy_started "${instance}"
   "$instance_management_file" --deploy $debug || return $EC_FAILED_DEPLOY
-  __emit_instance_deploy_finished "${instance%.ini}"
-  __emit_instance_deployed "${instance%.ini}"
+  __emit_instance_deploy_finished "${instance}"
+  __emit_instance_deployed "${instance}"
 
   # Save the new version
   "$instance_management_file" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
-  __emit_instance_version_updated "${instance%.ini}" "0" "$version"
+  __emit_instance_version_updated "${instance}" "0" "$version"
 
-  __emit_instance_installation_finished "${instance%.ini}" "${blueprint}"
+  __emit_instance_installation_finished "${instance}" "${blueprint}"
 
   __print_success "Instance $instance has been created in $install_dir"
-  __emit_instance_installed "${instance%.ini}" "${blueprint}"
+  __emit_instance_installed "${instance}" "${blueprint}"
 
   return 0
 }
 
-function _uninstall() {
+function _remove() {
   local instance=$1
 
-  if [[ "$instance" != *.ini ]]; then
-    instance="${instance}.ini"
-  fi
+  __emit_instance_uninstall_started "${instance}"
 
-  __emit_instance_uninstall_started "${instance%.ini}"
-
-  "$module_directories" -i "$instance" --remove $debug || return $?
   "$module_files" -i "$instance" --remove $debug || return $?
+  "$module_directories" -i "$instance" --remove $debug || return $?
   "$module_instances" --remove "$instance" $debug || return $?
 
-  __emit_instance_uninstall_finished "${instance%.ini}"
+  __emit_instance_uninstall_finished "${instance}"
 
-  __print_success "Instance ${instance%.ini} uninstalled"
+  __print_success "Instance ${instance} uninstalled"
 
-  __emit_instance_uninstalled "${instance%.ini}"
+  __emit_instance_uninstalled "${instance}"
 
   return 0
 }
@@ -357,7 +355,7 @@ function process_create_instance() {
   done
 
   require_arg "<dir>" "$bp_install_dir"
-  _install "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id
+  _create "$bp_to_install" "$bp_install_dir" $bp_install_version $bp_id
   exit $?
 }
 
@@ -552,13 +550,13 @@ function process_instance() {
 # Main argument processing loop
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-  --create)
+  --create | --install)
     process_create_instance "$@"
     ;;
-  --uninstall)
+  --remove | --uninstall)
     shift
     require_arg "<instance>" "$1"
-    _uninstall "$1"
+    _remove "$1"
     exit $?
     ;;
   --blueprints)

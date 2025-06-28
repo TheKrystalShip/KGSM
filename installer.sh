@@ -645,8 +645,6 @@ function verify_installation() {
     "modules/files.sh"
     "modules/files.symlink.sh"
     "modules/files.ufw.sh"
-    "modules/instances.container.sh"
-    "modules/instances.native.sh"
     "modules/instances.sh"
     "modules/lifecycle.sh"
     "modules/lifecycle.standalone.sh"

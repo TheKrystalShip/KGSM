@@ -23,14 +23,24 @@ ${UNDERLINE}Options:${END}
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
-  --install                   Create and enable UFW firewall rules for the instance
-                              Opens necessary ports based on instance configuration
-  --uninstall                 Remove UFW firewall rules for the instance
-                              Closes previously opened ports
+  --enable                    Enable UFW firewall integration for the instance
+                              Creates UFW rules and updates instance configuration
+  --disable                   Disable UFW firewall integration for the instance
+                              Removes UFW rules and updates instance configuration
+
+${UNDERLINE}Legacy Commands (deprecated):${END}
+  --install                   Alias for --enable (maintained for compatibility)
+  --uninstall                 Alias for --disable (maintained for compatibility)
 
 ${UNDERLINE}Examples:${END}
-  $(basename "$0") --instance factorio-space-age --install
-  $(basename "$0") -i 7dtd-32 --uninstall
+  $(basename "$0") --instance factorio-space-age --enable
+  $(basename "$0") -i 7dtd-32 --disable
+  $(basename "$0") -i factorio-space-age --uninstall
+
+${UNDERLINE}Notes:${END}
+  • --enable/--install: Creates integration and marks it as enabled
+  • --disable/--uninstall: Removes integration and marks it as disabled
+  • All operations require a loaded instance configuration
 "
 }
 
@@ -85,62 +95,42 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function _ufw_uninstall() {
+# Core function: Remove UFW integration from external systems
+function __ufw_remove_external() {
+  local instance_name="$1"
+  local firewall_rule_file="${2:-${config_firewall_rules_dir}/kgsm-${instance_name}}"
 
-  __print_info "Removing UFW integration..."
+  [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
 
-  [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return "$EC_MISSING_ARG"
-  [[ -z "$instance_ufw_file" ]] && return 0
-  [[ ! -f "$instance_ufw_file" ]] && return 0
-
-  # Remove ufw rule
+  # Remove ufw rule (may not exist, ignore errors)
   __print_info "Deleting UFW rule"
-  if ! $SUDO ufw delete allow "$instance_name" &>/dev/null; then
-    __print_error "Failed to remove UFW rule for $instance_name"
-    return $EC_UFW
-  fi
+  $SUDO ufw delete allow "$instance_name" &>/dev/null || true
 
-  if [ -f "$instance_ufw_file" ]; then
-    # Delete firewall rule file
+  # Delete firewall rule file if it exists
+  if [[ -f "$firewall_rule_file" ]]; then
     __print_info "Deleting rule definition file"
-    if ! $SUDO rm "$instance_ufw_file"; then
-      __print_error "Failed to remove $instance_ufw_file"
+    if ! $SUDO rm "$firewall_rule_file"; then
+      __print_error "Failed to remove $firewall_rule_file"
       return $EC_FAILED_RM
     fi
   fi
 
-  # Remove UFW entries from the instance config file
-  __add_or_update_config "$instance_config_file" "instance_enable_firewall_management" "false"
-  __remove_config "$instance_config_file" "instance_ufw_file"
-
-  # Management file might have been deleted already if the instance is in the
-  # process of being uninstalled.
-  if [[ -f "$instance_management_file" ]]; then
-    # Remove the firewall rule file path from the management file
-    __remove_config "$instance_management_file" "instance_enable_firewall_management"
-    __remove_config "$instance_management_file" "instance_ufw_file"
-  fi
-
-  __print_success "UFW integration removed"
-
   return 0
 }
 
-function _ufw_install() {
+# Core function: Create UFW integration in external systems (requires loaded instance config)
+function __ufw_create_external() {
 
-  __print_info "Adding UFW integration..."
+  [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
 
-  if [[ -z "$config_firewall_rules_dir" ]]; then
-    __print_error "'firewall_rules_dir' is expected but it's not set"
-    return $EC_MISSING_ARG
-  fi
-
-  local instance_ufw_file=${config_firewall_rules_dir}/kgsm-${instance_name}
-  local temp_ufw_file=/tmp/kgsm-${instance_name}
+  local instance_firewall_rule_file="${config_firewall_rules_dir}/kgsm-${instance_name}"
+  local temp_ufw_file="/tmp/kgsm-${instance_name}"
 
   # If firewall rule file already exists, remove it
-  if [[ -f "$instance_ufw_file" ]]; then
-    __print_error "A UFW rule definition file for this instance already exists at '${instance_ufw_file}'. Manually remove it before trying again"
+  if [[ -f "$instance_firewall_rule_file" ]]; then
+    __print_error "A UFW rule definition file for this instance already exists at '${instance_firewall_rule_file}'. Remove it before trying again"
     return $EC_GENERAL
   fi
 
@@ -153,52 +143,94 @@ function _ufw_install() {
 $(<"$ufw_template_file")
 EOF
 " >"$temp_ufw_file"; then
-    __print_error "Failed writing rules to $temp_ufw_file" && return "$EX_FAILED_TEMPLATE"
+    __print_error "Failed writing rules to $temp_ufw_file"
+    return $EC_FAILED_TEMPLATE
   fi
 
-  if ! $SUDO mv "$temp_ufw_file" "$instance_ufw_file"; then
-    __print_error "Failed to move $temp_ufw_file into $instance_ufw_file" && return "$EC_FAILED_MV"
+  if ! $SUDO mv "$temp_ufw_file" "$instance_firewall_rule_file"; then
+    __print_error "Failed to move $temp_ufw_file into $instance_firewall_rule_file"
+    return $EC_FAILED_MV
   fi
 
   # UFW expect the rule file to belong to root
-  if ! $SUDO chown root:root "$instance_ufw_file"; then
-    __print_error "Failed to assign root user ownership to $instance_ufw_file" && return "$EC_PERMISSION"
+  if ! $SUDO chown root:root "$instance_firewall_rule_file"; then
+    __print_error "Failed to assign root user ownership to $instance_firewall_rule_file"
+    return $EC_PERMISSION
   fi
 
   # Enable firewall rule
   __print_info "Allowing UFW rule"
   if ! $SUDO ufw allow "$instance_name" &>/dev/null; then
-    __print_error "Failed to allow UFW rule for $instance_name" && return "$EC_UFW"
+    __print_error "Failed to allow UFW rule for $instance_name"
+    return $EC_UFW
   fi
-
-  # Enable firewall management in the instance config file
-  __add_or_update_config "$instance_config_file" "instance_enable_firewall_management" "true"
-  __add_or_update_config "$instance_config_file" "instance_ufw_file" \""$instance_ufw_file"\"
-
-  local marker="=== END INJECT CONFIG ==="
-  __add_or_update_config "$instance_management_file" "instance_enable_firewall_management" "true" "$marker"
-  __add_or_update_config "$instance_management_file" "instance_ufw_file" \""$instance_ufw_file"\" "$marker"
-
-  __print_success "UFW integration complete"
 
   return 0
 }
 
-# Load the instance configuration
+# Config-dependent operation: Disable UFW and update instance config
+function _ufw_disable() {
+
+  __print_info "Disabling UFW integration..."
+
+  [[ -z "$instance_firewall_rule_file" ]] && return 0
+  [[ ! -f "$instance_firewall_rule_file" ]] && return 0
+
+  if ! __ufw_remove_external "$instance_name" "$instance_firewall_rule_file"; then
+    return $?
+  fi
+
+  # Disable firewall management in the instance config file
+  __add_or_update_config "$instance_config_file" "enable_firewall_management" "false"
+  __add_or_update_config "$instance_config_file" "firewall_rule_file" ""
+
+  __print_success "UFW integration disabled"
+  return 0
+}
+
+# Config-dependent operation: Enable UFW and update instance config
+function _ufw_enable() {
+
+  __print_info "Enabling UFW integration..."
+
+  [[ -z "$config_firewall_rules_dir" ]] && __print_error "config_firewall_rules_dir is expected but it's not set" && return "$EC_MISSING_ARG"
+
+  # If instance_firewall_rule_file is already defined, nothing to do
+  if [[ -n "$instance_firewall_rule_file" ]] && [[ -f "$instance_firewall_rule_file" ]]; then
+    __print_success "UFW integration already enabled"
+    return 0
+  fi
+
+  local instance_firewall_rule_file="${config_firewall_rules_dir}/kgsm-${instance_name}"
+
+  if ! __ufw_create_external; then
+    return $?
+  fi
+
+  # Enable firewall management in the instance config file
+  __add_or_update_config "$instance_config_file" "enable_firewall_management" "true"
+  __add_or_update_config "$instance_config_file" "firewall_rule_file" "$instance_firewall_rule_file"
+
+  __print_success "UFW integration enabled"
+
+  return 0
+}
+
+[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
+
+# Load instance configuration
 instance_config_file=$(__find_instance_config "$instance")
 # Use __source_instance to load the config with proper prefixing
 __source_instance "$instance"
 
-[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
-
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
-    _ufw_install
+  --enable | --install)
+    _ufw_enable
     exit $?
     ;;
-  --uninstall)
-    _ufw_uninstall
+  --disable | --uninstall)
+    _ufw_disable
     exit $?
     ;;
   *)

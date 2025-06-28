@@ -10,9 +10,9 @@ function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
 
-  echo -e "${UNDERLINE}Command Shortcut Management for Krystal Game Server Manager${END}
+  echo -e "${UNDERLINE}UPnP Port Forwarding Management for Krystal Game Server Manager${END}
 
-Creates and manages command shortcuts (symlinks) for easier access to game server instances.
+Manages UPnP (Universal Plug and Play) port forwarding configuration for game server instances.
 
 ${UNDERLINE}Usage:${END}
   $(basename "$0") [OPTIONS] [COMMAND]
@@ -23,14 +23,24 @@ ${UNDERLINE}Options:${END}
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
-  --install                   Create a system-wide command shortcut for the instance
-                              Makes a symlink in your PATH for direct management access
-  --uninstall                 Remove the command shortcut for the instance
-                              Removes the previously created symlink
+  --enable                    Enable UPnP port forwarding for the instance
+                              Updates instance configuration to enable automatic port forwarding
+  --install                   Alias for --enable (maintained for compatibility)
+  --disable                   Disable UPnP port forwarding for the instance
+                              Updates instance configuration to disable automatic port forwarding
+  --uninstall                 Alias for --disable (maintained for compatibility)
 
 ${UNDERLINE}Examples:${END}
-  $(basename "$0") --instance factorio-space-age --install
-  $(basename "$0") -i 7dtd-32 --uninstall
+  $(basename "$0") --instance factorio-space-age --enable
+  $(basename "$0") -i 7dtd-32 --disable
+
+${UNDERLINE}Notes:${END}
+  • UPnP management only updates configuration flags
+  • No external files are created or removed
+  • Actual port forwarding is handled by the game server management process
+  • --enable/--install: Creates integration and marks it as enabled
+  • --disable/--uninstall: Removes integration and marks it as disabled
+  • All operations require a loaded instance configuration
 "
 }
 
@@ -86,25 +96,13 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
 fi
 
 function _upnp_install() {
-  local key="instance_enable_port_forwarding"
-  __add_or_update_config "$instance_config_file" "$key" "true" || return $?
-
-  if [[ -f "$instance_management_file" ]]; then
-    __add_or_update_config "$instance_management_file" "$key" "true" || return $?
-  fi
-
-  return 0
+  __add_or_update_config "$instance_config_file" "enable_port_forwarding" "true"
+  return $?
 }
 
 function _upnp_uninstall() {
-  local key="instance_enable_port_forwarding"
-  __add_or_update_config "$instance_config_file" "$key" "false" || return $?
-
-  if [[ -f "$instance_management_file" ]]; then
-    __add_or_update_config "$instance_management_file" "$key" "false" || return $?
-  fi
-
-  return 0
+  __add_or_update_config "$instance_config_file" "enable_port_forwarding" "false"
+  return $?
 }
 
 # Load the instance configuration
@@ -116,11 +114,11 @@ __source_instance "$instance"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
+  --enable | --install)
     _upnp_install
     exit $?
     ;;
-  --uninstall)
+  --disable | --uninstall)
     _upnp_uninstall
     exit $?
     ;;

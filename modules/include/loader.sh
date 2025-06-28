@@ -48,7 +48,7 @@ function __find_or_fail() {
   local source=${2:-$KGSM_ROOT}
 
   local file_path
-  file_path="$(find "$source" -type f -name "$file_name" -print -quit)"
+  file_path="$(find "$source" \( -type f -o -type l \) -name "$file_name" -print -quit)"
 
   if [[ -z "$file_path" ]]; then
     __print_error "Could not find $file_name in $source"
@@ -340,5 +340,34 @@ function __source_instance() {
 }
 
 export -f __source_instance
+
+# Get a single value from an instance config file without sourcing all variables
+# Usage: __get_instance_config_value <instance_name> <config_key>
+function __get_instance_config_value() {
+  local instance_name="$1"
+  local config_key="$2"
+
+  if [[ -z "$instance_name" || -z "$config_key" ]]; then
+    __print_error "Both instance_name and config_key must be specified."
+    exit $EC_INVALID_ARG
+  fi
+
+  # Find the instance config file
+  local instance_config_file
+  instance_config_file=$(__find_instance_config "$instance_name")
+
+  if [[ -z "$instance_config_file" ]]; then
+    __print_error "Instance config file for '$instance_name' not found."
+    exit $EC_FILE_NOT_FOUND
+  fi
+
+  # Extract the specific value using grep with proper anchoring
+  local value
+  value=$(grep -E "^${config_key}\s*=" "$instance_config_file" | cut -d'=' -f2 | tr -d '"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+  echo "$value"
+}
+
+export -f __get_instance_config_value
 
 export KGSM_LOADER_LOADED=1

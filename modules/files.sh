@@ -45,15 +45,10 @@ ${UNDERLINE}Commands:${END}
     --config                   Copy instance configuration file to working directory
     --systemd                  Generate systemd service/socket files
     --ufw                      Generate and enable UFW firewall rule
-    --symlink                  Create a symlink to the management file in the
-                               PATH
+    --symlink                  Create a symlink to the management file in the PATH
     --upnp                     Generate UPnP configuration files (if applicable)
 
-  --remove                    Remove and disable:
-                                - systemd service/socket files
-                                - UFW firewall rules
-                                - symlink to the management file
-                                - UPnP configuration files (if applicable)
+  --remove                    Remove all files and integrations for instance uninstall
     --systemd                  Remove systemd service/socket files
     --ufw                      Remove UFW firewall rules
     --symlink                  Remove the symlink to the management file
@@ -63,7 +58,13 @@ ${UNDERLINE}Commands:${END}
 
 ${UNDERLINE}Examples:${END}
   $(basename "$0") --instance factorio-space-age --create
+  $(basename "$0") -i factorio-space-age --remove
   $(basename "$0") -i 7dtd-32 --remove --ufw
+
+${UNDERLINE}Notes:${END}
+  • --remove: Removes integrations and updates instance configuration
+  • All operations require a loaded instance configuration
+  • Individual integration removal disables the integration completely
 "
 }
 
@@ -134,16 +135,15 @@ function _create() {
     "$(__find_module files.symlink.sh)" --instance "$instance" --install || return $?
   fi
 
-  __emit_instance_files_created "${instance%.ini}"
+  __emit_instance_files_created "${instance}"
+
   return 0
 }
 
-function _remove() {
+# Config-dependent operation: Remove files based on instance configuration (for uninstall)
+function _remove_for_uninstall() {
   # Use the files.management.sh module to remove management file
   "$(__find_module files.management.sh)" --instance "$instance" --remove || return $?
-
-  # Use the files.config.sh module to remove the instance config file copy
-  "$(__find_module files.config.sh)" --instance "$instance" --uninstall || return $?
 
   # When uninstalling files, we read the $instance_ variables from the instance config file.
   # This is necessary to determine if we need to remove systemd service files,
@@ -151,20 +151,24 @@ function _remove() {
 
   if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
     # Use the files.systemd.sh module
-    "$(__find_module files.systemd.sh)" --instance "$instance" --uninstall || return $?
+    "$(__find_module files.systemd.sh)" --instance "$instance" --disable || return $?
   fi
 
   if [[ "$instance_enable_firewall_management" == "true" ]]; then
     # Use the files.ufw.sh module
-    "$(__find_module files.ufw.sh)" --instance "$instance" --uninstall || return $?
+    "$(__find_module files.ufw.sh)" --instance "$instance" --disable || return $?
   fi
 
   if [[ "$instance_enable_command_shortcuts" == "true" ]]; then
     # Use the files.symlink.sh module
-    "$(__find_module files.symlink.sh)" --instance "$instance" --uninstall || return $?
+    "$(__find_module files.symlink.sh)" --instance "$instance" --disable || return $?
   fi
 
-  __emit_instance_files_removed "${instance%.ini}"
+  # We don't remove the instance config file here, because it's still needed
+  # for other modules to work.
+
+  __emit_instance_files_removed "${instance}"
+
   return 0
 }
 
@@ -187,15 +191,15 @@ while [ $# -gt 0 ]; do
       exit $?
       ;;
     --systemd)
-      "$(__find_module files.systemd.sh)" --instance "$instance" --install
+      "$(__find_module files.systemd.sh)" --instance "$instance" --enable
       exit $?
       ;;
     --ufw)
-      "$(__find_module files.ufw.sh)" --instance "$instance" --install
+      "$(__find_module files.ufw.sh)" --instance "$instance" --enable
       exit $?
       ;;
     --symlink)
-      "$(__find_module files.symlink.sh)" --instance "$instance" --install
+      "$(__find_module files.symlink.sh)" --instance "$instance" --enable
       exit $?
       ;;
     --upnp)
@@ -211,20 +215,20 @@ while [ $# -gt 0 ]; do
   --remove)
     shift
     if [[ -z "$1" ]]; then
-      _remove
+      _remove_for_uninstall
       exit $?
     fi
     case "$1" in
     --systemd)
-      "$(__find_module files.systemd.sh)" --instance "$instance" --uninstall
+      "$(__find_module files.systemd.sh)" --instance "$instance" --disable
       exit $?
       ;;
     --ufw)
-      "$(__find_module files.ufw.sh)" --instance "$instance" --uninstall
+      "$(__find_module files.ufw.sh)" --instance "$instance" --disable
       exit $?
       ;;
     --symlink)
-      "$(__find_module files.symlink.sh)" --instance "$instance" --uninstall
+      "$(__find_module files.symlink.sh)" --instance "$instance" --disable
       exit $?
       ;;
     --upnp)

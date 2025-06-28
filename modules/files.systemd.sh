@@ -23,14 +23,24 @@ ${UNDERLINE}Options:${END}
                               Must match the instance_name in the configuration
 
 ${UNDERLINE}Commands:${END}
-  --install                   Generate and enable systemd service/socket files for the instance
-                              Configures the server to start automatically with the system
-  --uninstall                 Remove and disable systemd service/socket files
-                              Prevents the server from starting automatically
+  --enable                    Enable systemd integration for the instance
+                              Creates systemd service/socket files and updates instance configuration
+  --disable                   Disable systemd integration for the instance
+                              Removes systemd service/socket files and updates instance configuration
+
+${UNDERLINE}Legacy Commands (deprecated):${END}
+  --install                   Alias for --enable (maintained for compatibility)
+  --uninstall                 Alias for --disable (maintained for compatibility)
 
 ${UNDERLINE}Examples:${END}
-  $(basename "$0") --instance factorio-space-age --install
-  $(basename "$0") -i 7dtd-32 --uninstall
+  $(basename "$0") --instance factorio-space-age --enable
+  $(basename "$0") -i 7dtd-32 --disable
+  $(basename "$0") -i factorio-space-age --uninstall
+
+${UNDERLINE}Notes:${END}
+  • --enable/--install: Creates integration and marks it as enabled
+  • --disable/--uninstall: Removes integration and marks it as disabled
+  • All operations require a loaded instance configuration
 "
 }
 
@@ -85,32 +95,31 @@ if [[ ! "$KGSM_COMMON_LOADED" ]]; then
   source "$module_common" || exit 1
 fi
 
-function _systemd_uninstall() {
+# Core function: Remove systemd integration from external systems
+function __systemd_remove_external() {
+  local instance_name="$1"
 
-  __print_info "Removing systemd integration..."
+  [[ -z "$config_systemd_files_dir" ]] && __print_error "config_systemd_files_dir is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
 
-  if [[ -z "$instance_systemd_service_file" ]] && [[ -z "$instance_systemd_socket_file" ]]; then
-    # Nothing to uninstall
-    return 0
-  fi
+  local instance_systemd_service_file="${config_systemd_files_dir}/${instance_name}.service"
+  local instance_systemd_socket_file="${config_systemd_files_dir}/${instance_name}.socket"
 
+  # Stop and disable service if it exists and is running
   if systemctl is-active "$instance_name" &>/dev/null; then
     if ! $SUDO systemctl stop "$instance_name" &>/dev/null; then
-      __print_error "Failed to stop $instance_name before uninstalling systemd files"
-      return $EC_SYSTEMD
+      __print_warning "Failed to stop $instance_name before removing systemd files"
     fi
   fi
 
   if systemctl is-enabled "$instance_name" &>/dev/null; then
-    if ! $SUDO systemctl disable "$instance_name"; then
+    if ! $SUDO systemctl disable "$instance_name" &>/dev/null; then
       __print_warning "Failed to disable $instance_name"
-      return $EC_SYSTEMD
     fi
   fi
 
   # Remove service file
-  # shellcheck disable=SC2153
-  if [ -f "$instance_systemd_service_file" ]; then
+  if [[ -f "$instance_systemd_service_file" ]]; then
     if ! $SUDO rm "$instance_systemd_service_file"; then
       __print_error "Failed to remove $instance_systemd_service_file"
       return $EC_FAILED_RM
@@ -118,8 +127,7 @@ function _systemd_uninstall() {
   fi
 
   # Remove socket file
-  # shellcheck disable=SC2153
-  if [ -f "$instance_systemd_socket_file" ]; then
+  if [[ -f "$instance_systemd_socket_file" ]]; then
     if ! $SUDO rm "$instance_systemd_socket_file"; then
       __print_error "Failed to remove $instance_systemd_socket_file"
       return $EC_FAILED_RM
@@ -127,80 +135,75 @@ function _systemd_uninstall() {
   fi
 
   # Reload systemd
-
   __print_info "Reloading systemd..."
   if ! $SUDO systemctl daemon-reload; then
-    __print_error "Failed to reload systemd" && return "$EC_SYSTEMD"
+    __print_error "Failed to reload systemd"
+    return $EC_SYSTEMD
   fi
-
-  # Remove entries from instance config file and management file
-  __remove_config "$instance_config_file" "instance_systemd_service_file"
-  __remove_config "$instance_config_file" "instance_systemd_socket_file"
-  __add_or_update_config "$instance_config_file" "instance_enable_systemd" "false"
-  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "standalone"
-
-  if [[ -f "$instance_management_file" ]]; then
-    __remove_config "$instance_management_file" "instance_systemd_service_file"
-    __remove_config "$instance_management_file" "instance_systemd_socket_file"
-
-    __add_or_update_config "$instance_management_file" "instance_enable_systemd" "false"
-  fi
-
-  __print_success "Systemd integration removed"
 
   return 0
 }
 
-function _systemd_install() {
+# Config-dependent operation: Disable systemd and update instance config
+function _systemd_disable() {
 
-  __print_info "Adding systemd integration..."
+  __print_info "Disabling systemd integration..."
+
+  if [[ -z "$instance_systemd_service_file" ]] && [[ -z "$instance_systemd_socket_file" ]]; then
+    # Nothing to disable
+    return 0
+  fi
+
+  if ! __systemd_remove_external "$instance_name"; then
+    return $?
+  fi
+
+  # Remove entries from instance config file
+  __add_or_update_config "$instance_config_file" "enable_systemd" "false"
+  __add_or_update_config "$instance_config_file" "lifecycle_manager" "standalone"
+  __add_or_update_config "$instance_config_file" "systemd_service_file" ""
+  __add_or_update_config "$instance_config_file" "systemd_socket_file" ""
+
+  __print_success "Systemd integration disabled"
+
+  return 0
+}
+
+# Core function: Create systemd integration in external systems (requires loaded instance config)
+function __systemd_create_external() {
 
   [[ -z "$config_systemd_files_dir" ]] && __print_error "config_systemd_files_dir is expected but it's not set" && return $EC_MISSING_ARG
+  [[ -z "$instance_name" ]] && __print_error "instance_name is required" && return $EC_MISSING_ARG
+  [[ -z "$instance_launch_dir" ]] && __print_error "instance_launch_dir is required" && return $EC_MISSING_ARG
+  [[ -z "$instance_executable_file" ]] && __print_error "instance_executable_file is required" && return $EC_MISSING_ARG
+  [[ -z "$instance_working_dir" ]] && __print_error "instance_working_dir is required" && return $EC_MISSING_ARG
 
   local service_template_file
   local socket_template_file
   service_template_file="$(__find_template service.tp)"
   socket_template_file="$(__find_template socket.tp)"
 
-  local instance_systemd_service_file=${config_systemd_files_dir}/${instance_name}.service
-  local instance_systemd_socket_file=${config_systemd_files_dir}/${instance_name}.socket
+  local instance_systemd_service_file="${config_systemd_files_dir}/${instance_name}.service"
+  local instance_systemd_socket_file="${config_systemd_files_dir}/${instance_name}.socket"
 
-  local temp_systemd_service_file=/tmp/${instance_name}.service
-  local temp_systemd_socket_file=/tmp/${instance_name}.socket
+  local temp_systemd_service_file="/tmp/${instance_name}.service"
+  local temp_systemd_socket_file="/tmp/${instance_name}.socket"
 
-  local instance_bin_absolute_path
-  instance_bin_absolute_path="$instance_launch_dir/$instance_executable_file"
+  local instance_bin_absolute_path="$instance_launch_dir/$instance_executable_file"
 
   # Required by template
   export instance_bin_absolute_path
-  export instance_socket_file=${instance_working_dir}/.${instance_name}.stdin
+  export instance_socket_file="${instance_working_dir}/.${instance_name}.stdin"
 
-  # If service file already exists, check that it belongs to the instance
-  if [[ -f "$instance_systemd_service_file" ]]; then
-    if [[ -z "$instance_systemd_service_file" ]]; then
-      __print_error "File '$instance_systemd_service_file' already exists but it doesn't belong to $instance_name"
+  # If service file already exists, remove existing installation
+  if [[ -f "$instance_systemd_service_file" ]] || [[ -f "$instance_systemd_socket_file" ]]; then
+    if ! __systemd_remove_external "$instance_name"; then
       return $EC_GENERAL
-    else
-      if ! _systemd_uninstall; then
-        return $EC_GENERAL
-      fi
-    fi
-  fi
-
-  # If socket file already exists, check that it belongs to the instance
-  if [[ -f "$instance_systemd_socket_file" ]]; then
-    if [[ -z "$instance_systemd_socket_file" ]]; then
-      __print_error "File '$instance_systemd_socket_file' already exists but it doesn't belong to $instance_name"
-      return $EC_GENERAL
-    else
-      if ! _systemd_uninstall; then
-        return $EC_GENERAL
-      fi
     fi
   fi
 
   instance_user=$USER
-  if [ "$EUID" -eq 0 ]; then
+  if [[ "$EUID" -eq 0 ]]; then
     instance_user=$SUDO_USER
   fi
 
@@ -214,7 +217,7 @@ EOF
   fi
 
   if ! $SUDO mv "$temp_systemd_service_file" "$instance_systemd_service_file"; then
-    __print_error "Failed to move $temp_systemd_socket_file into $instance_systemd_service_file"
+    __print_error "Failed to move $temp_systemd_service_file into $instance_systemd_service_file"
     return $EC_FAILED_MV
   fi
 
@@ -233,7 +236,7 @@ EOF
   fi
 
   if ! $SUDO mv "$temp_systemd_socket_file" "$instance_systemd_socket_file"; then
-    __print_error "Failed to move $instance_systemd_socket_file into $instance_systemd_socket_file"
+    __print_error "Failed to move $temp_systemd_socket_file into $instance_systemd_socket_file"
     return $EC_FAILED_MV
   fi
 
@@ -243,48 +246,62 @@ EOF
   fi
 
   # Reload systemd
-
   __print_info "Reloading systemd..."
   if ! $SUDO systemctl daemon-reload; then
     __print_error "Failed to reload systemd"
     return $EC_SYSTEMD
   fi
 
+  return 0
+}
+
+# Config-dependent operation: Enable systemd and update instance config
+function _systemd_enable() {
+
+  __print_info "Enabling systemd integration..."
+
+  [[ -z "$config_systemd_files_dir" ]] && __print_error "config_systemd_files_dir is expected but it's not set" && return "$EC_MISSING_ARG"
+
+  # If systemd files are already defined, nothing to do
+  if [[ -n "$instance_systemd_service_file" ]] && [[ -f "$instance_systemd_service_file" ]] &&
+    [[ -n "$instance_systemd_socket_file" ]] && [[ -f "$instance_systemd_socket_file" ]]; then
+    __print_success "Systemd integration already enabled"
+    return 0
+  fi
+
+  local instance_systemd_service_file="${config_systemd_files_dir}/${instance_name}.service"
+  local instance_systemd_socket_file="${config_systemd_files_dir}/${instance_name}.socket"
+
+  if ! __systemd_create_external; then
+    return $?
+  fi
+
   # Save new files into instance config file
+  __add_or_update_config "$instance_config_file" "enable_systemd" "true"
+  __add_or_update_config "$instance_config_file" "lifecycle_manager" "systemd"
+  __add_or_update_config "$instance_config_file" "systemd_service_file" "$instance_systemd_service_file"
+  __add_or_update_config "$instance_config_file" "systemd_socket_file" "$instance_systemd_socket_file"
 
-  __add_or_update_config "$instance_config_file" "instance_enable_systemd" "true"
-  __add_or_update_config "$instance_config_file" "instance_lifecycle_manager" "systemd"
-  __add_or_update_config "$instance_config_file" "instance_systemd_service_file" \""$instance_systemd_service_file"\"
-  __add_or_update_config "$instance_config_file" "instance_systemd_socket_file" \""$instance_systemd_socket_file"\"
-
-  # Save it into the instance's management file also. Prepend just before the bottom marker
-  local marker="# === END INJECT CONFIG ==="
-
-  __add_or_update_config "$instance_management_file" "instance_enable_systemd" "true" "$marker"
-  __add_or_update_config "$instance_management_file" "instance_lifecycle_manager" "systemd"
-  __add_or_update_config "$instance_management_file" "instance_systemd_service_file" \""$instance_systemd_service_file"\" "$marker"
-  __add_or_update_config "$instance_management_file" "instance_systemd_socket_file" \""$instance_systemd_socket_file"\" "$marker"
-
-  __print_success "Systemd integration complete"
+  __print_success "Systemd integration enabled"
 
   return 0
 }
 
-# Load the instance configuration
+[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
+
+# Load instance configuration
 instance_config_file=$(__find_instance_config "$instance")
 # Use __source_instance to load the config with proper prefixing
 __source_instance "$instance"
 
-[[ "$EUID" -ne 0 ]] && SUDO="sudo -E"
-
 while [ $# -gt 0 ]; do
   case "$1" in
-  --install)
-    _systemd_install
+  --enable | --install)
+    _systemd_enable
     exit $?
     ;;
-  --uninstall)
-    _systemd_uninstall
+  --disable | --uninstall)
+    _systemd_disable
     exit $?
     ;;
   *)
