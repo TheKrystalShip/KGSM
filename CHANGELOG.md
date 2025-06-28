@@ -3,6 +3,8 @@
 - [Changelog](#changelog)
   - [Ideas for the future](#ideas-for-the-future)
   - [Work in progress](#work-in-progress)
+  - [2.1.0](#210)
+  - [2.0.1](#201)
   - [2.0](#20)
   - [1.7.3](#173)
   - [1.7.2](#172)
@@ -47,6 +49,35 @@ Features that I'd like to consider implementing in order to make KGSM more versa
 
 - Bug fixing after version 2.0
 
+## 2.1.0
+
+**Changes**
+- Instance config file have been moved to the instance working directory for easy access and even more instance independence from KGSM.
+- Named arguments for `--install` and `--uninstall` have been moved to a more semantic `--create` and `--remove` across modules. Old argument kept to avoid breaking changes, they act as aliases for the new ones.
+- Added missing `--input` functionality to container management scripts.
+- Instance config file is now generated based on the `templates/instance.tp` file.
+- The `--info` command now outputs raw instance configuration file contents instead of computed values. Use `--info --json` for structured JSON configuration data ideal for automation and scripting.
+- Enhanced `--status` command with unified behavior across all instance types (systemd, standalone, container) and added `--status --json` support for web interfaces and APIs.
+- Added flexible log line control to instance management scripts with `--tail <number>` option, including Unix standard aliases `--lines <number>` and `-n <number>`. Works for both static log viewing and live log following.
+
+**Bug fixes**
+- Removed duplicate debug tracking in the management templates
+- Fixed but where instance config variables were not loaded correctly across modules
+- Fixed interactive mode not checking correctly for which instance integrations were already set up or not. (`Modify` option)
+- Fixed `kgsm -i <instance> --status` not displaying correctly if the instance was active or not.
+- Fixed the `kgsm --blueprints --json` having two different structures for native and container based blueprints, now they have the same structure but with missing field values for the container blueprints.
+- Fixed test_instances_module_comprehensive to use consistent command syntax with --instance flag for info, status, and remove functionalities.
+
+## 2.0.1
+
+**Bug fixes**
+- Fixed erroneous output from `instances.sh` module when listing instances in json format.
+- Fixed instance installation datetime format.
+- Fixed `instance_name` not being set before emitting the "instance_installation_started" event.
+- Fixed `instances.sh` module displaying `--follow` as an invalid argument, after exiting.
+- Fixed `blueprints.sh --list --detailed --json` output containing mixed object formats for container and native blueprint, now both have the same structure.
+- Added new `BlueprintType: [Container | Native]` field in the json output of `blueprints.sh --list --detailed --json`
+
 ## 2.0
 
 This is a major version release and is not compatible with previous versions of KGSM.
@@ -62,7 +93,7 @@ A migration module has been introduced to help transition existing instances fro
 > [!WARNING]
 > This will convert all instance configuration files to the new format and regenerate all `<instance>.manage.sh` files to make them standalone.
 > This is necessary as KGSM now delegates actions to each instance's management file.
-> 
+>
 > **Back up your important files/servers before migration.**
 
 Version 2.0 represents a comprehensive core rewrite to support the following new features:
@@ -111,32 +142,32 @@ Version 2.0 represents a comprehensive core rewrite to support the following new
 **Bug fixes**
 - Incorrect function call in `kgsm.sh` for the `--update-config` flag.
 
-## 1.7.0 - Maintenance Update  
+## 1.7.0 - Maintenance Update
 
-This release focuses on improving internal code quality and enhancing debugging capabilities to make troubleshooting easier. The introduction of standardized exit codes across all scripts allows for better error identification, while the newly implemented logging system enables persistent tracking of operations.  
- 
-- **Descriptive exit codes**: Implemented across all modules to provide clear information about errors and their causes.  
-- **Logging**: KGSM and its modules can now write operation logs to a file if enabled in `config.ini`.  
-- **Update checker**: Added the `./kgsm.sh --check-update` command to verify if a new version is available.  
-- **Contributor guide**: A `CONTRIBUTING.md` file has been added to the repository to assist contributors.  
+This release focuses on improving internal code quality and enhancing debugging capabilities to make troubleshooting easier. The introduction of standardized exit codes across all scripts allows for better error identification, while the newly implemented logging system enables persistent tracking of operations.
+
+- **Descriptive exit codes**: Implemented across all modules to provide clear information about errors and their causes.
+- **Logging**: KGSM and its modules can now write operation logs to a file if enabled in `config.ini`.
+- **Update checker**: Added the `./kgsm.sh --check-update` command to verify if a new version is available.
+- **Contributor guide**: A `CONTRIBUTING.md` file has been added to the repository to assist contributors.
 - **Force kill game server**: `[instance].manage.sh` includes a new `--kill` argument to terminate unresponsive game servers. This is used internally by the `[instance].manage.sh` file in conjunction with a timeout mechanism during the normal `--stop` procedure.
-- **Instance activity check**: `[instance].manage.sh` now includes a `--is-active` flag to verify if a game server is running. This is called internally by `modules/instances.sh` for more accurate status reporting.  
-- **Template update**: The `manage.tp` template has been updated to include the `--kill` flag for newly created instances.  
+- **Instance activity check**: `[instance].manage.sh` now includes a `--is-active` flag to verify if a game server is running. This is called internally by `modules/instances.sh` for more accurate status reporting.
+- **Template update**: The `manage.tp` template has been updated to include the `--kill` flag for newly created instances.
 
-To apply the new `[instance].manage.sh` changes to existing instances, run:  
-```sh  
-./modules/files.sh -i [instance] --create --manage  
-```  
- 
-- **Environment simplification**: Modules no longer require `KGSM_ROOT` to be set before execution.  
-- **Installer consolidation**: The `installer.sh` script now handles installation, version control, and updates. Update-related tasks can be accessed through `kgsm.sh`, eliminating the need to call `installer.sh` directly.  
-- **Codebase refactoring**: `modules/include/common.sh` has been split into sub-modules to improve code organization and responsibility separation.  
-- **Versioning improvements**:  
-  - The `version.txt` file has been replaced with `.kgsm.version`.  
-  - KGSM versions now align with GitHub Releases instead of relying on a repository file.  
+To apply the new `[instance].manage.sh` changes to existing instances, run:
+```sh
+./modules/files.sh -i [instance] --create --manage
+```
+
+- **Environment simplification**: Modules no longer require `KGSM_ROOT` to be set before execution.
+- **Installer consolidation**: The `installer.sh` script now handles installation, version control, and updates. Update-related tasks can be accessed through `kgsm.sh`, eliminating the need to call `installer.sh` directly.
+- **Codebase refactoring**: `modules/include/common.sh` has been split into sub-modules to improve code organization and responsibility separation.
+- **Versioning improvements**:
+  - The `version.txt` file has been replaced with `.kgsm.version`.
+  - KGSM versions now align with GitHub Releases instead of relying on a repository file.
 
 **Bug fixes**
-- **.editorconfig corrections**: Fixed incorrect `indent_style` settings for some file types.  
+- **.editorconfig corrections**: Fixed incorrect `indent_style` settings for some file types.
 
 ## 1.6.1
 - New `--update-config` parameter for `kgsm.sh` to merge new options added to `config.default.ini` to user defined `config.ini`.
@@ -325,7 +356,7 @@ Both the interactive mode `Help` option and `./kgsm.sh --help` will display thes
 - Added shorthand `kgsm.sh [-i, --instance]` argument option to match the modules.
 - Added `kgsm.sh --instance <instance> --info` argument to print out instance information.
 
-**Bug fixes** 
+**Bug fixes**
 
 - Fixed systemd file permission and ownership.
 
