@@ -82,8 +82,12 @@ Options:
   --stop                    Stop the server
   --is-active               Prints if the server is active
   --input <command>         Send an ad-hoc command to the server
-  --logs                    Print last 10 lines of the log
-  --logs [-f, --follow]     Read live logs
+  --logs                    Print last 10 lines of the log (default)
+  --logs --tail <number>    Print last <number> lines of the log
+  --logs --lines <number>   Alias for --tail (Unix standard)
+  --logs -n <number>        Alias for --tail (short form)
+  --logs [-f, --follow]     Read live logs (starts with last 10 lines)
+  --logs --follow --tail <number>  Follow logs starting with last <number> lines
   --enable-upnp             Enable UPnP ports
   --disable-upnp            Disable UPnP ports
 
@@ -105,6 +109,8 @@ Examples:
   $self --start --background
   $self --input '/save'
   $self --stop
+  $self --logs --tail 50
+  $self --logs --follow --tail 100
 "
 }
 
@@ -286,13 +292,14 @@ function _is_active() {
 
 function _print_logs() {
   local follow=$1
+  local line_count=${2:-10}
 
   if [[ "$follow" == "--follow" ]]; then
-    (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" logs -f) &
+    (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" logs --tail="$line_count" -f) &
     tail_pid=$!
     wait "$tail_pid"
   else
-    (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" logs --tail=10)
+    (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" logs --tail="$line_count")
   fi
 }
 
@@ -549,10 +556,39 @@ while [[ $# -gt 0 ]]; do
   --logs)
     shift
     follow=""
-    if [[ -n "$1" ]] && [[ "$1" == "-f" || "$1" == "--follow" ]]; then
-      follow="--follow"
-    fi
-    _print_logs "$follow"
+    line_count=10
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+      -f | --follow)
+        follow="--follow"
+        shift
+        ;;
+      --tail | --lines)
+        shift
+        if [[ -z "$1" ]] || [[ ! "$1" =~ ^[0-9]+$ ]]; then
+          __print_error "Missing or invalid number for --tail/--lines argument"
+          exit 1
+        fi
+        line_count="$1"
+        shift
+        ;;
+      -n)
+        shift
+        if [[ -z "$1" ]] || [[ ! "$1" =~ ^[0-9]+$ ]]; then
+          __print_error "Missing or invalid number for -n argument"
+          exit 1
+        fi
+        line_count="$1"
+        shift
+        ;;
+      *)
+        break
+        ;;
+      esac
+    done
+
+    _print_logs "$follow" "$line_count"
     exit $?
     ;;
   --enable-upnp)
