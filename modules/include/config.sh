@@ -174,6 +174,15 @@ function __add_or_update_config() {
       echo "$key=$value" >>"$target_file"
     fi
   fi
+
+  # Invalidate instance cache if this is an instance config file
+  if [[ "$config_file" == *"/instances/"* ]] && [[ "$config_file" == *".ini" ]]; then
+    local instance_name
+    instance_name=$(basename "$config_file" .ini)
+    if [[ $(type -t __invalidate_instance_cache) == function ]]; then
+      __invalidate_instance_cache "$instance_name"
+    fi
+  fi
 }
 
 export -f __add_or_update_config
@@ -222,6 +231,15 @@ function __remove_config() {
   if ! sed -i "/^$key=/d" "$target_file" >/dev/null; then
     __print_error "Failed to remove key '$key' from '$target_file'."
     return $EC_FAILED_SED
+  fi
+
+  # Invalidate instance cache if this is an instance config file
+  if [[ "$config_file" == *"/instances/"* ]] && [[ "$config_file" == *".ini" ]]; then
+    local instance_name
+    instance_name=$(basename "$config_file" .ini)
+    if [[ $(type -t __invalidate_instance_cache) == function ]]; then
+      __invalidate_instance_cache "$instance_name"
+    fi
   fi
 
   return 0

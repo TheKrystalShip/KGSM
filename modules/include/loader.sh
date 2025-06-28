@@ -240,14 +240,34 @@ export -f __find_override
 # This function sources a blueprint file and prefixes all variables with "blueprint_".
 # It also checks if the blueprint file exists and is readable.
 # If the blueprint file is not found, it returns an error.
-# Usage: __source_blueprint <blueprint_file> [<prefix>]
+# Usage: __source_blueprint <blueprint_file> [<prefix>] [--force-reload]
 function __source_blueprint() {
   local blueprint_file="$1"
   local prefix="${2:-blueprint_}"
+  local force_reload="$3"
 
   if [[ -z "$blueprint_file" ]]; then
     __print_error "No blueprint file specified."
     exit $EC_INVALID_ARG
+  fi
+
+  # Extract blueprint name for caching
+  local blueprint_name
+  if [[ "$blueprint_file" == /* ]]; then
+    blueprint_name=$(basename "$blueprint_file")
+  else
+    blueprint_name="$blueprint_file"
+  fi
+
+  # Check if already cached and not forced to reload
+  if [[ "$force_reload" != "--force-reload" ]] && __is_blueprint_cached "$blueprint_name"; then
+    if ! __is_blueprint_stale "$blueprint_name"; then
+      # Blueprint is fresh, skip loading
+      return 0
+    else
+      # Blueprint is stale, clear cache and continue with fresh load
+      __clear_blueprint_cache "$blueprint_name"
+    fi
   fi
 
   # Use the __find_blueprint function to find the blueprint file.
@@ -264,7 +284,12 @@ function __source_blueprint() {
     exit $EC_PERMISSION
   fi
 
-  # Prefix all the variables in the blueprint file with "blueprint_"
+  # Clear any existing blueprint variables before loading (prevents variable pollution)
+  if __is_blueprint_cached "$blueprint_name"; then
+    __clear_blueprint_cache "$blueprint_name"
+  fi
+
+  # Prefix all the variables in the blueprint file with the specified prefix
   while IFS='=' read -r key value; do
     # Skip comments and empty lines
     [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
@@ -277,17 +302,22 @@ function __source_blueprint() {
     value="${value%\'}"
     value="${value#\'}"
     declare -g "${prefix}${key}=${value}"
+    export "${prefix}${key}"
   done < <(grep -v '^[[:space:]]*$' "$blueprint_absolute_path" | grep -v '^[[:space:]]*#')
+
+  # Mark blueprint as cached for future use
+  __mark_blueprint_cached "$blueprint_name" "$blueprint_absolute_path"
 }
 
 export -f __source_blueprint
 
-# Source the instance config file for a specific instance.
+# Source the instance config file for a specific instance with caching.
 # This function expects the instance_name as the first argument.
-# Usage: __source_instance <instance_name>
+# Usage: __source_instance <instance_name> [--force-reload]
 # The instance ID can be either an absolute path or just the instance name.
 function __source_instance() {
   local instance_name="$1"
+  local force_reload="$2"
 
   if [[ -z "$instance_name" ]]; then
     __print_error "No 'instance_name' specified."
@@ -301,6 +331,21 @@ function __source_instance() {
     instance_name=$(basename "$instance_name")
   fi
 
+  # Check if already cached and not forced to reload
+  if [[ "$force_reload" != "--force-reload" ]] && __is_instance_cached "$instance_name"; then
+    # Locate the instance config file for staleness check
+    local instance_config_file
+    instance_config_file=$(__find_instance_config "$instance_name" 2>/dev/null)
+
+    if [[ -n "$instance_config_file" ]] && ! __is_instance_config_stale "$instance_name" "$instance_config_file"; then
+      # Config is fresh, skip loading
+      return 0
+    else
+      # Config is stale or file not found, clear cache and continue with fresh load
+      __clear_instance_cache "$instance_name"
+    fi
+  fi
+
   # Locate the instance config file
   local instance_config_file
   instance_config_file=$(__find_instance_config "$instance_name")
@@ -308,6 +353,11 @@ function __source_instance() {
   if [[ -z "$instance_config_file" ]]; then
     __print_error "Instance config file for '$instance_name' not found."
     exit $EC_FILE_NOT_FOUND
+  fi
+
+  # Clear any existing instance variables before loading (prevents variable pollution)
+  if __is_instance_cached "$instance_name"; then
+    __clear_instance_cache "$instance_name"
   fi
 
   # Source the instance config file and prefix all variables with "instance_" if needed
@@ -331,12 +381,15 @@ function __source_instance() {
     # Check if the key already starts with "instance_"
     if [[ "$key" =~ ^instance_ ]]; then
       # If it already has the prefix, set it in the current shell
-      declare -g "${key}=${value}"
+      declare -g "${key}=${value}" && export "${key}"
     else
       # Otherwise, add the "instance_" prefix and set it in the current shell
-      declare -g "instance_${key}=${value}"
+      declare -g "instance_${key}=${value}" && export "instance_${key}"
     fi
   done < <(grep -v '^[[:space:]]*$' "$instance_config_file" | grep -v '^[[:space:]]*#')
+
+  # Mark instance as cached for future use
+  __mark_instance_cached "$instance_name" "$instance_config_file"
 }
 
 export -f __source_instance
@@ -363,7 +416,7 @@ function __get_instance_config_value() {
 
   # Extract the specific value using grep with proper anchoring
   local value
-  value=$(grep -E "^${config_key}\s*=" "$instance_config_file" | cut -d'=' -f2 | tr -d '"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  value=$(grep -E "^${config_key}\s*=" "$instance_config_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || echo "")
 
   echo "$value"
 }
