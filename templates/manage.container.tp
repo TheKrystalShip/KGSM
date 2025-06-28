@@ -145,19 +145,6 @@ function __print_warning() {
   echo -e "[$WARNING] ${BASH_SOURCE[-1]##*/}:${BASH_LINENO[0]} $1" >&2
 }
 
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
 set -o pipefail
 
 if [[ $# -eq 0 ]]; then
