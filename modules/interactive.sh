@@ -274,13 +274,10 @@ KGSM - Interactive menu
     "$kgsm" --uninstall "$blueprint_or_instance" $debug
     ;;
   --restore-backup)
-    local instance_config_file
     local instance_management_file
     local backups_array
     local backup_to_restore
 
-    # Get the instance management file path
-    instance_config_file=$(__find_instance_config "$blueprint_or_instance")
     # Use __source_instance to load the config with proper prefixing
     __source_instance "$blueprint_or_instance"
 
@@ -315,28 +312,28 @@ KGSM - Interactive menu
     )
     local mod_action
 
-    local instance_config_file
-    instance_config_file=$(__find_instance_config "$blueprint_or_instance")
+    # Use __source_instance to load all config values cleanly
+    __source_instance "$blueprint_or_instance"
 
-    if grep -q "instance_systemd_service_file=" <"$instance_config_file"; then
+    if [[ "$instance_enable_systemd" == "true" ]]; then
       modify_options+=("Disable systemd")
     else
       modify_options+=("Enable systemd")
     fi
 
-    if grep -q "instance_ufw_file=" <"$instance_config_file"; then
+    if [[ "$instance_enable_firewall_management" == "true" ]]; then
       modify_options+=("Disable ufw")
     else
       modify_options+=("Enable ufw")
     fi
 
-    if grep -q "instance_command_shortcut_file=" <"$instance_config_file"; then
+    if [[ "$instance_enable_command_shortcuts" == "true" ]]; then
       modify_options+=("Remove symlink")
     else
       modify_options+=("Create symlink")
     fi
 
-    if grep -q "instance_enable_port_forwarding=\"true\"" <"$instance_config_file"; then
+    if [[ "${instance_enable_port_forwarding:-false}" == "true" ]]; then
       modify_options+=("Disable UPnP")
     else
       modify_options+=("Enable UPnP")
