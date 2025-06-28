@@ -176,24 +176,24 @@ function test_info_nonexistent_instance() {
   log_step "Testing info functionality with nonexistent instances"
 
   local nonexistent_name="test-nonexistent-$(date +%s)"
-  assert_command_fails "$INSTANCES_MODULE --info '$nonexistent_name'" "Should fail when getting info for nonexistent instance"
+  assert_command_fails "$INSTANCES_MODULE --instance '$nonexistent_name' --info" "Should fail when getting info for nonexistent instance"
 
   # Test JSON info with nonexistent instance
-  assert_command_fails "$INSTANCES_MODULE --info '$nonexistent_name' --json" "Should fail when getting JSON info for nonexistent instance"
+  assert_command_fails "$INSTANCES_MODULE --instance '$nonexistent_name' --info --json" "Should fail when getting JSON info for nonexistent instance"
 }
 
 function test_status_nonexistent_instance() {
   log_step "Testing status functionality with nonexistent instances"
 
   local nonexistent_name="test-nonexistent-$(date +%s)"
-  assert_command_fails "$INSTANCES_MODULE --status '$nonexistent_name'" "Should fail when getting status for nonexistent instance"
+  assert_command_fails "$INSTANCES_MODULE --instance '$nonexistent_name' --status" "Should fail when getting status for nonexistent instance"
 }
 
 function test_remove_nonexistent_instance() {
   log_step "Testing remove functionality with nonexistent instances"
 
   local nonexistent_name="test-nonexistent-$(date +%s)"
-  assert_command_fails "$INSTANCES_MODULE --remove '$nonexistent_name'" "Should fail when removing nonexistent instance"
+  assert_command_fails "$INSTANCES_MODULE --instance '$nonexistent_name' --remove" "Should fail when removing nonexistent instance"
 }
 
 function test_instance_creation_workflow() {
