@@ -29,8 +29,15 @@ ${UNDERLINE}Listing & Information:${END}
   --list --json [blueprint]       Output instance list in JSON format
   --list --json --detailed        Output detailed instance information in JSON format
       [blueprint]                 Suitable for programmatic consumption
-  --status <instance>             Display comprehensive status information for a specific instance
-                                  Includes running state, resource usage, and configuration details
+
+${UNDERLINE}Instance Monitoring:${END}
+  --status <instance>             Display comprehensive runtime status for monitoring and troubleshooting
+                                  Shows: active/inactive state, process info, resource usage, version status,
+                                  disk usage, backup count, and recent log activity
+                                  Human-readable format designed for administrators
+  --status <instance> --json      Output runtime status information as structured JSON data
+                                  Same information as --status but in JSON format
+                                  Perfect for web interfaces, APIs, and automation
 
 ${UNDERLINE}Instance Control:${END}
   --save <instance>               Issue a save command to the specified instance
@@ -48,13 +55,21 @@ ${UNDERLINE}Instance Control:${END}
                                   instead of using an auto-generated one.
   --remove <instance>             Remove an instance's configuration
   --find <instance>               Find the absolute path to an instance config file
-  --info <instance>               Print a detailed description of an instance
-  --info <instance> --json        Print a detailed description of an instance in
-                                  JSON format.
+
+${UNDERLINE}Configuration Access (Programmatic):${END}
+  --info <instance>               Output raw instance configuration file contents
+                                  Displays the complete .ini file exactly as stored on disk
+                                  Use for manual configuration review or debugging
+  --info <instance> --json        Output instance configuration as structured JSON data
+                                  Parses all configuration keys/values into JSON format
+                                  Ideal for automation, scripting, and programmatic access
 
 Examples:
   $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
-  $(basename "$0") --status factorio-01
+  $(basename "$0") --status factorio-01         # Human-readable runtime status
+  $(basename "$0") --status factorio-01 --json  # Runtime status as JSON for APIs
+  $(basename "$0") --info factorio-01           # Raw configuration file
+  $(basename "$0") --info factorio-01 --json    # Configuration as JSON for scripts
   $(basename "$0") --list --detailed factorio.bp
   $(basename "$0") --find factorio-01
 "
@@ -431,91 +446,31 @@ function _remove() {
 
 function _print_info() {
   local instance=$1
+  local instance_config_file
+  instance_config_file=$(__find_instance_config "$instance")
 
-  {
-    __source_instance "$instance"
-
-    echo "Name:                $instance_name"
-    echo "Lifecycle manager:   $instance_lifecycle_manager"
-
-    local status
-    status=$($(__find_module lifecycle.sh) --is-active "$instance" $debug &>/dev/null && echo "active" || echo "inactive")
-
-    echo "Status:              $status"
-
-    if [[ -f "$instance_pid_file" ]]; then
-      echo "PID:                 $(cat "$instance_pid_file")"
-    fi
-    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
-      echo "Logs directory:      $instance_logs_dir"
-    fi
-    echo "Directory:           $instance_working_dir"
-    echo "Installation date:   $instance_install_datetime"
-    echo "Version:             $($instance_management_file --version)"
-    echo "Blueprint:           $instance_blueprint_file"
-
-    if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-      if [[ -f "$instance_systemd_service_file" ]]; then
-        echo "Service file:        $instance_systemd_service_file"
-      fi
-      if [[ -n "$instance_socket_file" ]]; then
-        echo "Socket file:         $instance_socket_file"
-      fi
-    fi
-
-    if [[ "$config_enable_firewall_management" == "true" ]]; then
-      if [[ -f "$instance_ufw_file" ]]; then
-        echo "Firewall rule:       $instance_ufw_file"
-      fi
-    fi
-
-    echo ""
-  } >&1
+  cat "$instance_config_file"
 }
 
 function _print_info_json() {
   local instance=$1
+  local instance_config_file
+  instance_config_file=$(__find_instance_config "$instance")
 
-  __source_instance "$instance"
+  # Parse INI file and convert to JSON
+  {
+    while IFS='=' read -r key value || [[ -n "$key" ]]; do
+      # Skip comments and empty lines
+      [[ "$key" =~ ^[[:space:]]*# || -z "$key" ]] && continue
 
-  local status
-  status=$($(__find_module lifecycle.sh) --is-active "$instance" $debug &>/dev/null && echo "active" || echo "inactive")
+      # Clean up whitespace and quotes
+      key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+      value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//')
 
-  local pid
-  pid=$([[ -f "$instance_pid_file" ]] && cat "$instance_pid_file" || echo "None")
-  local service_file
-  service_file=$([[ "$instance_lifecycle_manager" == "systemd" ]] && [[ -f "$instance_systemd_service_file" ]] && echo "$instance_systemd_service_file" || echo "")
-
-  local installed_version
-  installed_version=$($instance_management_file --version)
-
-  jq -n \
-    --arg instance_name "$instance_name" \
-    --arg lifecycle_manager "$instance_lifecycle_manager" \
-    --arg status "$status" \
-    --arg pid "$pid" \
-    --arg logs_dir "$instance_logs_dir" \
-    --arg directory "$instance_working_dir" \
-    --arg install_date "$instance_install_datetime" \
-    --arg version "$installed_version" \
-    --arg blueprint "$instance_blueprint_file" \
-    --arg service_file "$service_file" \
-    --arg socket_file "$instance_socket_file" \
-    --arg firewall_rule "$instance_ufw_file" \
-    '{
-      Name: $instance_name,
-      LifecycleManager: $lifecycle_manager,
-      Status: $status,
-      PID: $pid,
-      LogsDirectory: $logs_dir,
-      Directory: $directory,
-      InstallationDate: $install_date,
-      Version: $version,
-      Blueprint: $blueprint,
-      ServiceFile: $service_file,
-      SocketFile: $socket_file,
-      FirewallRule: $firewall_rule
-    }'
+      # Output tab-separated key-value pairs for jq processing
+      printf '%s\t%s\n' "$key" "$value"
+    done < <(grep -v '^[[:space:]]*$' "$instance_config_file" | grep -v '^[[:space:]]*#')
+  } | jq -R 'split("\t") | {(.[0]): .[1]}' | jq -s 'add'
 }
 
 function _list_instances() {
@@ -583,18 +538,214 @@ function _list_instances_json() {
 
 function _get_instance_status() {
   local instance=$1
-
   __source_instance "$instance"
 
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    # systemctl status doesn't require sudo
-    systemctl status "${instance%.ini}" --no-pager
-    # systemctl status returns exit code 3, but it prints everything we need
-    # so just return 0 afterwords to exit the function
-    return 0
+  echo "=== Instance Status: $instance_name ==="
+
+  # 1. Basic State Information
+  local is_active=false
+  echo -n "Status: "
+  if "$instance_management_file" --is-active $debug &>/dev/null; then
+    echo "✓ Active"
+    is_active=true
+
+    # 2. Runtime-specific Information
+    local pid=""
+    local process_status=""
+    local start_time=""
+
+    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
+      # Native instance details
+      if [[ -f "$instance_pid_file" ]]; then
+        pid=$(cat "$instance_pid_file" 2>/dev/null)
+        echo "Process ID: $pid"
+
+        # Use existing 'ps' (no additional deps) for basic process info
+        if [[ -n "$pid" ]] && ps -p "$pid" &>/dev/null; then
+          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
+          start_time=$(ps -p "$pid" -o lstart --no-headers 2>/dev/null)
+          echo "Process Status: $process_status"
+          echo "Start Time: $start_time"
+        fi
+      fi
+    elif [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+      # Use systemctl to get systemd service info in unified format
+      local service_name="${instance%.ini}"
+      if systemctl is-active "$service_name" &>/dev/null; then
+        pid=$(systemctl show "$service_name" --property=MainPID --value 2>/dev/null)
+        start_time=$(systemctl show "$service_name" --property=ActiveEnterTimestamp --value 2>/dev/null)
+        if [[ -n "$pid" ]] && [[ "$pid" != "0" ]] && ps -p "$pid" &>/dev/null; then
+          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
+          echo "Process ID: $pid"
+          echo "Process Status: $process_status"
+          echo "Start Time: $start_time"
+        fi
+      fi
+    fi
+
   else
-    _print_info "$instance"
+    echo "✗ Inactive"
   fi
+
+  # 3. Version Information (works for both native & container)
+  echo -n "Version: "
+  local current_version=$("$instance_management_file" --version 2>/dev/null || echo "Unknown")
+  echo "$current_version"
+
+  # 4. Update Status (works for both native & container)
+  echo -n "Updates: "
+  local updates_available=false
+  local latest_version=""
+  if "$instance_management_file" --version --compare $debug &>/dev/null; then
+    latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
+    updates_available=true
+    echo "Available (Latest: $latest_version)"
+  else
+    latest_version="$current_version"
+    echo "Up to date"
+  fi
+
+  # 5. Configuration Info
+  echo "Blueprint: $(basename "$instance_blueprint_file")"
+  echo "Runtime: $instance_runtime"
+  echo "Directory: $instance_working_dir"
+
+  # 6. Network Configuration
+  if [[ -n "$instance_ports" ]]; then
+    echo "Ports: $instance_ports"
+  fi
+
+  # 7. Disk Usage (using standard 'du' command)
+  local disk_usage=""
+  if [[ -d "$instance_working_dir" ]]; then
+    disk_usage=$(du -sh "$instance_working_dir" 2>/dev/null | cut -f1)
+    echo "Disk Usage: $disk_usage"
+  fi
+
+  # 8. Backup Status (works for both native & container)
+  local backup_count=$("$instance_management_file" --list-backups 2>/dev/null | wc -w)
+  echo "Backups: $backup_count available"
+
+  # 9. Recent Activity (last 3 log lines)
+  echo ""
+  echo "Recent Activity:"
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+    # Use journalctl for systemd instances
+    journalctl -u "${instance%.ini}" --no-pager -n 3 --output=cat 2>/dev/null | sed 's/^/  /' || echo "  No recent logs available"
+  else
+    # Use management file for standalone instances
+    "$instance_management_file" --logs 2>/dev/null | tail -3 | sed 's/^/  /' || echo "  No recent logs available"
+  fi
+}
+
+function _get_instance_status_json() {
+  local instance=$1
+  __source_instance "$instance"
+
+  # Gather all status information
+  local is_active="false"
+  local pid=""
+  local process_status=""
+  local start_time=""
+
+  if "$instance_management_file" --is-active $debug &>/dev/null; then
+    is_active="true"
+
+    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
+      if [[ -f "$instance_pid_file" ]]; then
+        pid=$(cat "$instance_pid_file" 2>/dev/null)
+        if [[ -n "$pid" ]] && ps -p "$pid" &>/dev/null; then
+          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
+          start_time=$(ps -p "$pid" -o lstart --no-headers 2>/dev/null)
+        fi
+      fi
+    elif [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+      local service_name="${instance%.ini}"
+      if systemctl is-active "$service_name" &>/dev/null; then
+        pid=$(systemctl show "$service_name" --property=MainPID --value 2>/dev/null)
+        start_time=$(systemctl show "$service_name" --property=ActiveEnterTimestamp --value 2>/dev/null)
+        if [[ -n "$pid" ]] && [[ "$pid" != "0" ]] && ps -p "$pid" &>/dev/null; then
+          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
+        fi
+      fi
+    fi
+  fi
+
+  # Version information
+  local current_version=$("$instance_management_file" --version 2>/dev/null || echo "Unknown")
+  local latest_version=""
+  local updates_available="false"
+
+  if "$instance_management_file" --version --compare $debug &>/dev/null; then
+    latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
+    updates_available="true"
+  else
+    latest_version="$current_version"
+  fi
+
+  # Disk usage
+  local disk_usage=""
+  if [[ -d "$instance_working_dir" ]]; then
+    disk_usage=$(du -sh "$instance_working_dir" 2>/dev/null | cut -f1)
+  fi
+
+  # Backup count
+  local backup_count=$("$instance_management_file" --list-backups 2>/dev/null | wc -w)
+
+  # Recent logs
+  local recent_logs_json
+  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
+    recent_logs_json=$(journalctl -u "${instance%.ini}" --no-pager -n 3 --output=cat 2>/dev/null | jq -R . | jq -s . 2>/dev/null || echo '[]')
+  else
+    recent_logs_json=$("$instance_management_file" --logs 2>/dev/null | tail -3 | jq -R . | jq -s . 2>/dev/null || echo '[]')
+  fi
+
+  # Output JSON
+  jq -n \
+    --arg instance_name "$instance_name" \
+    --arg status "$is_active" \
+    --arg pid "$pid" \
+    --arg process_status "$process_status" \
+    --arg start_time "$start_time" \
+    --arg current_version "$current_version" \
+    --arg latest_version "$latest_version" \
+    --arg updates_available "$updates_available" \
+    --arg blueprint "$(basename "$instance_blueprint_file")" \
+    --arg runtime "$instance_runtime" \
+    --arg lifecycle_manager "$instance_lifecycle_manager" \
+    --arg directory "$instance_working_dir" \
+    --arg ports "${instance_ports:-}" \
+    --arg disk_usage "$disk_usage" \
+    --arg backup_count "$backup_count" \
+    --argjson recent_logs "$recent_logs_json" \
+    '{
+      instance_name: $instance_name,
+      status: ($status == "true"),
+      process: {
+        pid: (if $pid != "" then ($pid | tonumber) else null end),
+        status: (if $process_status != "" then $process_status else null end),
+        start_time: (if $start_time != "" then $start_time else null end)
+      },
+      version: {
+        current: $current_version,
+        latest: $latest_version,
+        updates_available: ($updates_available == "true")
+      },
+      configuration: {
+        blueprint: $blueprint,
+        runtime: $runtime,
+        lifecycle_manager: $lifecycle_manager,
+        directory: $directory,
+        ports: (if $ports != "" then $ports else null end)
+      },
+      resources: {
+        disk_usage: (if $disk_usage != "" then $disk_usage else null end)
+      },
+      backups: {
+        count: ($backup_count | tonumber)
+      },
+      recent_logs: $recent_logs
+    }'
 }
 
 function _send_save_to_instance() {
@@ -701,7 +852,12 @@ while [[ $# -gt 0 ]]; do
   --status)
     shift
     [[ -z "$1" ]] && __print_error "Missing argument <instance>" && exit $EC_MISSING_ARG
-    _get_instance_status "$1"
+    instance=$1
+    if [[ -z "$json_format" ]]; then
+      _get_instance_status "$instance"
+    else
+      _get_instance_status_json "$instance"
+    fi
     exit $?
     ;;
   --save)

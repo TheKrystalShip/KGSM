@@ -226,7 +226,7 @@ KGSM - Interactive menu
     # shellcheck disable=SC2207
     # shellcheck disable=SC2178
     blueprints_or_instances=($("$kgsm" --instances $debug))
-    "$kgsm" --instances --detailed $debug
+    "$kgsm" --instances $debug
     ;;
   esac
 
