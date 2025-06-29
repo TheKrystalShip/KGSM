@@ -29,7 +29,7 @@ This is the simplest way to create an instance:
 - **`<name>`** *(optional)*: Custom name for the instance. If left empty, KGSM will generate a randomized unique identifier.
 
 > [!NOTE]
-> The older `--install` and `--id` parameters are still supported for backward compatibility but are deprecated and will be removed in a future version.
+> The older `--install` parameter is still supported for backward compatibility as an alias for `--create` but is deprecated and will be removed in a future version.
 
 ### Example
 
@@ -188,7 +188,7 @@ Your game server instance is now ready. To learn how to start, stop, and manage 
 
 ## Best Practices
 
-- **Use Defaults Where Possible**: Setting `config_default_install_directory` in `config.ini` simplifies the process.
+- **Use Defaults Where Possible**: Setting `default_install_directory` in `config.ini` simplifies the process.
 - **Test Each Step**: If creating instances manually, test commands for errors.
 - **Use `--help`**: All modules support the `--help` flag to list available arguments and their descriptions.
 - **Read Related Documentation**: See [Instances 101](instances.md) for information about instance structure and [Managing Game Servers](managing_game_servers.md) for day-to-day operations.
@@ -202,7 +202,7 @@ Your game server instance is now ready. To learn how to start, stop, and manage 
 | **Issue**                                 | **Resolution**                                     |
 | ----------------------------------------- | -------------------------------------------------- |
 | `KGSM_ROOT` not defined                   | Export `KGSM_ROOT` with the path to `kgsm.sh`.     |
-| Missing installation directory            | Set `config_default_install_directory` or provide one. |
+| Missing installation directory            | Set `default_install_directory` or provide one. |
 | Permission errors with `systemd` or `ufw` | Run the script with `sudo`.                        |
 
 ### Debugging

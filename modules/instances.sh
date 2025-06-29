@@ -65,7 +65,7 @@ ${UNDERLINE}Configuration Access (Programmatic):${END}
                                   Ideal for automation, scripting, and programmatic access
 
 Examples:
-  $(basename "$0") --create factorio.bp --id factorio-01 --install-dir /opt
+  $(basename "$0") --create factorio.bp --name factorio-01 --install-dir /opt
   $(basename "$0") --status factorio-01         # Human-readable runtime status
   $(basename "$0") --status factorio-01 --json  # Runtime status as JSON for APIs
   $(basename "$0") --info factorio-01           # Raw configuration file

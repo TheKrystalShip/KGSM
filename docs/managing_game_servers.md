@@ -120,6 +120,14 @@ To view logs for a game server instance, KGSM provides a dedicated command:
 ./kgsm.sh --instance <instance> --logs
 ```
 
+To follow logs in real-time (similar to `tail -f`), use:
+
+```sh
+./kgsm.sh --instance <instance> --logs --follow
+# or
+./kgsm.sh --instance <instance> --logs -f
+```
+
 This command automatically retrieves logs from:
 
 - `journalctl` if the instance is managed by `systemctl`.
@@ -199,5 +207,3 @@ This will:
 KGSM features an event broadcasting system that emits notifications when important actions occur (such as starting a server, creating backups, etc.). This allows for building sophisticated integrations and monitoring tools.
 
 For details on the event system and how to use it, see [KGSM Event System](events.md).
-
-

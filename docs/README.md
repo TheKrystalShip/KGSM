@@ -11,6 +11,10 @@ Read these sections in order to understand the core concepts of how KGSM operate
 3. [Overrides 101](overrides.md) - Custom function implementations for game servers
 4. [Templates 101](templates.md) - Standardized files for configuration and generation
 
+## System Overview
+
+- [Execution Flows](execution_flows.md) - Visual guide to all KGSM command workflows and user interactions
+
 ## Workflows
 
 - [Creating a new game server instance](create_new_game_server_instance.md) - Step-by-step guide to set up a new server
