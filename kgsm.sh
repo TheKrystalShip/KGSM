@@ -245,7 +245,7 @@ function _create() {
 
   # Download the required files for the instance
   __emit_instance_download_started "${instance}"
-  "$instance_management_file" --download "$version" $debug || return $EC_FAILED_DOWNLOAD
+  "$instance_management_file" --download "${version}" $debug || return $EC_FAILED_DOWNLOAD
   __emit_instance_download_finished "${instance}"
   __emit_instance_downloaded "${instance}"
 
@@ -257,11 +257,11 @@ function _create() {
 
   # Save the new version
   "$instance_management_file" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
-  __emit_instance_version_updated "${instance}" "0" "$version"
+  __emit_instance_version_updated "${instance}" "0" "${version}"
 
   __emit_instance_installation_finished "${instance}" "${blueprint}"
 
-  __print_success "Instance $instance has been created in $install_dir"
+  __print_success "Instance '${instance}', version '${version}', has been created in '${install_dir}'"
   __emit_instance_installed "${instance}" "${blueprint}"
 
   return 0
