@@ -48,7 +48,7 @@ declare -gi ASSERT_FAILED=0
 # =============================================================================
 
 # Get calling function info for better error reporting
-get_caller_info() {
+function get_caller_info() {
   local frame="${1:-2}" # Default to 2 frames up (caller of assert function)
   local func="${FUNCNAME[$frame]:-main}"
   local line="${BASH_LINENO[$((frame - 1))]:-0}"
@@ -58,7 +58,7 @@ get_caller_info() {
 }
 
 # Print assertion result
-print_assert_result() {
+function print_assert_result() {
   local result="$1"
   local message="$2"
   local caller_info="$3"
@@ -84,7 +84,7 @@ print_assert_result() {
 # =============================================================================
 
 # Assert that two values are equal
-assert_equals() {
+function assert_equals() {
   local expected="$1"
   local actual="$2"
   local message="${3:-Assertion failed}"
@@ -100,7 +100,7 @@ assert_equals() {
 }
 
 # Assert that two values are not equal
-assert_not_equals() {
+function assert_not_equals() {
   local not_expected="$1"
   local actual="$2"
   local message="${3:-Assertion failed}"
@@ -116,7 +116,7 @@ assert_not_equals() {
 }
 
 # Assert that a condition is true
-assert_true() {
+function assert_true() {
   local condition="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -131,7 +131,7 @@ assert_true() {
 }
 
 # Assert that a condition is false
-assert_false() {
+function assert_false() {
   local condition="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -146,7 +146,7 @@ assert_false() {
 }
 
 # Assert that a value is null or empty
-assert_null() {
+function assert_null() {
   local value="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -161,7 +161,7 @@ assert_null() {
 }
 
 # Assert that a value is not null or empty
-assert_not_null() {
+function assert_not_null() {
   local value="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -180,7 +180,7 @@ assert_not_null() {
 # =============================================================================
 
 # Assert that a string contains a substring
-assert_contains() {
+function assert_contains() {
   local haystack="$1"
   local needle="$2"
   local message="${3:-Assertion failed}"
@@ -196,7 +196,7 @@ assert_contains() {
 }
 
 # Assert that a string does not contain a substring
-assert_not_contains() {
+function assert_not_contains() {
   local haystack="$1"
   local needle="$2"
   local message="${3:-Assertion failed}"
@@ -212,7 +212,7 @@ assert_not_contains() {
 }
 
 # Assert that a string matches a regex pattern
-assert_matches() {
+function assert_matches() {
   local string="$1"
   local pattern="$2"
   local message="${3:-Assertion failed}"
@@ -228,7 +228,7 @@ assert_matches() {
 }
 
 # Assert that a string starts with a prefix
-assert_starts_with() {
+function assert_starts_with() {
   local string="$1"
   local prefix="$2"
   local message="${3:-Assertion failed}"
@@ -244,7 +244,7 @@ assert_starts_with() {
 }
 
 # Assert that a string ends with a suffix
-assert_ends_with() {
+function assert_ends_with() {
   local string="$1"
   local suffix="$2"
   local message="${3:-Assertion failed}"
@@ -260,11 +260,79 @@ assert_ends_with() {
 }
 
 # =============================================================================
+# EXACT MATCH ASSERTIONS
+# =============================================================================
+
+# Assert that a multi-line string contains an exact line match
+function assert_contains_line() {
+  local haystack="$1"
+  local needle="$2"
+  local message="${3:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if echo "$haystack" | grep -Fxq "$needle"; then
+    print_assert_result "PASS" "$message: text contains exact line '$needle'" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: text does not contain exact line '$needle'" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
+# Assert that a multi-line string does not contain an exact line match
+function assert_not_contains_line() {
+  local haystack="$1"
+  local needle="$2"
+  local message="${3:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if echo "$haystack" | grep -Fxq "$needle"; then
+    print_assert_result "FAIL" "$message: text should not contain exact line '$needle'" "$caller_info"
+    return $ASSERT_FAILURE
+  else
+    print_assert_result "PASS" "$message: text does not contain exact line '$needle'" "$caller_info"
+    return $ASSERT_SUCCESS
+  fi
+}
+
+# Assert that a list (newline-separated) contains a specific item exactly
+function assert_list_contains() {
+  local list_output="$1"
+  local expected_item="$2"
+  local message="${3:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if printf '%s\n' "$list_output" | grep -Fxq "$expected_item"; then
+    print_assert_result "PASS" "$message: list contains item '$expected_item'" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: list does not contain item '$expected_item'" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
+# Assert that a list (newline-separated) does not contain a specific item exactly
+function assert_list_not_contains() {
+  local list_output="$1"
+  local expected_item="$2"
+  local message="${3:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if printf '%s\n' "$list_output" | grep -Fxq "$expected_item"; then
+    print_assert_result "FAIL" "$message: list should not contain item '$expected_item'" "$caller_info"
+    return $ASSERT_FAILURE
+  else
+    print_assert_result "PASS" "$message: list does not contain item '$expected_item'" "$caller_info"
+    return $ASSERT_SUCCESS
+  fi
+}
+
+# =============================================================================
 # NUMERIC ASSERTIONS
 # =============================================================================
 
 # Assert that two numbers are equal
-assert_numeric_equals() {
+function assert_numeric_equals() {
   local expected="$1"
   local actual="$2"
   local message="${3:-Assertion failed}"
@@ -280,7 +348,7 @@ assert_numeric_equals() {
 }
 
 # Assert that first number is greater than second
-assert_greater_than() {
+function assert_greater_than() {
   local actual="$1"
   local threshold="$2"
   local message="${3:-Assertion failed}"
@@ -296,7 +364,7 @@ assert_greater_than() {
 }
 
 # Assert that first number is less than second
-assert_less_than() {
+function assert_less_than() {
   local actual="$1"
   local threshold="$2"
   local message="${3:-Assertion failed}"
@@ -316,7 +384,7 @@ assert_less_than() {
 # =============================================================================
 
 # Assert that a file exists
-assert_file_exists() {
+function assert_file_exists() {
   local file_path="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -331,7 +399,7 @@ assert_file_exists() {
 }
 
 # Assert that a file does not exist
-assert_file_not_exists() {
+function assert_file_not_exists() {
   local file_path="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -346,7 +414,7 @@ assert_file_not_exists() {
 }
 
 # Assert that a directory exists
-assert_dir_exists() {
+function assert_dir_exists() {
   local dir_path="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -361,7 +429,7 @@ assert_dir_exists() {
 }
 
 # Assert that a directory does not exist
-assert_dir_not_exists() {
+function assert_dir_not_exists() {
   local dir_path="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -376,7 +444,7 @@ assert_dir_not_exists() {
 }
 
 # Assert that a file is executable
-assert_file_executable() {
+function assert_file_executable() {
   local file_path="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -391,7 +459,7 @@ assert_file_executable() {
 }
 
 # Assert that a file contains specific content
-assert_file_contains() {
+function assert_file_contains() {
   local file_path="$1"
   local expected_content="$2"
   local message="${3:-Assertion failed}"
@@ -416,7 +484,7 @@ assert_file_contains() {
 # =============================================================================
 
 # Assert that a command succeeds (exit code 0)
-assert_command_succeeds() {
+function assert_command_succeeds() {
   local command="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -443,7 +511,7 @@ assert_command_succeeds() {
 }
 
 # Assert that a command fails (non-zero exit code)
-assert_command_fails() {
+function assert_command_fails() {
   local command="$1"
   local message="${2:-Assertion failed}"
   local caller_info="$(get_caller_info)"
@@ -467,7 +535,7 @@ assert_command_fails() {
 }
 
 # Assert that a command produces specific output
-assert_command_output() {
+function assert_command_output() {
   local command="$1"
   local expected_output="$2"
   local message="${3:-Assertion failed}"
@@ -498,19 +566,19 @@ assert_command_output() {
 # =============================================================================
 
 # Get assertion statistics
-get_assert_stats() {
+function get_assert_stats() {
   echo "Assertions: $ASSERT_COUNT, Passed: $ASSERT_PASSED, Failed: $ASSERT_FAILED"
 }
 
 # Reset assertion counters
-reset_assert_stats() {
+function reset_assert_stats() {
   ASSERT_COUNT=0
   ASSERT_PASSED=0
   ASSERT_FAILED=0
 }
 
 # Print assertion summary
-print_assert_summary() {
+function print_assert_summary() {
   local test_name="${1:-Test}"
 
   printf "\n${BOLD}=== %s Assertion Summary ===${NC}\n" "$test_name"
@@ -528,7 +596,7 @@ print_assert_summary() {
 }
 
 # Skip current test with message
-skip_test() {
+function skip_test() {
   local reason="${1:-Test skipped}"
   local caller_info="$(get_caller_info)"
 
@@ -546,7 +614,7 @@ skip_test() {
 # =============================================================================
 
 # Assert that KGSM command succeeds
-assert_kgsm_succeeds() {
+function assert_kgsm_succeeds() {
   local kgsm_args="$1"
   local message="${2:-KGSM command failed}"
 
@@ -554,7 +622,7 @@ assert_kgsm_succeeds() {
 }
 
 # Assert that KGSM command fails
-assert_kgsm_fails() {
+function assert_kgsm_fails() {
   local kgsm_args="$1"
   local message="${2:-KGSM command should have failed}"
 
@@ -562,7 +630,7 @@ assert_kgsm_fails() {
 }
 
 # Assert that instance exists
-assert_instance_exists() {
+function assert_instance_exists() {
   local instance_name="$1"
   local message="${2:-Instance should exist}"
 
@@ -570,7 +638,7 @@ assert_instance_exists() {
 }
 
 # Assert that instance does not exist
-assert_instance_not_exists() {
+function assert_instance_not_exists() {
   local instance_name="$1"
   local message="${2:-Instance should not exist}"
 
@@ -583,6 +651,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   export -f assert_equals assert_not_equals assert_true assert_false
   export -f assert_null assert_not_null assert_contains assert_not_contains
   export -f assert_matches assert_starts_with assert_ends_with
+  export -f assert_contains_line assert_not_contains_line assert_list_contains assert_list_not_contains
   export -f assert_numeric_equals assert_greater_than assert_less_than
   export -f assert_file_exists assert_file_not_exists assert_dir_exists assert_dir_not_exists
   export -f assert_file_executable assert_file_contains assert_command_succeeds assert_command_fails assert_command_output

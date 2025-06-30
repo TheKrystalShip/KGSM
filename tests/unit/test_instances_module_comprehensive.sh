@@ -233,7 +233,7 @@ function test_instance_creation_workflow() {
   # Verify instance appears in list
   local instance_list
   if instance_list=$("$INSTANCES_MODULE" --list 2>/dev/null); then
-    assert_contains "$instance_list" "$TEST_INSTANCE_NAME" "Instance should appear in instance list"
+    assert_list_contains "$instance_list" "$TEST_INSTANCE_NAME" "Instance should appear in instance list"
     log_test "Instance appears in list"
   else
     assert_true "false" "Instance list command should succeed after creation"
@@ -419,7 +419,7 @@ function test_multiple_instances() {
     local instance_list
     if instance_list=$("$INSTANCES_MODULE" --list 2>/dev/null); then
       for instance_name in "${instance_names[@]}"; do
-        assert_contains "$instance_list" "$instance_name" "List should contain instance: $instance_name"
+        assert_list_contains "$instance_list" "$instance_name" "List should contain instance: $instance_name"
       done
     fi
 
@@ -445,7 +445,7 @@ function test_cleanup_instances() {
       # Verify instance is no longer in list
       local instance_list_after
       if instance_list_after=$("$INSTANCES_MODULE" --list 2>/dev/null); then
-        assert_not_contains "$instance_list_after" "$instance" "Instance should not appear in list after removal: $instance"
+        assert_list_not_contains "$instance_list_after" "$instance" "Instance should not appear in list after removal: $instance"
       fi
 
       # Verify instance cannot be found

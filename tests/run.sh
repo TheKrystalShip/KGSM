@@ -215,7 +215,7 @@ validate_test_environment() {
 # MAIN EXECUTION
 # =============================================================================
 
-main() {
+function main() {
     # Parse special options first
     local show_help=false
     local list_tests=false

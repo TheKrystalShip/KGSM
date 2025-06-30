@@ -109,7 +109,7 @@ function test_instance_appears_in_list() {
 
   local instance_list
   if instance_list=$("$INSTANCES_MODULE" --list 2>/dev/null); then
-    assert_contains "$instance_list" "$TEST_INSTANCE_NAME" "Instance should appear in instance list"
+    assert_list_contains "$instance_list" "$TEST_INSTANCE_NAME" "Instance should appear in instance list"
     log_test "Instance appears in instance list"
   else
     assert_true "false" "Instance list command should succeed"
@@ -197,7 +197,7 @@ function test_verify_instance_removal() {
   local instance_list_after
 
   if instance_list_after=$("$INSTANCES_MODULE" --list 2>/dev/null); then
-    assert_not_contains "$instance_list_after" "$instance_name_to_check" "Instance should not appear in list after removal"
+    assert_list_not_contains "$instance_list_after" "$instance_name_to_check" "Instance should not appear in list after removal"
     log_test "Instance successfully removed from list"
   else
     log_test "Unable to verify instance removal due to list command failure"

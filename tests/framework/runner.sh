@@ -80,7 +80,7 @@ declare -ga TEST_EXCLUDE=()
 # =============================================================================
 
 # Print colored output
-print_color() {
+function print_color() {
   local color="$1"
   shift
   if [[ "$TEST_QUIET" != "true" ]]; then
@@ -88,18 +88,18 @@ print_color() {
   fi
 }
 
-print_info() { print_color "$BLUE" "[INFO] $*"; }
-print_success() { print_color "$GREEN" "[SUCCESS] $*"; }
-print_warning() { print_color "$YELLOW" "[WARNING] $*"; }
-print_error() { print_color "$RED" "[ERROR] $*"; }
-print_debug() {
+function print_info() { print_color "$BLUE" "[INFO] $*"; }
+function print_success() { print_color "$GREEN" "[SUCCESS] $*"; }
+function print_warning() { print_color "$YELLOW" "[WARNING] $*"; }
+function print_error() { print_color "$RED" "[ERROR] $*"; }
+function print_debug() {
   if [[ "$TEST_DEBUG" == "true" ]]; then
     print_color "$CYAN" "[DEBUG] $*"
   fi
 }
 
 # Logging function
-log_message() {
+function log_message() {
   local level="$1"
   shift
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -121,7 +121,7 @@ log_message() {
 # CONFIGURATION MANAGEMENT
 # =============================================================================
 
-load_test_config() {
+function load_test_config() {
   if [[ -f "$TEST_CONFIG" ]]; then
     # shellcheck disable=SC1090
     source "$TEST_CONFIG"
@@ -136,7 +136,7 @@ load_test_config() {
 # SANDBOX ENVIRONMENT MANAGEMENT
 # =============================================================================
 
-create_sandbox() {
+function create_sandbox() {
   local sandbox_id="$1"
   local sandbox_path="$TEST_SANDBOX_ROOT/$sandbox_id"
 
@@ -161,7 +161,7 @@ create_sandbox() {
   echo "$sandbox_path"
 }
 
-create_test_config() {
+function create_test_config() {
   local sandbox_path="$1"
   local config_file="$sandbox_path/config.ini"
 
@@ -199,7 +199,7 @@ instance_auto_update_before_start=false
 EOF
 }
 
-cleanup_sandbox() {
+function cleanup_sandbox() {
   local sandbox_path="$1"
 
   if [[ -d "$sandbox_path" ]]; then
@@ -212,7 +212,7 @@ cleanup_sandbox() {
 # TEST DISCOVERY AND EXECUTION
 # =============================================================================
 
-discover_tests() {
+function discover_tests() {
   local test_type="$1"
   local test_dir="$TESTS_ROOT/$test_type"
 
@@ -224,7 +224,7 @@ discover_tests() {
   find "$test_dir" -name "test_*.sh" -type f | sort
 }
 
-should_run_test() {
+function should_run_test() {
   local test_file="$1"
   local test_name="$(basename "$test_file" .sh)"
 
@@ -258,7 +258,7 @@ should_run_test() {
   return 0
 }
 
-execute_test() {
+function execute_test() {
   local test_file="$1"
   local test_type="$2"
   local test_name="$(basename "$test_file" .sh)"
@@ -347,7 +347,7 @@ execute_test() {
   return $exit_code
 }
 
-run_test_suite() {
+function run_test_suite() {
   local test_type="$1"
 
   printf "\n"
@@ -375,7 +375,7 @@ run_test_suite() {
 # REPORTING
 # =============================================================================
 
-generate_summary() {
+function generate_summary() {
   local total_runtime=$(($(date +%s) - ${START_TIME:-$(date +%s)}))
 
   printf "\n"
@@ -411,7 +411,7 @@ generate_summary() {
 # LOG MANAGEMENT
 # =============================================================================
 
-clean_old_logs() {
+function clean_old_logs() {
   local logs_dir="$TESTS_ROOT/logs"
 
   if [[ ! -d "$logs_dir" ]]; then
@@ -445,7 +445,7 @@ clean_old_logs() {
 # MAIN EXECUTION
 # =============================================================================
 
-show_usage() {
+function show_usage() {
   cat <<EOF
 KGSM Test Framework Runner
 
@@ -483,7 +483,7 @@ LOGS:
 EOF
 }
 
-main() {
+function main() {
   export START_TIME="$(date +%s)"
 
   # Parse command line arguments
@@ -569,7 +569,7 @@ main() {
   generate_summary
 }
 
-cleanup_all() {
+function cleanup_all() {
   if [[ "$TEST_DEBUG" != "true" && -n "$TEST_SANDBOX_ROOT" ]]; then
     rm -rf "$TEST_SANDBOX_ROOT"
   fi

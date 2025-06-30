@@ -39,7 +39,7 @@ readonly TEST_GAMES=("factorio" "necesse" "vrising")
 # =============================================================================
 
 # Initialize test environment
-setup_test_environment() {
+function setup_test_environment() {
   # Ensure required environment variables are set
   if [[ -z "${KGSM_ROOT:-}" ]]; then
     echo "ERROR: KGSM_ROOT not set" >&2
@@ -80,7 +80,7 @@ setup_test_environment() {
 # =============================================================================
 
 # Log test message
-log_test() {
+function log_test() {
   local message="$1"
   local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
@@ -94,14 +94,14 @@ log_test() {
 }
 
 # Log test step
-log_step() {
+function log_step() {
   local step_name="$1"
   printf "${CYAN}[STEP]${NC} %s\n" "$step_name" >&2
   log_test "STEP: $step_name"
 }
 
 # Log test info
-log_info() {
+function log_info() {
   local message="$1"
   printf "${BLUE}[INFO]${NC} %s\n" "$message" >&2
   log_test "INFO: $message"
@@ -112,7 +112,7 @@ log_info() {
 # =============================================================================
 
 # Wait for condition with timeout
-wait_for_condition() {
+function wait_for_condition() {
   local condition="$1"
   local timeout="${2:-30}"
   local interval="${3:-1}"
@@ -136,13 +136,13 @@ wait_for_condition() {
 }
 
 # Generate random test ID
-generate_test_id() {
+function generate_test_id() {
   local prefix="${1:-test}"
   echo "${prefix}_$(date +%s)_$$"
 }
 
 # Clean up test resources
-cleanup_test_resources() {
+function cleanup_test_resources() {
   local test_id="${1:-}"
 
   if [[ -n "$test_id" ]]; then
@@ -163,7 +163,7 @@ cleanup_test_resources() {
 # =============================================================================
 
 # Run KGSM command with error handling
-run_kgsm() {
+function run_kgsm() {
   local args="$1"
   local expected_exit_code="${2:-0}"
 
@@ -192,7 +192,7 @@ run_kgsm() {
 }
 
 # Create test instance
-create_test_instance() {
+function create_test_instance() {
   local blueprint="$1"
   local test_id="$2"
   local install_dir="${3:-$KGSM_INSTANCES_DIR}"
@@ -211,7 +211,7 @@ create_test_instance() {
 }
 
 # Remove test instance
-remove_test_instance() {
+function remove_test_instance() {
   local instance_name="$1"
 
   log_step "Removing test instance: $instance_name"
@@ -226,7 +226,7 @@ remove_test_instance() {
 }
 
 # Check if instance exists
-instance_exists() {
+function instance_exists() {
   local instance_name="$1"
 
   if "$KGSM_ROOT/modules/instances.sh" --find "$instance_name" >/dev/null 2>&1; then
@@ -237,7 +237,7 @@ instance_exists() {
 }
 
 # Get instance status
-get_instance_status() {
+function get_instance_status() {
   local instance_name="$1"
 
   "$KGSM_ROOT/modules/instances.sh" --status "$instance_name" 2>/dev/null || echo "unknown"
@@ -248,7 +248,7 @@ get_instance_status() {
 # =============================================================================
 
 # Create temporary test directory
-create_temp_dir() {
+function create_temp_dir() {
   local prefix="${1:-kgsm-test}"
   local temp_dir
 
@@ -258,7 +258,7 @@ create_temp_dir() {
 }
 
 # Create temporary test file
-create_temp_file() {
+function create_temp_file() {
   local prefix="${1:-kgsm-test}"
   local temp_file
 
@@ -268,7 +268,7 @@ create_temp_file() {
 }
 
 # Wait for file to exist
-wait_for_file() {
+function wait_for_file() {
   local file_path="$1"
   local timeout="${2:-30}"
 
@@ -276,7 +276,7 @@ wait_for_file() {
 }
 
 # Wait for directory to exist
-wait_for_dir() {
+function wait_for_dir() {
   local dir_path="$1"
   local timeout="${2:-30}"
 
@@ -288,7 +288,7 @@ wait_for_dir() {
 # =============================================================================
 
 # Check if port is open
-is_port_open() {
+function is_port_open() {
   local host="${1:-localhost}"
   local port="$2"
   local timeout="${3:-5}"
@@ -304,7 +304,7 @@ is_port_open() {
 }
 
 # Wait for port to be open
-wait_for_port() {
+function wait_for_port() {
   local host="${1:-localhost}"
   local port="$2"
   local timeout="${3:-60}"
@@ -317,7 +317,7 @@ wait_for_port() {
 # =============================================================================
 
 # Check if process is running by PID
-is_process_running() {
+function is_process_running() {
   local pid="$1"
 
   if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
@@ -328,7 +328,7 @@ is_process_running() {
 }
 
 # Wait for process to start
-wait_for_process() {
+function wait_for_process() {
   local pid_file="$1"
   local timeout="${2:-30}"
 
@@ -336,7 +336,7 @@ wait_for_process() {
 }
 
 # Wait for process to stop
-wait_for_process_stop() {
+function wait_for_process_stop() {
   local pid_file="$1"
   local timeout="${2:-30}"
 
@@ -348,24 +348,24 @@ wait_for_process_stop() {
 # =============================================================================
 
 # Check if SteamCMD is available
-is_steamcmd_available() {
+function is_steamcmd_available() {
   command -v steamcmd >/dev/null 2>&1
 }
 
 # Skip test if SteamCMD is not available
-require_steamcmd() {
+function require_steamcmd() {
   if ! is_steamcmd_available; then
     skip_test "SteamCMD not available"
   fi
 }
 
 # Check if Docker is available
-is_docker_available() {
+function is_docker_available() {
   command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
 }
 
 # Skip test if Docker is not available
-require_docker() {
+function require_docker() {
   if ! is_docker_available; then
     skip_test "Docker not available"
   fi
@@ -376,14 +376,14 @@ require_docker() {
 # =============================================================================
 
 # Mark test as passed
-pass_test() {
+function pass_test() {
   local message="${1:-Test passed}"
   log_test "PASS: $message"
   exit $EC_SUCCESS
 }
 
 # Mark test as failed
-fail_test() {
+function fail_test() {
   local message="${1:-Test failed}"
   log_test "FAIL: $message"
   printf "${RED}[FAIL]${NC} %s\n" "$message" >&2
@@ -391,7 +391,7 @@ fail_test() {
 }
 
 # Mark test as skipped
-skip_test() {
+function skip_test() {
   local reason="${1:-Test skipped}"
   log_test "SKIP: $reason"
   printf "${YELLOW}[SKIP]${NC} %s\n" "$reason" >&2
