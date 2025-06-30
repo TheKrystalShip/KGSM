@@ -60,7 +60,7 @@ function __source_instance_config() {
       # Otherwise, add the "instance_" prefix
       export "instance_${key}=${value}"
     fi
-  done < "$config_file"
+  done <"$config_file"
 }
 
 # Source the instance configuration file
@@ -335,7 +335,7 @@ function _stop_server() {
     case "$arg" in
     --no-save) no_save=1 ;;
     --no-graceful) no_graceful=1 ;;
-    # Skip the special argument passed in some cases
+      # Skip the special argument passed in some cases
     "\@") continue ;;
     *) continue ;;
     esac
@@ -543,13 +543,13 @@ function _update() {
   fi
 
   # Download the latest version
-  if ! _download "$latest_version"; then
+  if ! _download_wrapper "$latest_version"; then
     __print_error "Failed to download latest version $latest_version"
     return 1
   fi
 
   # Deploy the downloaded files
-  if ! _deploy; then
+  if ! _deploy_wrapper; then
     __print_error "Failed to deploy new files"
     return 1
   fi
@@ -828,6 +828,24 @@ function _download() {
   return 0
 }
 
+# Wrapper function for download with automatic progress reporting
+function _download_wrapper() {
+  local version=$1
+  local dest=${2:-$instance_temp_dir}
+  local app_id=${3:-$instance_steam_app_id}
+
+  __print_info "Starting download process..."
+
+  # Call the actual download function
+  if _download "$version" "$dest" "$app_id"; then
+    __print_success "Download process completed successfully"
+    return 0
+  else
+    __print_error "Download process failed"
+    return 1
+  fi
+}
+
 function _deploy() {
   local source=$instance_temp_dir
   local dest=$instance_install_dir
@@ -853,6 +871,20 @@ function _deploy() {
 
   __print_success "Deploy complete"
   return 0
+}
+
+# Wrapper function for deploy with automatic progress reporting
+function _deploy_wrapper() {
+  __print_info "Starting deployment process..."
+
+  # Call the actual deploy function
+  if _deploy; then
+    __print_success "Deployment process completed successfully"
+    return 0
+  else
+    __print_error "Deployment process failed"
+    return 1
+  fi
 }
 
 # Functions to add for standalone management:
@@ -998,7 +1030,7 @@ while [[ $# -gt 0 ]]; do
     --latest)
       _get_latest_version
       exit $?
-    ;;
+      ;;
     --save)
       shift
       if [[ -z "$1" ]]; then
@@ -1032,11 +1064,11 @@ while [[ $# -gt 0 ]]; do
     if [[ -n "$1" ]]; then
       version="$1"
     fi
-    _download "$version"
+    _download_wrapper "$version"
     exit $?
     ;;
   --deploy)
-    _deploy
+    _deploy_wrapper
     exit $?
     ;;
   --update)
