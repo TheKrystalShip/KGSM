@@ -43,12 +43,6 @@ if [[ ! "$KGSM_ERRORS_LOADED" ]]; then
   source "$(__find_module errors.sh)" || exit $EC_FAILED_SOURCE
 fi
 
-# Caching system (must be loaded before loader.sh)
-if [[ ! "$KGSM_CACHE_LOADED" ]]; then
-  # shellcheck disable=SC1090
-  source "$(__find_module cache.sh)" || exit $EC_FAILED_SOURCE
-fi
-
 # User config.ini
 if [[ ! "$KGSM_CONFIG_LOADED" ]]; then
   # shellcheck disable=SC1090

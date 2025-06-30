@@ -174,15 +174,6 @@ function __add_or_update_config() {
       echo "$key=$value" >>"$target_file"
     fi
   fi
-
-  # Invalidate instance cache if this is an instance config file
-  if [[ "$config_file" == *"/instances/"* ]] && [[ "$config_file" == *".ini" ]]; then
-    local instance_name
-    instance_name=$(basename "$config_file" .ini)
-    if [[ $(type -t __invalidate_instance_cache) == function ]]; then
-      __invalidate_instance_cache "$instance_name"
-    fi
-  fi
 }
 
 export -f __add_or_update_config
@@ -233,13 +224,11 @@ function __remove_config() {
     return $EC_FAILED_SED
   fi
 
-  # Invalidate instance cache if this is an instance config file
+  # Note: This is an instance config file
   if [[ "$config_file" == *"/instances/"* ]] && [[ "$config_file" == *".ini" ]]; then
     local instance_name
     instance_name=$(basename "$config_file" .ini)
-    if [[ $(type -t __invalidate_instance_cache) == function ]]; then
-      __invalidate_instance_cache "$instance_name"
-    fi
+    # Instance config file updated
   fi
 
   return 0
@@ -286,3 +275,5 @@ function __get_config_value() {
 
   echo "$value"
 }
+
+export -f __get_config_value
