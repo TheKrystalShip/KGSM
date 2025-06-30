@@ -59,7 +59,6 @@ Features that I'd like to consider implementing in order to make KGSM more versa
 - The `--info` command now outputs raw instance configuration file contents instead of computed values. Use `--info --json` for structured JSON configuration data ideal for automation and scripting.
 - Enhanced `--status` command with unified behavior across all instance types (systemd, standalone, container) and added `--status --json` support for web interfaces and APIs.
 - Added flexible log line control to instance management scripts with `--tail <number>` option, including Unix standard aliases `--lines <number>` and `-n <number>`. Works for both static log viewing and live log following.
-- Implemented intelligent caching system in dedicated cache module for both instance configurations and blueprints. Features automatic cache invalidation, modification time tracking, comprehensive debugging tools, and blueprint caching for improved performance across all KGSM operations.
 
 **Bug fixes**
 - Removed duplicate debug tracking in the management templates
