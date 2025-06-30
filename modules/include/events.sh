@@ -307,6 +307,8 @@ function __emit_instance_installed() {
   )"
 }
 
+export -f __emit_instance_installed
+
 function __emit_instance_started() {
   local instance=$1
 
