@@ -38,6 +38,12 @@ ${UNDERLINE}Instance Monitoring:${END}
   --status <instance> --json      Output runtime status information as structured JSON data
                                   Same information as --status but in JSON format
                                   Perfect for web interfaces, APIs, and automation
+  --status <instance> --fast      Display rapid runtime status without update checking (< 50ms)
+                                  Skips version comparison and latest version lookup for speed
+                                  Ideal for web APIs and frequent monitoring
+  --status <instance> --json --fast
+                                  Output rapid runtime status as JSON without update checking
+                                  Combines JSON format with fast mode for optimal API performance
 
 ${UNDERLINE}Instance Control:${END}
   --save <instance>               Issue a save command to the specified instance
@@ -596,7 +602,10 @@ function _get_instance_status() {
   echo -n "Updates: "
   local updates_available=false
   local latest_version=""
-  if "$instance_management_file" --version --compare $debug &>/dev/null; then
+  if [[ -n "$fast_mode" ]]; then
+    latest_version="$current_version"
+    echo "Skipped (fast mode)"
+  elif "$instance_management_file" --version --compare $debug &>/dev/null; then
     latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
     updates_available=true
     echo "Available (Latest: $latest_version)"
@@ -676,7 +685,10 @@ function _get_instance_status_json() {
   local latest_version=""
   local updates_available="false"
 
-  if "$instance_management_file" --version --compare $debug &>/dev/null; then
+  if [[ -n "$fast_mode" ]]; then
+    latest_version="$current_version"
+    updates_available="false"
+  elif "$instance_management_file" --version --compare $debug &>/dev/null; then
     latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
     updates_available="true"
   else
@@ -772,6 +784,18 @@ if [[ $@ =~ "--json" ]]; then
     shift
     case $a in
     --json) continue ;;
+    *) set -- "$@" "$a" ;;
+    esac
+  done
+fi
+
+# shellcheck disable=SC2199
+if [[ $@ =~ "--fast" ]]; then
+  fast_mode=1
+  for a; do
+    shift
+    case $a in
+    --fast) continue ;;
     *) set -- "$@" "$a" ;;
     esac
   done

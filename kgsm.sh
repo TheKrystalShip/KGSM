@@ -434,7 +434,25 @@ function process_instance() {
     "$module_lifecycle" --logs "$instance" $follow $debug
     ;;
   --status)
-    "$module_instances" --status "$instance" $debug
+    shift
+    local additional_flags=""
+
+    # Process additional status flags
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+      --json | --fast)
+        additional_flags="$additional_flags $1"
+        shift
+        ;;
+      *)
+        # Put the argument back for next iteration
+        set -- "$1" "$@"
+        break
+        ;;
+      esac
+    done
+
+    "$module_instances" --status "$instance" $additional_flags $debug
     ;;
   --info)
     "$module_instances" --info "$instance" ${json_format:+--json} $debug
