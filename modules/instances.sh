@@ -546,218 +546,29 @@ function _get_instance_status() {
   local instance=$1
   __source_instance "$instance"
 
-  echo "=== Instance Status: $instance_name ==="
-
-  # 1. Basic State Information
-  local is_active=false
-  echo -n "Status: "
-  if "$instance_management_file" --is-active $debug &>/dev/null; then
-    echo "✓ Active"
-    is_active=true
-
-    # 2. Runtime-specific Information
-    local pid=""
-    local process_status=""
-    local start_time=""
-
-    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
-      # Native instance details
-      if [[ -f "$instance_pid_file" ]]; then
-        pid=$(cat "$instance_pid_file" 2>/dev/null)
-        echo "Process ID: $pid"
-
-        # Use existing 'ps' (no additional deps) for basic process info
-        if [[ -n "$pid" ]] && ps -p "$pid" &>/dev/null; then
-          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
-          start_time=$(ps -p "$pid" -o lstart --no-headers 2>/dev/null)
-          echo "Process Status: $process_status"
-          echo "Start Time: $start_time"
-        fi
-      fi
-    elif [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-      # Use systemctl to get systemd service info in unified format
-      local service_name="${instance%.ini}"
-      if systemctl is-active "$service_name" &>/dev/null; then
-        pid=$(systemctl show "$service_name" --property=MainPID --value 2>/dev/null)
-        start_time=$(systemctl show "$service_name" --property=ActiveEnterTimestamp --value 2>/dev/null)
-        if [[ -n "$pid" ]] && [[ "$pid" != "0" ]] && ps -p "$pid" &>/dev/null; then
-          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
-          echo "Process ID: $pid"
-          echo "Process Status: $process_status"
-          echo "Start Time: $start_time"
-        fi
-      fi
-    fi
-
-  else
-    echo "✗ Inactive"
+  # Use the new unified status command from the management file
+  local status_args=""
+  if [[ -n "$json_format" ]]; then
+    status_args="--json"
   fi
-
-  # 3. Version Information (works for both native & container)
-  echo -n "Version: "
-  local current_version=$("$instance_management_file" --version 2>/dev/null || echo "Unknown")
-  echo "$current_version"
-
-  # 4. Update Status (works for both native & container)
-  echo -n "Updates: "
-  local updates_available=false
-  local latest_version=""
   if [[ -n "$fast_mode" ]]; then
-    latest_version="$current_version"
-    echo "Skipped (fast mode)"
-  elif "$instance_management_file" --version --compare $debug &>/dev/null; then
-    latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
-    updates_available=true
-    echo "Available (Latest: $latest_version)"
-  else
-    latest_version="$current_version"
-    echo "Up to date"
+    status_args="$status_args --fast"
   fi
 
-  # 5. Configuration Info
-  echo "Blueprint: $(basename "$instance_blueprint_file")"
-  echo "Runtime: $instance_runtime"
-  echo "Directory: $instance_working_dir"
-
-  # 6. Network Configuration
-  if [[ -n "$instance_ports" ]]; then
-    echo "Ports: $instance_ports"
-  fi
-
-  # 7. Disk Usage (using standard 'du' command)
-  local disk_usage=""
-  if [[ -d "$instance_working_dir" ]]; then
-    disk_usage=$(du -sh "$instance_working_dir" 2>/dev/null | cut -f1)
-    echo "Disk Usage: $disk_usage"
-  fi
-
-  # 8. Backup Status (works for both native & container)
-  local backup_count=$("$instance_management_file" --list-backups 2>/dev/null | wc -w)
-  echo "Backups: $backup_count available"
-
-  # 9. Recent Activity (last 3 log lines)
-  echo ""
-  echo "Recent Activity:"
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    # Use journalctl for systemd instances
-    journalctl -u "${instance%.ini}" --no-pager -n 3 --output=cat 2>/dev/null | sed 's/^/  /' || echo "  No recent logs available"
-  else
-    # Use management file for standalone instances
-    "$instance_management_file" --logs 2>/dev/null | tail -3 | sed 's/^/  /' || echo "  No recent logs available"
-  fi
+  "$instance_management_file" --status $status_args $debug
 }
 
 function _get_instance_status_json() {
   local instance=$1
   __source_instance "$instance"
 
-  # Gather all status information
-  local is_active="false"
-  local pid=""
-  local process_status=""
-  local start_time=""
-
-  if "$instance_management_file" --is-active $debug &>/dev/null; then
-    is_active="true"
-
-    if [[ "$instance_lifecycle_manager" == "standalone" ]]; then
-      if [[ -f "$instance_pid_file" ]]; then
-        pid=$(cat "$instance_pid_file" 2>/dev/null)
-        if [[ -n "$pid" ]] && ps -p "$pid" &>/dev/null; then
-          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
-          start_time=$(ps -p "$pid" -o lstart --no-headers 2>/dev/null)
-        fi
-      fi
-    elif [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-      local service_name="${instance%.ini}"
-      if systemctl is-active "$service_name" &>/dev/null; then
-        pid=$(systemctl show "$service_name" --property=MainPID --value 2>/dev/null)
-        start_time=$(systemctl show "$service_name" --property=ActiveEnterTimestamp --value 2>/dev/null)
-        if [[ -n "$pid" ]] && [[ "$pid" != "0" ]] && ps -p "$pid" &>/dev/null; then
-          process_status=$(ps -p "$pid" -o state --no-headers 2>/dev/null | tr -d ' ')
-        fi
-      fi
-    fi
-  fi
-
-  # Version information
-  local current_version=$("$instance_management_file" --version 2>/dev/null || echo "Unknown")
-  local latest_version=""
-  local updates_available="false"
-
+  # Use the new unified status command from the management file
+  local status_args="--json"
   if [[ -n "$fast_mode" ]]; then
-    latest_version="$current_version"
-    updates_available="false"
-  elif "$instance_management_file" --version --compare $debug &>/dev/null; then
-    latest_version=$("$instance_management_file" --version --latest 2>/dev/null || echo "Unknown")
-    updates_available="true"
-  else
-    latest_version="$current_version"
+    status_args="$status_args --fast"
   fi
 
-  # Disk usage
-  local disk_usage=""
-  if [[ -d "$instance_working_dir" ]]; then
-    disk_usage=$(du -sh "$instance_working_dir" 2>/dev/null | cut -f1)
-  fi
-
-  # Backup count
-  local backup_count=$("$instance_management_file" --list-backups 2>/dev/null | wc -w)
-
-  # Recent logs
-  local recent_logs_json
-  if [[ "$instance_lifecycle_manager" == "systemd" ]]; then
-    recent_logs_json=$(journalctl -u "${instance%.ini}" --no-pager -n 3 --output=cat 2>/dev/null | jq -R . | jq -s . 2>/dev/null || echo '[]')
-  else
-    recent_logs_json=$("$instance_management_file" --logs 2>/dev/null | tail -3 | jq -R . | jq -s . 2>/dev/null || echo '[]')
-  fi
-
-  # Output JSON
-  jq -n \
-    --arg instance_name "$instance_name" \
-    --arg status "$is_active" \
-    --arg pid "$pid" \
-    --arg process_status "$process_status" \
-    --arg start_time "$start_time" \
-    --arg current_version "$current_version" \
-    --arg latest_version "$latest_version" \
-    --arg updates_available "$updates_available" \
-    --arg blueprint "$(basename "$instance_blueprint_file")" \
-    --arg runtime "$instance_runtime" \
-    --arg lifecycle_manager "$instance_lifecycle_manager" \
-    --arg directory "$instance_working_dir" \
-    --arg ports "${instance_ports:-}" \
-    --arg disk_usage "$disk_usage" \
-    --arg backup_count "$backup_count" \
-    --argjson recent_logs "$recent_logs_json" \
-    '{
-      instance_name: $instance_name,
-      status: ($status == "true"),
-      process: {
-        pid: (if $pid != "" then ($pid | tonumber) else null end),
-        status: (if $process_status != "" then $process_status else null end),
-        start_time: (if $start_time != "" then $start_time else null end)
-      },
-      version: {
-        current: $current_version,
-        latest: $latest_version,
-        updates_available: ($updates_available == "true")
-      },
-      configuration: {
-        blueprint: $blueprint,
-        runtime: $runtime,
-        lifecycle_manager: $lifecycle_manager,
-        directory: $directory,
-        ports: (if $ports != "" then $ports else null end)
-      },
-      resources: {
-        disk_usage: (if $disk_usage != "" then $disk_usage else null end)
-      },
-      backups: {
-        count: ($backup_count | tonumber)
-      },
-      recent_logs: $recent_logs
-    }'
+  "$instance_management_file" --status $status_args $debug
 }
 
 function _send_save_to_instance() {
