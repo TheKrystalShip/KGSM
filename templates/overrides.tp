@@ -29,46 +29,70 @@
 #
 # AVAILABLE GLOBAL VARIABLES:
 #
-# COMMON SERVER VARIABLES:
-# instance_name                 Name of the instance
-# instance_working_dir          Working directory for the instance
-# instance_install_dir          Directory where the server is installed
-# instance_launch_dir           Directory from which to launch server (may differ from install dir)
-# instance_saves_dir            Directory for save files
-# instance_temp_dir             Temporary directory for downloads/processing
-# instance_backups_dir          Directory for backups
-# instance_logs_dir             Directory for logs
-# instance_socket_file          Path to the socket file for communication
-# instance_pid_file             Path to the PID file to track server process
-# instance_version_file         Path to the version file
+# Basic Instance Information:
+# $instance_name                 Name of the instance
+# $instance_blueprint_file       Path to the blueprint file
+# $instance_install_datetime     When the instance was installed
 #
-# BLUEPRINT AND CONFIGURATION VARIABLES:
-# instance_blueprint_file       Path to the blueprint file
-# instance_level_name           Name of the level/world
-# instance_ports                Array of ports used by the server
-# instance_upnp_ports           Array of ports to manage with UPnP
-# instance_install_datetime     When the instance was installed
-# instance_compress_backups     Whether to compress backups (true/false)
-# instance_use_upnp             Whether to use UPnP port forwarding (0/1)
+# Directory and File Paths:
+# $instance_working_dir          Working directory for the instance
+# $instance_backups_dir          Directory for backups
+# $instance_install_dir          Directory where the server is installed
+# $instance_saves_dir            Directory for save files
+# $instance_temp_dir             Temporary directory for downloads/processing
+# $instance_logs_dir             Directory for logs
+# $instance_launch_dir           Directory from which to launch server (may differ from install dir)
+# $instance_executable_subdirectory  Subdirectory containing the executable
+# $instance_management_file      Path to the management script
+# $instance_compose_file         Path to docker-compose file (container only)
 #
-# EXECUTION VARIABLES:
-# instance_executable_file      Path to server executable
-# instance_executable_arguments Arguments to pass to executable
-# instance_stop_command         Command to gracefully stop server
-# instance_save_command         Command to save game state
-# instance_stop_command_timeout_seconds  Seconds to wait for graceful shutdown
+# Process Management Files:
+# $instance_version_file         Path to the version file
+# $instance_pid_file             Path to the PID file to track server process
+# $instance_tail_pid_file        Path to the tail PID file
+# $instance_socket_file          Path to the socket file for communication
 #
-# LIFECYCLE MANAGEMENT VARIABLES:
-# instance_lifecycle_manager    How the instance is managed (standalone/systemd)
-# instance_management_file      Path to the management script
-# instance_ufw_file             Path to UFW rules file
-# instance_systemd_service_file Path to systemd service file
-# instance_systemd_socket_file  Path to systemd socket file
+# Runtime Configuration:
+# $instance_lifecycle_manager    How the instance is managed (standalone/systemd)
+# $instance_runtime              Runtime type (native, container)
+# $instance_platform             Platform type for SteamCMD (default: linux)
+# $instance_auto_update          Whether to auto-update before starting
+# $instance_logs_redirect        Log redirection pattern
 #
-# STEAM-SPECIFIC VARIABLES:
-# instance_steam_app_id         Steam AppID (for Steam-based games)
-# instance_is_steam_account_required  Whether Steam account is needed (0/1)
-# instance_platform             Platform type for SteamCMD (default: linux)
+# Game Server Configuration:
+# $instance_level_name           Name of the level/world
+# $instance_executable_file      Path to server executable
+# $instance_executable_arguments Arguments to pass to executable
+#
+# Steam Integration:
+# $instance_steam_app_id         Steam AppID (for Steam-based games)
+# $instance_is_steam_account_required  Whether Steam account is needed (true/false)
+#
+# Network Configuration:
+# $instance_ports                Network ports in UFW format
+# $instance_enable_port_forwarding  Whether UPnP is enabled (true/false)
+# $instance_upnp_ports           Array of ports to manage with UPnP
+# $instance_enable_firewall_management  Whether firewall management is enabled (true/false)
+# $instance_firewall_rule_file   Path to firewall rule file
+#
+# Server Control:
+# $instance_stop_command         Command to gracefully stop server
+# $instance_save_command         Command to save game state
+# $instance_save_command_timeout_seconds  Seconds to wait for save command
+# $instance_stop_command_timeout_seconds  Seconds to wait for graceful shutdown
+#
+# Backup Configuration:
+# $instance_compress_backups     Whether to compress backups (true/false)
+#
+# System Integration:
+# $instance_enable_systemd       Whether systemd integration is enabled (true/false)
+# $instance_systemd_service_file Path to systemd service file
+# $instance_systemd_socket_file  Path to systemd socket file
+#
+# Management Features:
+# $instance_enable_command_shortcuts  Whether command shortcuts are enabled (true/false)
+# $instance_command_shortcut_file     Path to command shortcut file
+#
 ################################################################################
 ################################################################################
 

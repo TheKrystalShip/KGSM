@@ -227,10 +227,16 @@ function __find_override() {
     exit $EC_INVALID_ARG
   fi
 
-  # $instance_blueprint_file is the absolute path to the blueprint file, we just need the name
-  instance_bp_name=$(basename "$instance_blueprint_file" | sed 's/\.bp$//')
+  # Extract the blueprint name from the blueprint file's "name" variable
+  local blueprint_name
+  blueprint_name=$(grep -E '^name\s*=' "$instance_blueprint_file" | cut -d'=' -f2 | tr -d '"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
-  instance_overrides_file="${instance_bp_name}.overrides.sh"
+  if [[ -z "$blueprint_name" ]]; then
+    __print_error "No 'name' variable found in blueprint file '$instance_blueprint_file'."
+    exit $EC_INVALID_ARG
+  fi
+
+  instance_overrides_file="${blueprint_name}.overrides.sh"
 
   __find_or_fail "$instance_overrides_file" "$OVERRIDES_SOURCE_DIR"
 }

@@ -26,6 +26,22 @@ fi
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Security function to validate configuration keys
+# Prevents code injection through malicious config files by ensuring
+# only safe variable names can be exported to the environment
+function __validate_config_key() {
+  local key="$1"
+
+  # Allow only alphanumeric characters and underscores
+  # Key must start with letter or underscore
+  # This prevents injection of special shell variables or commands
+  if [[ "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Function to source the instance configuration file
 function __source_instance_config() {
   local config_file="$1"
@@ -36,6 +52,7 @@ function __source_instance_config() {
   fi
 
   # Source the configuration file and prefix all variables with "instance_"
+  # Added security validation to prevent code injection attacks
   while IFS='=' read -r key value || [ -n "$key" ]; do
     # Skip comments and empty lines
     [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
@@ -45,6 +62,14 @@ function __source_instance_config() {
     key="${key%"${key##*[![:space:]]}"}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
+
+    # Security check: Validate key name to prevent code injection
+    if ! __validate_config_key "$key"; then
+      echo "ERROR: Invalid configuration key '$key' in $config_file"
+      echo "Configuration keys must contain only alphanumeric characters and underscores,"
+      echo "and must start with a letter or underscore."
+      exit 1
+    fi
 
     # Remove quotes from value
     value="${value#\"}"
@@ -67,6 +92,9 @@ function __source_instance_config() {
 INSTANCE_NAME="$(basename "$SCRIPT_DIR")"
 CONFIG_FILE="$SCRIPT_DIR/${INSTANCE_NAME}.config.ini"
 __source_instance_config "$CONFIG_FILE"
+
+# UPnP state tracking
+UPNP_STATE_FILE="$SCRIPT_DIR/.upnp_enabled"
 
 self=$(basename "$0")
 
@@ -172,12 +200,22 @@ function _enable_upnp() {
 
   __print_info "Enabling UPnP..."
 
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
   if ! output=$(upnpc -e "$instance_name" -r "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to enable UPnP ports"
     __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
     __print_error "${output}"
+    return 1
   fi
 
+  # Mark UPnP as enabled
+  touch "$UPNP_STATE_FILE"
   __print_success "UPnP enabled"
 }
 
@@ -186,18 +224,63 @@ function _disable_upnp() {
 
   __print_info "Disabling UPnP..."
 
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
   if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to disable UPnP ports"
     __print_info "To stop these message, set 'instance_enable_port_forwarding' to 'false' in $0"
     __print_error "${output}"
+    return 1
   fi
 
+  # Mark UPnP as disabled
+  rm -f "$UPNP_STATE_FILE"
   __print_success "UPnP disabled"
+}
+
+# Helper function to check if UPnP is currently enabled
+function _is_upnp_enabled() {
+  [[ -f "$UPNP_STATE_FILE" ]]
+}
+
+# Manual UPnP disable that works regardless of state
+function _manual_disable_upnp() {
+  local output
+
+  __print_info "Manually disabling UPnP..."
+
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
+  if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
+    __print_error "Failed to disable UPnP ports"
+    __print_error "${output}"
+    return 1
+  fi
+
+  # Mark UPnP as disabled
+  rm -f "$UPNP_STATE_FILE"
+  __print_success "UPnP manually disabled"
 }
 
 # Cleanup function for SIGINT, SIGTERM, and EXIT
 function _term_cleanup() {
-  [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp
+  # Only disable UPnP if it was actually enabled AND the instance is not running
+  if [[ -f "$UPNP_STATE_FILE" ]] && [[ "${instance_enable_port_forwarding:-false}" == "true" ]]; then
+    # Check if instance is still running before disabling UPnP
+    if ! _is_active &>/dev/null; then
+      _disable_upnp
+    fi
+  fi
 }
 
 # Make sure to disable UPnP if it was enabled
@@ -210,7 +293,9 @@ function _start() {
   __print_info "Starting server in foreground..."
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
-    _enable_upnp
+    if ! _enable_upnp; then
+      __print_warning "Failed to enable UPnP, continuing without port forwarding"
+    fi
   fi
 
   if [[ "$instance_auto_update" == "true" ]]; then
@@ -227,7 +312,9 @@ function _start_background() {
   __print_info "Starting server in background..."
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
-    _enable_upnp
+    if ! _enable_upnp; then
+      __print_warning "Failed to enable UPnP, continuing without port forwarding"
+    fi
   fi
 
   # Use docker compose up -d to start the container in detached mode
@@ -244,9 +331,35 @@ function _send_save_command() {
   return 0
 }
 
+# Security function to validate and sanitize input commands
+# Prevents command injection attacks through user-provided input
+function __sanitize_input_command() {
+  local command="$1"
+
+  # Check for dangerous characters that could be used for command injection
+  # Using individual checks to avoid regex complexity issues
+  if [[ "$command" == *";"* ]] || [[ "$command" == *"&"* ]] || [[ "$command" == *"|"* ]] || \
+     [[ "$command" == *"\`"* ]] || [[ "$command" == *"\$("* ]] || [[ "$command" == *")"* ]] || \
+     [[ "$command" == *"{"* ]] || [[ "$command" == *"}"* ]] || [[ "$command" == *"["* ]] || \
+     [[ "$command" == *"]"* ]] || [[ "$command" == *"\\"* ]]; then
+    echo "ERROR: Input command contains potentially dangerous characters"
+    echo "Rejected characters: ; & | \` \$( ) { } [ ] \\"
+    echo "Command: $command"
+    return 1
+  fi
+
+  return 0
+}
+
 function _send_input() {
   local command=$1
   __print_info "Sending command: $command"
+
+  # Security check: Sanitize input to prevent command injection
+  if ! __sanitize_input_command "$command"; then
+    __print_error "Command rejected for security reasons"
+    return 1
+  fi
 
   # Check if the container is running using the existing _is_active function
   if ! _is_active &>/dev/null; then
@@ -256,7 +369,7 @@ function _send_input() {
 
   # Get the management file path from the container's environment
   local management_file
-  management_file=$(docker exec "$instance_name" bash -c 'echo $MANAGEMENT_FILE')
+  management_file=$(docker exec "$instance_name" bash -c 'echo $MANAGEMENT_FILE' 2>/dev/null)
 
   if [[ -z "$management_file" ]]; then
     __print_error "Could not determine management script path in container. \$MANAGEMENT_FILE not set."
@@ -264,7 +377,8 @@ function _send_input() {
   fi
 
   # Call the container's internal management script with the --input flag
-  if ! docker exec -i "$instance_name" "$management_file" --input "$command"; then
+  # Using printf to safely pass the command without shell interpretation
+  if ! printf '%s\n' "$command" | docker exec -i "$instance_name" "$management_file" --input; then
     __print_error "Failed to send command to container '$instance_name'"
     return 1
   fi
@@ -275,13 +389,8 @@ function _send_input() {
 
 function _is_active() {
   # Check if the container is running using docker compose
-  # Run in the working directory where docker-compose.yml is located
-  cd "$instance_working_dir" || {
-    __print_error "Failed to change to working directory: $instance_working_dir"
-    return 1
-  }
-
-  if docker compose -f "$instance_compose_file" ps --services --filter "status=running" | grep -q .; then
+  # Use subshell to avoid polluting working directory and eliminate race condition
+  if (cd "$instance_working_dir" && docker compose -f "$instance_compose_file" ps --services --filter "status=running" | grep -q .); then
     __print_info "Active"
     return 0
   fi
@@ -596,7 +705,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --disable-upnp)
-    _disable_upnp
+    _manual_disable_upnp
     exit $?
     ;;
   --version)

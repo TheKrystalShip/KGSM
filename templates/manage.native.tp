@@ -26,6 +26,22 @@ fi
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Security function to validate configuration keys
+# Prevents code injection through malicious config files by ensuring
+# only safe variable names can be exported to the environment
+function __validate_config_key() {
+  local key="$1"
+
+  # Allow only alphanumeric characters and underscores
+  # Key must start with letter or underscore
+  # This prevents injection of special shell variables or commands
+  if [[ "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Function to source the instance configuration file
 function __source_instance_config() {
   local config_file="$1"
@@ -36,6 +52,7 @@ function __source_instance_config() {
   fi
 
   # Source the configuration file and prefix all variables with "instance_"
+  # Added security validation to prevent code injection attacks
   while IFS='=' read -r key value || [ -n "$key" ]; do
     # Skip comments and empty lines
     [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
@@ -45,6 +62,14 @@ function __source_instance_config() {
     key="${key%"${key##*[![:space:]]}"}"
     value="${value#"${value%%[![:space:]]*}"}"
     value="${value%"${value##*[![:space:]]}"}"
+
+    # Security check: Validate key name to prevent code injection
+    if ! __validate_config_key "$key"; then
+      echo "ERROR: Invalid configuration key '$key' in $config_file"
+      echo "Configuration keys must contain only alphanumeric characters and underscores,"
+      echo "and must start with a letter or underscore."
+      exit 1
+    fi
 
     # Remove quotes from value
     value="${value#\"}"
@@ -67,6 +92,9 @@ function __source_instance_config() {
 INSTANCE_NAME="$(basename "$SCRIPT_DIR")"
 CONFIG_FILE="$SCRIPT_DIR/${INSTANCE_NAME}.config.ini"
 __source_instance_config "$CONFIG_FILE"
+
+# UPnP state tracking
+UPNP_STATE_FILE="$SCRIPT_DIR/.upnp_enabled"
 
 self=$(basename "$0")
 
@@ -184,12 +212,22 @@ function _enable_upnp() {
 
   __print_info "Enabling UPnP..."
 
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
   if ! output=$(upnpc -e "$instance_name" -r "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to enable UPnP ports"
     __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
     __print_error "${output}"
+    return 1
   fi
 
+  # Mark UPnP as enabled
+  touch "$UPNP_STATE_FILE"
   __print_success "UPnP enabled"
 }
 
@@ -198,17 +236,62 @@ function _disable_upnp() {
 
   __print_info "Disabling UPnP..."
 
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
   if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to disable UPnP ports"
     __print_info "To stop these message, set 'instance_enable_port_forwarding' to 'false' in $0"
     __print_error "${output}"
+    return 1
   fi
 
+  # Mark UPnP as disabled
+  rm -f "$UPNP_STATE_FILE"
   __print_success "UPnP disabled"
 }
 
+# Helper function to check if UPnP is currently enabled
+function _is_upnp_enabled() {
+  [[ -f "$UPNP_STATE_FILE" ]]
+}
+
+# Manual UPnP disable that works regardless of state
+function _manual_disable_upnp() {
+  local output
+
+  __print_info "Manually disabling UPnP..."
+
+  # Check if UPnP ports array is set and not empty
+  # This prevents command failures when the array is unset or empty
+  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
+    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
+    return 1
+  fi
+
+  if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
+    __print_error "Failed to disable UPnP ports"
+    __print_error "${output}"
+    return 1
+  fi
+
+  # Mark UPnP as disabled
+  rm -f "$UPNP_STATE_FILE"
+  __print_success "UPnP manually disabled"
+}
+
 function _term_cleanup() {
-  [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && _disable_upnp
+  # Only disable UPnP if it was actually enabled AND the instance is not running
+  if [[ -f "$UPNP_STATE_FILE" ]] && [[ "${instance_enable_port_forwarding:-false}" == "true" ]]; then
+    # Check if instance is still running before disabling UPnP
+    if ! _is_active &>/dev/null; then
+      _disable_upnp
+    fi
+  fi
   _exit_print_logs
 }
 
@@ -222,7 +305,9 @@ function _start() {
   __print_info "Starting $self in the current terminal"
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
-    _enable_upnp
+    if ! _enable_upnp; then
+      __print_warning "Failed to enable UPnP, continuing without port forwarding"
+    fi
   fi
 
   if [[ "$instance_auto_update" == "true" ]]; then
@@ -243,12 +328,22 @@ function _start() {
 
 # Start the server in the background
 # This function will create a named pipe for communication with the server
-# and redirect logs to a file
+# and redirect logs to a file. Fixed to eliminate race condition in PID tracking
 function _start_background() {
   __print_info "Starting $self in the background"
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
-    _enable_upnp
+    if ! _enable_upnp; then
+      __print_warning "Failed to enable UPnP, continuing without port forwarding"
+    fi
+  fi
+
+  # Handle auto-update before changing directory
+  if [[ "$instance_auto_update" == "true" ]]; then
+    if ! _update; then
+      __print_error "Failed to update $self, exiting"
+      return 1
+    fi
   fi
 
   cd "$instance_launch_dir" || {
@@ -256,66 +351,119 @@ function _start_background() {
     return 1
   }
 
+  # Clean up any existing socket file
   [[ -p "$instance_socket_file" ]] && rm "$instance_socket_file"
 
+  # Create named pipe for command input
   mkfifo "$instance_socket_file"
 
-  # Launch the existing _start in a subshell:
-  (_start) <"$instance_socket_file" &>$instance_logs_redirect &
+  # Start the server directly with proper I/O redirection
+  # This eliminates the subshell race condition while maintaining socket functionality
+  # stdin: redirected from socket for command input
+  # stdout/stderr: redirected to logs
+  # shellcheck disable=SC2086
+  $instance_executable_file $instance_executable_arguments \
+    <"$instance_socket_file" \
+    &>"$instance_logs_redirect" &
 
+  # Capture the actual server process PID (not a subshell)
   local server_pid=$!
+
+  # Validate that we got a valid PID
+  if [[ -z "$server_pid" ]] || [[ ! "$server_pid" =~ ^[0-9]+$ ]]; then
+    __print_error "Failed to start server process - invalid PID: '$server_pid'"
+    [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
+    return 1
+  fi
+
+  # Verify the process actually started
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    __print_error "Server process failed to start or exited immediately"
+    [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
+    return 1
+  fi
+
+  # Save the server PID to file
   echo "$server_pid" >"$instance_pid_file"
   __print_success "Instance $instance_name started with PID $server_pid, saved to $instance_pid_file"
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
+  # This ensures the server doesn't exit when no input is being sent
   tail -f /dev/null >"$instance_socket_file" &
-  echo $! >"$instance_tail_pid_file"
+  local tail_pid=$!
+
+  # Validate tail process started successfully
+  if [[ -z "$tail_pid" ]] || [[ ! "$tail_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$tail_pid" 2>/dev/null; then
+    __print_error "Failed to start socket keepalive process"
+    # Try to clean up the server process we just started
+    kill -TERM "$server_pid" 2>/dev/null
+    [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
+    [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
+    return 1
+  fi
+
+  echo "$tail_pid" >"$instance_tail_pid_file"
 }
 
 # Kill the server process and all its children
 # This function will also remove the PID file and the named pipe
+# Fixed to prevent race conditions and properly handle child process arrays
 function _kill_all_processes() {
+  local tail_pid
+  local server_pid
+  local output
+  local child_pids_string
+  local child_pids_array
 
-  # Kill the tail process
-  if [[ -f "$instance_tail_pid_file" ]]; then
-    local tail_pid
-    tail_pid=$(<"$instance_tail_pid_file")
+  # Kill the tail process using atomic read to avoid TOCTOU
+  if tail_pid=$(<"$instance_tail_pid_file" 2>/dev/null) && [[ -n "${tail_pid// /}" ]] && [[ "$tail_pid" =~ ^[0-9]+$ ]]; then
     if kill -0 "$tail_pid" 2>/dev/null; then
       kill -TERM "$tail_pid"
       rm -f "$instance_tail_pid_file"
     fi
   fi
 
-  if [[ ! -f "$instance_pid_file" ]]; then
+  # Atomic read of PID file to avoid TOCTOU vulnerability
+  if ! server_pid=$(<"$instance_pid_file" 2>/dev/null); then
     __print_error "No PID file found for $instance_name."
     __print_error "If this is unexpected, check running processes to ensure the instance is not running uncontrolled"
     return 1
   fi
 
-  local server_pid
-  server_pid=$(<"$instance_pid_file")
+  # Validate that PID is numeric
+  if [[ -z "${server_pid// /}" ]] || [[ ! "$server_pid" =~ ^[0-9]+$ ]]; then
+    __print_error "Invalid PID in file: '$server_pid'"
+    rm -f "$instance_pid_file"
+    return 1
+  fi
 
   # Find all child processes of the server PID
-  local output
-  local child_pids
-  child_pids=$(pgrep -P "$server_pid")
+  child_pids_string=$(pgrep -P "$server_pid" 2>/dev/null)
 
-  # Instance has child processes
-  if [[ -n "$child_pids" ]]; then
-    if ! output=$(kill -TERM "${child_pids[@]}"); then
-      __print_error "Failed to kill child PIDs ${child_pids[*]}."
-      __print_error "Output: ${output}"
-      return 1
+  # Convert child PIDs string to proper array for safe processing
+  if [[ -n "$child_pids_string" ]]; then
+    # Read PIDs into array, one per line
+    IFS=$'\n' read -d '' -ra child_pids_array <<<"$child_pids_string" || true
+
+    # Kill child processes if any exist
+    if [[ ${#child_pids_array[@]} -gt 0 ]]; then
+      if ! output=$(kill -TERM "${child_pids_array[@]}" 2>&1); then
+        __print_error "Failed to kill child PIDs: ${child_pids_array[*]}"
+        __print_error "Output: ${output}"
+        return 1
+      fi
+      __print_info "Killed ${#child_pids_array[@]} child processes"
     fi
   fi
 
-  # Only parent process exists
-  if _is_active &>/dev/null; then
+  # Kill the main server process if it's still running
+  if kill -0 "$server_pid" 2>/dev/null; then
     if ! output=$(kill -TERM "$server_pid" 2>&1); then
-      __print_error "Failed to kill PID $server_pid."
+      __print_error "Failed to kill main process PID $server_pid."
       __print_error "Output: ${output}"
       return 1
     fi
+    __print_info "Killed main process PID $server_pid"
   fi
 }
 
@@ -415,49 +563,78 @@ function _send_input() {
 
 # This function checks if the server is active by checking the PID file
 # and verifying if the process with that PID is still running
-# If the PID file is empty or does not exist, it will return inactive
+# Fixed to prevent race conditions using atomic file operations
 function _is_active() {
-  # Check if PID file exists
-  if [[ ! -f "$instance_pid_file" ]]; then
+  local server_pid
+
+  # Atomic read operation: attempt to read PID file content directly
+  # This eliminates the TOCTOU (Time of Check, Time of Use) vulnerability
+  # where the file could be modified between checking existence and reading
+  if ! server_pid=$(<"$instance_pid_file" 2>/dev/null); then
+    # File doesn't exist, is unreadable, or read failed
     __print_info "Inactive" && return 1
   fi
 
-  # Check if PID file is empty
-  local server_pid
-  server_pid=$(<"$instance_pid_file")
-
-  if [[ -z "$server_pid" ]]; then
+  # Check if PID file content is empty or contains only whitespace
+  if [[ -z "${server_pid// /}" ]]; then
     __print_error "Instance PID file present but empty, removing"
+    # Safe removal: only remove if file still exists and is empty
+    if [[ -f "$instance_pid_file" ]] && [[ ! -s "$instance_pid_file" ]]; then
+      rm -f "$instance_pid_file"
+    fi
+    __print_info "Inactive" && return 1
+  fi
+
+  # Validate that PID is numeric to prevent injection attacks
+  if [[ ! "$server_pid" =~ ^[0-9]+$ ]]; then
+    __print_error "Instance PID file contains invalid PID: '$server_pid', removing"
     rm -f "$instance_pid_file"
     __print_info "Inactive" && return 1
   fi
 
   # Check if the process with that PID is running
+  # Using kill -0 which doesn't actually send a signal, just checks existence
   if kill -0 "$server_pid" 2>/dev/null; then
     __print_info "Active" && return 0
   else
-    # Process is not running anymore, remove PID file
-    __print_error "Instance PID file references non-existent process, removing"
+    # Process is not running anymore, remove stale PID file
+    __print_error "Instance PID file references non-existent process (PID: $server_pid), removing"
     rm -f "$instance_pid_file"
     __print_info "Inactive" && return 1
   fi
 }
 
 # For closing the log reader background process
+# Fixed to prevent race conditions using atomic file operations
 # shellcheck disable=SC2317
 function _exit_print_logs() {
-  if [[ ! -f "$instance_tail_pid_file" ]]; then
+  local tail_pid
+
+  # Atomic read operation: attempt to read tail PID file content directly
+  # This eliminates the TOCTOU vulnerability similar to _is_active()
+  if ! tail_pid=$(<"$instance_tail_pid_file" 2>/dev/null); then
+    # File doesn't exist, is unreadable, or read failed
     return 0
   fi
 
-  local tail_pid="$(<"$instance_tail_pid_file")"
-
-  if [[ -z "$tail_pid" ]]; then
+  # Check if tail PID file content is empty or contains only whitespace
+  if [[ -z "${tail_pid// /}" ]]; then
     __print_error "Instance tail PID file present but empty, removing"
+    # Safe removal: only remove if file still exists and is empty
+    if [[ -f "$instance_tail_pid_file" ]] && [[ ! -s "$instance_tail_pid_file" ]]; then
+      rm -f "$instance_tail_pid_file"
+    fi
+    return 0
+  fi
+
+  # Validate that PID is numeric to prevent injection attacks
+  if [[ ! "$tail_pid" =~ ^[0-9]+$ ]]; then
+    __print_error "Instance tail PID file contains invalid PID: '$tail_pid', removing"
     rm -f "$instance_tail_pid_file"
     return 0
   fi
 
+  # Check if the tail process is still running and kill it if so
   if kill -0 "$tail_pid" 2>/dev/null; then
     __print_info "Stopping log reader..."
     kill "$tail_pid"
@@ -465,7 +642,8 @@ function _exit_print_logs() {
     return 0
   fi
 
-  __print_error "Instance tail PID file references non-existent process, removing"
+  # Process is not running anymore, remove stale PID file
+  __print_error "Instance tail PID file references non-existent process (PID: $tail_pid), removing"
   rm -f "$instance_tail_pid_file"
   return 0
 }
@@ -622,7 +800,7 @@ function _create_backup() {
       return 1
     fi
   else
-    # Create backup folder if it doesn't exit
+    # Create backup folder if it doesn't exist
     if [ ! -d "$output" ]; then
       if ! mkdir -p "$output"; then
         __print_error "Error creating backup folder $output"
@@ -638,7 +816,6 @@ function _create_backup() {
     fi
   fi
 
-  # _emit_instance_backup_created "${instance%.ini}" "$output" "$INSTANCE_INSTALLED_VERSION"
   __print_success "Backup created"
   return 0
 }
@@ -697,7 +874,6 @@ function _restore_backup() {
     return 1
   }
 
-  # __emit_instance_backup_restored "${instance%.ini}" "$source" "$backup_version"
   __print_success "Restore complete"
   return 0
 }
@@ -1090,9 +1266,7 @@ function _get_status() {
   fi
 }
 
-# Functions to add for standalone management:
-# - update
-
+# Main execution starts here - process command line arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
   -h | --help)
@@ -1308,7 +1482,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --disable-upnp)
-    _disable_upnp
+    _manual_disable_upnp
     exit $?
     ;;
   *)

@@ -542,33 +542,79 @@ function _list_instances_json() {
   fi
 }
 
+# Function to check if management file supports --status command
+function _check_management_file_status_support() {
+  local management_file="$1"
+
+  # Check if the management file exists and is executable
+  if [[ ! -f "$management_file" ]] || [[ ! -x "$management_file" ]]; then
+    return 1
+  fi
+
+  # Check if the management file supports --status by looking for it in help output
+  if "$management_file" --help 2>/dev/null | grep -q -- "--status"; then
+    return 0
+  fi
+
+  return 1
+}
+
 function _get_instance_status() {
   local instance=$1
   __source_instance "$instance"
 
-  # Use the new unified status command from the management file
-  local status_args=""
-  if [[ -n "$json_format" ]]; then
-    status_args="--json"
-  fi
-  if [[ -n "$fast_mode" ]]; then
-    status_args="$status_args --fast"
-  fi
+  # Check if management file supports the new --status command
+  if _check_management_file_status_support "$instance_management_file"; then
+    # Use the new unified status command from the management file
+    local status_args=""
+    if [[ -n "$json_format" ]]; then
+      status_args="--json"
+    fi
+    if [[ -n "$fast_mode" ]]; then
+      status_args="$status_args --fast"
+    fi
 
-  "$instance_management_file" --status $status_args $debug
+    "$instance_management_file" --status $status_args $debug
+  else
+    # Fallback for older management files that don't support --status
+    __print_warning "Instance '$instance' uses an older management file that doesn't support the --status command."
+    __print_warning "To enable faster status queries, regenerate the management file using:"
+    __print_warning "  ./kgsm.sh --regenerate-management-files"
+
+    # TODO: Implement fallback status gathering logic here
+    # For now, just indicate the instance is not compatible
+    if [[ -n "$json_format" ]]; then
+      echo '{"error": "Management file does not support --status command", "instance": "'"$instance"'", "requires_regeneration": true}'
+    else
+      echo "Error: Management file does not support --status command"
+      echo "Instance: $instance"
+      echo "Action required: Regenerate management files"
+    fi
+  fi
 }
 
 function _get_instance_status_json() {
   local instance=$1
   __source_instance "$instance"
 
-  # Use the new unified status command from the management file
-  local status_args="--json"
-  if [[ -n "$fast_mode" ]]; then
-    status_args="$status_args --fast"
-  fi
+  # Check if management file supports the new --status command
+  if _check_management_file_status_support "$instance_management_file"; then
+    # Use the new unified status command from the management file
+    local status_args="--json"
+    if [[ -n "$fast_mode" ]]; then
+      status_args="$status_args --fast"
+    fi
 
-  "$instance_management_file" --status $status_args $debug
+    "$instance_management_file" --status $status_args $debug
+  else
+    # Fallback for older management files that don't support --status
+    __print_warning "Instance '$instance' uses an older management file that doesn't support the --status command."
+    __print_warning "To enable faster status queries, regenerate the management file using:"
+    __print_warning "  ./kgsm.sh --regenerate-management-files"
+
+    # Return JSON error response
+    echo '{"error": "Management file does not support --status command", "instance": "'"$instance"'", "requires_regeneration": true}'
+  fi
 }
 
 function _send_save_to_instance() {
