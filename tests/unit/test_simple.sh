@@ -100,6 +100,8 @@ function main() {
   test_instances_module_list
   test_basic_directory_structure
 
+  log_test "Simple unit tests completed successfully"
+
   # Print summary and determine exit code
   if print_assert_summary "$TEST_NAME"; then
     pass_test "All simple unit tests completed successfully"

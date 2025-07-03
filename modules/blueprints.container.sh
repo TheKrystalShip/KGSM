@@ -55,7 +55,7 @@ if [[ -z "$KGSM_ROOT" ]]; then
 fi
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
   [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
@@ -199,6 +199,9 @@ function _print_container_blueprint() {
 
 function __find_container_blueprint() {
   local blueprint="$1"
+
+  # If the blueprint has a .docker-compose.yml extension, remove it
+  [[ "$blueprint" == *.docker-compose.yml ]] && blueprint="${blueprint%.docker-compose.yml}"
 
   # First check custom blueprints
   local bp_path="$BLUEPRINTS_CUSTOM_CONTAINER_SOURCE_DIR/$blueprint.docker-compose.yml"

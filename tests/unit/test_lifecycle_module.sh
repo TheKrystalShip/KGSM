@@ -174,6 +174,8 @@ function main() {
   test_lifecycle_standalone_support
   test_module_status_reporting
 
+  log_test "Lifecycle module tests completed successfully"
+
   # Print summary and determine exit code
   if print_assert_summary "$TEST_NAME"; then
     pass_test "All lifecycle module tests completed successfully"

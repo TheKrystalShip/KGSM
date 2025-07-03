@@ -25,6 +25,19 @@ EC_MALFORMED_INSTANCE=20
 EC_MISSING_DEPENDENCY=21
 EC_FAILED_LN=22
 EC_FAILED_UPDATE_CONFIG=23
+EC_KEY_NOT_FOUND=24
+EC_NOT_FOUND=25
+EC_FAILED_VERSION_SAVE=26
+EC_BLUEPRINT_NOT_FOUND=27
+EC_INVALID_BLUEPRINT=28
+EC_INVALID_INSTANCE=29
+EC_FAILED_MV=30
+EC_ERROR=31
+EC_FAILED_TOUCH=32
+EC_FAILURE=33
+EC_MISSING_ARGS=34
+EC_SKIP=35
+EC_SUCCESS=36
 
 declare -A EXIT_CODES=(
   [$EC_OKAY]="No error"
@@ -51,6 +64,19 @@ declare -A EXIT_CODES=(
   [$EC_MISSING_DEPENDENCY]="Missing required dependency"
   [$EC_FAILED_LN]="Failed to create symlink"
   [$EC_FAILED_UPDATE_CONFIG]="Failed to update config file"
+  [$EC_KEY_NOT_FOUND]="Configuration key not found"
+  [$EC_NOT_FOUND]="Item not found"
+  [$EC_FAILED_VERSION_SAVE]="Failed to save version"
+  [$EC_BLUEPRINT_NOT_FOUND]="Blueprint not found"
+  [$EC_INVALID_BLUEPRINT]="Invalid blueprint"
+  [$EC_INVALID_INSTANCE]="Invalid instance"
+  [$EC_FAILED_MV]="Failed to move file"
+  [$EC_ERROR]="Error occurred"
+  [$EC_FAILED_TOUCH]="Failed to create file"
+  [$EC_FAILURE]="Operation failed"
+  [$EC_MISSING_ARGS]="Missing arguments"
+  [$EC_SKIP]="Operation skipped"
+  [$EC_SUCCESS]="Operation successful"
 )
 
 function __print_error_code() {

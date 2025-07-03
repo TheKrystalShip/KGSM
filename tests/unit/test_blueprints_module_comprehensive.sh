@@ -12,12 +12,12 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../framework/common.sh"
 
+# =============================================================================
+# TEST CONFIGURATION & CONSTANTS
+# =============================================================================
+
 readonly TEST_NAME="blueprints_module_comprehensive"
 readonly BLUEPRINTS_MODULE="$KGSM_ROOT/modules/blueprints.sh"
-
-# Test counters for comprehensive coverage tracking
-declare -i TOTAL_ASSERTIONS=0
-declare -i PASSED_ASSERTIONS=0
 
 # =============================================================================
 # TEST UTILITY FUNCTIONS
@@ -34,6 +34,19 @@ function setup_test() {
   # Verify blueprints directory structure exists
   assert_dir_exists "$KGSM_ROOT/blueprints" "blueprints directory should exist"
   assert_dir_exists "$KGSM_ROOT/blueprints/default" "default blueprints directory should exist"
+  assert_dir_exists "$KGSM_ROOT/blueprints/default/native" "native blueprints directory should exist"
+  assert_dir_exists "$KGSM_ROOT/blueprints/default/container" "container blueprints directory should exist"
+
+  # Verify custom blueprints directory structure exists
+  assert_dir_exists "$KGSM_ROOT/blueprints/custom" "custom blueprints directory should exist"
+  assert_dir_exists "$KGSM_ROOT/blueprints/custom/native" "native blueprints directory should exist"
+  assert_dir_exists "$KGSM_ROOT/blueprints/custom/container" "container blueprints directory should exist"
+
+  # Verify default blueprints are present
+  assert_file_exists "$KGSM_ROOT/blueprints/default/native/factorio.bp" "factorio.bp should exist"
+  assert_file_exists "$KGSM_ROOT/blueprints/default/native/minecraft.bp" "minecraft.bp should exist"
+  assert_file_exists "$KGSM_ROOT/blueprints/default/container/abioticfactor.docker-compose.yml" "abioticfactor.docker-compose.yml should exist"
+  assert_file_exists "$KGSM_ROOT/blueprints/default/container/vrising.docker-compose.yml" "vrising.docker-compose.yml should exist"
 
   log_test "Test environment validated successfully"
 }
@@ -48,7 +61,7 @@ function create_test_blueprint() {
 
   if [[ "$blueprint_type" == "native" ]]; then
     local blueprint_file="$blueprint_dir/${blueprint_name}.bp"
-    cat > "$blueprint_file" << 'EOF'
+    cat >"$blueprint_file" <<'EOF'
 # Test Blueprint
 name="Test Blueprint"
 executable_file="test_server"
@@ -58,7 +71,7 @@ executable_subdirectory=""
 EOF
   else
     local blueprint_file="$blueprint_dir/${blueprint_name}.docker-compose.yml"
-    cat > "$blueprint_file" << 'EOF'
+    cat >"$blueprint_file" <<'EOF'
 version: '3.8'
 services:
   gameserver:
@@ -141,7 +154,7 @@ function test_basic_listing() {
   list_output=$("$BLUEPRINTS_MODULE" --list 2>&1)
 
   # Should have some output (at least default blueprints)
-  assert_not_empty "$list_output" "Blueprint list should not be empty"
+  assert_not_null "$list_output" "Blueprint list should not be empty"
 
   log_test "Basic listing functionality validated"
 }
@@ -227,20 +240,36 @@ function test_blueprint_info_functionality() {
     test_blueprint=$(find "$KGSM_ROOT/blueprints" -name "*.bp" -type f | head -1 | xargs basename)
   fi
 
-  if [[ -n "$test_blueprint" ]]; then
-    # Test --info with valid blueprint
-    assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint'" "blueprints.sh --info should work with valid blueprint"
+  # It should find a blueprint
+  assert_not_null "$test_blueprint" "Test blueprint should not be null"
 
-    # Test --info --json with valid blueprint
-    assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint' --json" "blueprints.sh --info --json should work with valid blueprint"
+  # Test --info with valid blueprint
+  assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint'" "blueprints.sh --info should work with valid blueprint"
+  output=$("$BLUEPRINTS_MODULE" --info "$test_blueprint" 2>&1)
+  exit_code=$?
+  assert_equals "$exit_code" "0" "Blueprint info should exit with code 0"
+  assert_not_null "$output" "Blueprint info should not be empty"
 
-    # Info output should contain blueprint content
-    local info_output
-    info_output=$("$BLUEPRINTS_MODULE" --info "$test_blueprint" 2>&1)
-    assert_not_empty "$info_output" "Blueprint info should not be empty"
-  else
-    log_test "No valid blueprints found for info testing - this is expected in minimal test environments"
-  fi
+  # Test --info --json with valid blueprint
+  assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint' --json" "blueprints.sh --info --json should work with valid blueprint"
+  output=$("$BLUEPRINTS_MODULE" --info "$test_blueprint" --json 2>&1)
+  exit_code=$?
+  assert_equals "$exit_code" "0" "Blueprint info should exit with code 0"
+  assert_not_null "$output" "Blueprint info should not be empty"
+
+  # Test --info --detailed with valid blueprint
+  assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint' --detailed" "blueprints.sh --info --detailed should work with valid blueprint"
+  output=$("$BLUEPRINTS_MODULE" --info "$test_blueprint" --detailed 2>&1)
+  exit_code=$?
+  assert_equals "$exit_code" "0" "Blueprint info should exit with code 0"
+  assert_not_null "$output" "Blueprint info should not be empty"
+
+  # Test --info --json --detailed with valid blueprint
+  assert_command_succeeds "$BLUEPRINTS_MODULE --info '$test_blueprint' --json --detailed" "blueprints.sh --info --json --detailed should work with valid blueprint"
+  output=$("$BLUEPRINTS_MODULE" --info "$test_blueprint" --json --detailed 2>&1)
+  exit_code=$?
+  assert_equals "$exit_code" "0" "Blueprint info should exit with code 0"
+  assert_not_null "$output" "Blueprint info should not be empty"
 
   log_test "Blueprint info functionality validated"
 }
@@ -320,7 +349,7 @@ function test_validation_with_corrupted_blueprints() {
   corrupted_bp=$(create_test_blueprint "corrupted_test" "native")
 
   # Corrupt the blueprint by making it empty
-  echo "" > "$corrupted_bp"
+  echo "" >"$corrupted_bp"
 
   # Test --info with corrupted blueprint - should fail predictably
   assert_command_fails "$BLUEPRINTS_MODULE --info 'corrupted_test.bp'" "blueprints.sh --info should fail with corrupted blueprint"
@@ -342,7 +371,7 @@ function test_validation_with_malformed_blueprints() {
   malformed_bp=$(create_test_blueprint "malformed_test" "native")
 
   # Make the blueprint malformed (missing required fields)
-  cat > "$malformed_bp" << 'EOF'
+  cat >"$malformed_bp" <<'EOF'
 # Malformed blueprint - missing required fields
 description="This blueprint is missing required fields"
 EOF
@@ -514,7 +543,6 @@ function test_edge_cases() {
 
 function main() {
   log_test "Starting comprehensive blueprints module tests"
-  log_test "This test validates that behavioral uncertainty has been removed through proper validation"
 
   # Initialize test environment
   setup_test
@@ -557,22 +585,13 @@ function main() {
   # Edge cases
   test_edge_cases
 
-  # Print comprehensive summary
-  log_test "=== COMPREHENSIVE TEST SUMMARY ==="
-  log_test "Total test functions executed: 18"
-  log_test "Behavioral uncertainty removal: VALIDATED"
-  log_test "Validation framework integration: CONFIRMED"
-  log_test "Error handling consistency: VERIFIED"
-  log_test "Command coverage: COMPLETE"
+  log_test "Comprehensive blueprints module tests completed successfully"
 
   # Print final results and determine exit code
   if print_assert_summary "$TEST_NAME"; then
     pass_test "All comprehensive blueprints module tests completed successfully"
-    log_test "✅ BEHAVIORAL UNCERTAINTY SUCCESSFULLY REMOVED"
-    log_test "✅ BLUEPRINTS MODULE NOW HAS PREDICTABLE, WELL-DEFINED BEHAVIOR"
   else
     fail_test "Some comprehensive blueprints module tests failed"
-    log_test "❌ BEHAVIORAL UNCERTAINTY MAY STILL EXIST"
   fi
 }
 

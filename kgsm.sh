@@ -24,7 +24,7 @@ KGSM_ROOT="$(dirname "$(readlink -f "$0")")"
 export KGSM_ROOT
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
   if [[ -z "$module_common" ]]; then
     echo "${0##*/} ERROR: Could not find module common.sh" >&2
     echo "${0##*/} ERROR: Install compromised, please reinstall KGSM" >&2
@@ -87,7 +87,19 @@ ${BOLD}${UNDERLINE}General Options:${END}
     [--force]                 Skip version verification and force download of latest version
   --migrate                   Migrate existing game server instances to the latest KGSM version
   --ip                        Display this server's external IP address
-  --config                    Modify the KGSM configuration file
+
+${BOLD}${UNDERLINE}Configuration Management:${END}
+  --config                    Manage KGSM configuration settings
+    --set KEY=VALUE           Set a configuration value
+                              Example: --config --set enable_logging=true
+                              Example: --config --set instance_suffix_length=3
+    --get KEY                 Get a configuration value
+                              Example: --config --get enable_systemd
+    --list                    List all configuration values
+    --list --json             Output configuration in JSON format
+    --reset                   Reset configuration to defaults
+    --validate                Validate current configuration
+    [no subcommand]           Open configuration in editor (default behavior)
 
 ${BOLD}${UNDERLINE}Blueprint Management:${END}
     [-h, --help]              Display help information for the blueprint creation process
@@ -114,9 +126,15 @@ ${BOLD}${UNDERLINE}Instance Management:${END}
   --instances                 List all installed game server instances
   --instances <blueprint>     List instances of a specific blueprint/game type
   --instances --detailed      Show detailed information about all instances
+  --instances --status        Show runtime status for all instances
   --instances --json          Output instance list in JSON format
   --instances --json --detailed
                               Output detailed instance information in JSON format
+  --instances --json --status
+                              Output runtime status for all instances in JSON format
+  --instances --regenerate    Regenerate files for all instances
+    --management-script       Regenerate only the management scripts
+    --all                     Regenerate all instance files (management, systemd, ufw, etc.)
 
   -i, --instance <name> COMMAND   Interact with a specific instance:
 
@@ -191,6 +209,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 module_blueprints=$(__find_module blueprints.sh)
+module_config=$(__find_module config.sh)
 module_directories=$(__find_module directories.sh)
 module_files=$(__find_module files.sh)
 module_instances=$(__find_module instances.sh)
@@ -394,12 +413,33 @@ function process_instances() {
   fi
 
   local detailed=
+  local status=
   local blueprint=
 
   # Parse optional flags and blueprint
   while [[ $# -ne 0 ]]; do
     case "$1" in
     --detailed) detailed=1 ;;
+    --status) status=1 ;;
+    --regenerate)
+      shift
+      # Handle regenerate subcommands
+      case "$1" in
+      --management-script)
+        "$module_instances" --regenerate --management-script $debug
+        exit $?
+        ;;
+      --all)
+        "$module_instances" --regenerate --all $debug
+        exit $?
+        ;;
+      *)
+        __print_error "Invalid regenerate option: $1"
+        __print_error "Valid options: --management-script, --all"
+        exit $EC_INVALID_ARG
+        ;;
+      esac
+      ;;
     --list) ;; # Allowed but no action needed
     *)
       blueprint=$1
@@ -409,7 +449,7 @@ function process_instances() {
     shift
   done
 
-  "$module_instances" --list ${detailed:+--detailed} ${json_format:+--json} $blueprint $debug
+  "$module_instances" --list ${detailed:+--detailed} ${status:+--status} ${json_format:+--json} $blueprint $debug
   exit $?
 }
 
@@ -591,11 +631,8 @@ while [[ "$#" -gt 0 ]]; do
     exit $?
     ;;
   --config)
-    ${EDITOR:-vim} "$CONFIG_FILE" || {
-      __print_error "Failed to open $CONFIG_FILE with ${EDITOR:-vim}"
-      exit $EC_GENERAL
-    }
-    exit 0
+    "$module_config" "$@"
+    exit $?
     ;;
   --update)
     update_script "$@"

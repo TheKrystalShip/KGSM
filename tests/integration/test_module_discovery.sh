@@ -54,12 +54,12 @@ function test_core_modules_existence() {
 function test_include_modules_existence() {
   log_step "Testing include module existence"
 
-  assert_dir_exists "$KGSM_ROOT/modules/include" "modules/include directory should exist"
+  assert_dir_exists "$KGSM_ROOT/lib" "$KGSM_ROOT/lib directory should exist"
 
   local include_modules=("common.sh" "config.sh" "errors.sh" "logging.sh")
 
   for module in "${include_modules[@]}"; do
-    local module_path="$KGSM_ROOT/modules/include/$module"
+    local module_path="$KGSM_ROOT/lib/$module"
     assert_file_exists "$module_path" "Include module should exist: $module"
   done
 }
@@ -89,10 +89,10 @@ function test_module_dependencies() {
   log_step "Testing module dependencies"
 
   # Test that common dependencies are available
-  assert_file_exists "$KGSM_ROOT/modules/include/common.sh" "Common module should be available for dependencies"
-  assert_file_exists "$KGSM_ROOT/modules/include/config.sh" "Config module should be available for dependencies"
-  assert_file_exists "$KGSM_ROOT/modules/include/logging.sh" "Logging module should be available for dependencies"
-  assert_file_exists "$KGSM_ROOT/modules/include/errors.sh" "Errors module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/lib/common.sh" "Common module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/lib/config.sh" "Config module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/lib/logging.sh" "Logging module should be available for dependencies"
+  assert_file_exists "$KGSM_ROOT/lib/errors.sh" "Errors module should be available for dependencies"
 }
 
 # =============================================================================

@@ -65,10 +65,16 @@ function setup_test_environment() {
   export KGSM_CONFIG_FILE="$KGSM_ROOT/config.ini"
   export KGSM_INSTANCES_DIR="$KGSM_ROOT/instances"
   export KGSM_LOGS_DIR="$KGSM_ROOT/logs"
+  export KGSM_VERSION_FILE="$KGSM_ROOT/.kgsm.version"
 
   # Ensure test directories exist
   mkdir -p "$KGSM_INSTANCES_DIR"
   mkdir -p "$KGSM_LOGS_DIR"
+
+  # Ensure the version file exists
+  if [[ ! -f "$KGSM_VERSION_FILE" ]]; then
+    echo "1.0.0" >"$KGSM_VERSION_FILE"
+  fi
 
   log_test "Test environment initialized"
   log_test "KGSM_ROOT: $KGSM_ROOT"
@@ -202,6 +208,16 @@ function create_test_instance() {
   local instance_name
   if instance_name=$("$KGSM_ROOT/modules/instances.sh" --create "$blueprint" --install-dir "$install_dir" --name "$test_id"); then
     log_test "Instance created successfully: $instance_name"
+
+    # Create the complete directory structure for the instance
+    # This follows the same pattern as the main kgsm.sh script
+    log_test "Creating directory structure for instance: $instance_name"
+    if "$KGSM_ROOT/modules/directories.sh" --instance "$instance_name" --create >/dev/null 2>&1; then
+      log_test "Directory structure created successfully for: $instance_name"
+    else
+      log_test "Warning: Failed to create directory structure for: $instance_name (may be expected in test environment)"
+    fi
+
     echo "$instance_name"
     return $EC_SUCCESS
   else
@@ -216,6 +232,11 @@ function remove_test_instance() {
 
   log_step "Removing test instance: $instance_name"
 
+  # First remove the directory structure (if it exists)
+  log_test "Removing directory structure for instance: $instance_name"
+  "$KGSM_ROOT/modules/directories.sh" --instance "$instance_name" --remove >/dev/null 2>&1 || true
+
+  # Then remove the instance configuration
   if "$KGSM_ROOT/modules/instances.sh" --remove "$instance_name" >/dev/null 2>&1; then
     log_test "Instance removed successfully: $instance_name"
     return $EC_SUCCESS

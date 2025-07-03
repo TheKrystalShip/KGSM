@@ -561,6 +561,21 @@ function assert_command_output() {
   fi
 }
 
+# Assert that a function exists in the current shell
+function assert_function_exists() {
+  local function_name="$1"
+  local message="${2:-Function should exist}"
+  local caller_info="$(get_caller_info)"
+
+  if declare -F "$function_name" >/dev/null 2>&1; then
+    print_assert_result "PASS" "$message: $function_name exists" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: $function_name does not exist" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
 # =============================================================================
 # TEST STATISTICS AND REPORTING
 # =============================================================================
@@ -655,6 +670,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   export -f assert_numeric_equals assert_greater_than assert_less_than
   export -f assert_file_exists assert_file_not_exists assert_dir_exists assert_dir_not_exists
   export -f assert_file_executable assert_file_contains assert_command_succeeds assert_command_fails assert_command_output
+  export -f assert_function_exists
   export -f get_assert_stats reset_assert_stats print_assert_summary skip_test
   export -f assert_kgsm_succeeds assert_kgsm_fails assert_instance_exists assert_instance_not_exists
 fi

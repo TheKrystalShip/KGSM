@@ -566,7 +566,6 @@ function test_module_integration_with_kgsm() {
 
 function main() {
   log_test "Starting comprehensive directories module tests"
-  log_test "This test validates complete functionality and behavioral consistency"
 
   # Initialize test environment
   setup_test
@@ -604,22 +603,13 @@ function main() {
   test_all_command_combinations
   test_module_integration_with_kgsm
 
-  # Print comprehensive summary using framework function
-  log_test "=== COMPREHENSIVE TEST SUMMARY ==="
-  log_test "Total test functions executed: 16"
-  log_test "Directory structure management: VALIDATED"
-  log_test "Configuration integration: CONFIRMED"
-  log_test "Error handling consistency: VERIFIED"
-  log_test "Command coverage: COMPLETE"
+  log_test "Comprehensive directories module tests completed successfully"
 
   # Print final results and determine exit code using framework
   if print_assert_summary "$TEST_NAME"; then
     pass_test "All comprehensive directories module tests completed successfully"
-    log_test "✅ BEHAVIORAL UNCERTAINTY SUCCESSFULLY REMOVED"
-    log_test "✅ DIRECTORIES MODULE NOW HAS PREDICTABLE, WELL-DEFINED BEHAVIOR"
   else
     fail_test "Some comprehensive directories module tests failed"
-    log_test "❌ BEHAVIORAL UNCERTAINTY MAY STILL EXIST"
   fi
 }
 

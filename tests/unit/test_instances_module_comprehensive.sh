@@ -468,27 +468,45 @@ function main() {
   # Initialize test environment
   setup_test
 
-  # Execute all test functions in logical order
+  # Basic functionality tests
   test_module_existence_and_permissions
   test_help_functionality
   test_no_arguments_behavior
   test_invalid_arguments
+
+  # List functionality tests
   test_list_functionality_empty
   test_generate_id_functionality
   test_find_nonexistent_instance
   test_info_nonexistent_instance
   test_status_nonexistent_instance
   test_remove_nonexistent_instance
+
+  # Instance creation tests
   test_instance_creation_workflow
   test_instance_creation_with_custom_name
   test_instance_creation_missing_arguments
+
+  # List functionality tests
   test_list_with_blueprint_filter
+
+  # JSON output format tests
   test_json_output_format
+
+  # Debug flag tests
   test_debug_flag
+
+  # Input and save commands tests
   test_input_and_save_commands
+
+  # Edge cases tests
   test_edge_cases
+
+  # Multiple instances tests
   test_multiple_instances
   test_cleanup_instances
+
+  log_test "Comprehensive instances module tests completed successfully"
 
   # Print summary and determine exit code
   if print_assert_summary "$TEST_NAME"; then

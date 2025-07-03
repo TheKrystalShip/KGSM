@@ -60,7 +60,7 @@ if [[ -z "$KGSM_ROOT" ]]; then
 fi
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
   [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
@@ -73,6 +73,9 @@ if [[ "$#" -eq 0 ]]; then
   usage
   exit $EC_MISSING_ARG
 fi
+
+module_native="$(__find_module blueprints.native.sh)"
+module_container="$(__find_module blueprints.container.sh)"
 
 function _combine_blueprint_results() {
   local native_results
@@ -236,11 +239,11 @@ function _list_detailed_blueprints() {
   # For detailed listings, we need to handle JSON format separately
   if [[ -n "$json_format" ]]; then
     local native_json
-    native_json=$("$(__find_module blueprints.native.sh)" --list --detailed --json 2>/dev/null)
+    native_json=$("$module_native" --list --detailed --json 2>/dev/null)
     local native_exit=$?
 
     local container_json
-    container_json=$("$(__find_module blueprints.container.sh)" --list --detailed --json 2>/dev/null)
+    container_json=$("$module_container" --list --detailed --json 2>/dev/null)
     local container_exit=$?
 
     # Combine the JSON results (this assumes the outputs are valid JSON objects)

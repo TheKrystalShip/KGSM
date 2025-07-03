@@ -34,8 +34,8 @@ export TEMPLATES_SOURCE_DIR=$KGSM_ROOT/templates
 # All other scripts (*.sh) are stored here
 export MODULES_SOURCE_DIR=$KGSM_ROOT/modules
 
-# "Library" scripts are stored here
-export MODULES_INCLUDE_SOURCE_DIR=$MODULES_SOURCE_DIR/include
+# Library scripts (*.sh) are stored here
+export LIBRARY_SOURCE_DIR=$KGSM_ROOT/lib
 
 # Directory where instances and their config is stored
 export INSTANCES_SOURCE_DIR=$KGSM_ROOT/instances
@@ -184,6 +184,14 @@ function __find_module() {
 
 export -f __find_module
 
+function __find_library() {
+  local library=$1
+  [[ "$library" != *.sh ]] && library="${library}.sh"
+  __find_or_fail "$library" "$LIBRARY_SOURCE_DIR"
+}
+
+export -f __find_library
+
 function __find_instance_config() {
   local instance=$1
   [[ "$instance" != *.ini ]] && instance="${instance}.ini"
@@ -238,7 +246,9 @@ function __find_override() {
 
   instance_overrides_file="${blueprint_name}.overrides.sh"
 
-  __find_or_fail "$instance_overrides_file" "$OVERRIDES_SOURCE_DIR"
+  # Instead of using __find_or_fail which exits on missing files,
+  # construct the expected path and let the caller handle missing files
+  echo "${OVERRIDES_SOURCE_DIR}/${instance_overrides_file}"
 }
 
 export -f __find_override
@@ -272,7 +282,7 @@ function __source_blueprint() {
   fi
 
   # Prefix all the variables in the blueprint file with the specified prefix
-  while IFS='=' read -r key value; do
+  while IFS='=' read -r key value || [ -n "$key" ]; do
     # Skip comments and empty lines
     [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
     key="${key// /}" # Remove spaces

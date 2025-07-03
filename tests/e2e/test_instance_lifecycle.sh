@@ -16,8 +16,8 @@ readonly INSTANCES_MODULE="$KGSM_ROOT/modules/instances.sh"
 
 # Test variables
 TEST_INSTALL_DIR="$KGSM_ROOT/test_instances"
-TEST_BLUEPRINT=""
-TEST_INSTANCE_NAME=""
+TEST_BLUEPRINT="factorio"
+TEST_INSTANCE_NAME="factorio-test"
 
 # =============================================================================
 # TEST FUNCTIONS
@@ -100,7 +100,7 @@ function test_create_instance() {
     assert_equals "$TEST_INSTANCE_NAME" "$created_instance" "Created instance name should match requested name"
     log_test "Instance created successfully: $created_instance"
   else
-    assert_true "false" "Instance creation should succeed"
+    assert_true "false" "Instance creation should succeed, got $created_instance"
   fi
 }
 

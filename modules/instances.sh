@@ -26,9 +26,13 @@ ${UNDERLINE}Listing & Information:${END}
                                   Optionally filter by blueprint name
   --list --detailed [blueprint]   Show detailed information about instances
                                   Includes configuration and status details
+  --list --status [blueprint]     Show runtime status for all instances
+                                  Displays comprehensive status information for each instance
   --list --json [blueprint]       Output instance list in JSON format
   --list --json --detailed        Output detailed instance information in JSON format
       [blueprint]                 Suitable for programmatic consumption
+  --list --json --status          Output runtime status for all instances in JSON format
+      [blueprint]                 Perfect for monitoring dashboards and automation
 
 ${UNDERLINE}Instance Monitoring:${END}
   --status <instance>             Display comprehensive runtime status for monitoring and troubleshooting
@@ -69,6 +73,14 @@ ${UNDERLINE}Configuration Access (Programmatic):${END}
   --info <instance> --json        Output instance configuration as structured JSON data
                                   Parses all configuration keys/values into JSON format
                                   Ideal for automation, scripting, and programmatic access
+
+${UNDERLINE}Bulk Operations:${END}
+  --regenerate --management-script Regenerate management scripts for all instances
+                                  Updates all instance.manage.sh files to latest template version
+                                  Useful after KGSM updates or template improvements
+  --regenerate --all              Regenerate all files for all instances
+                                  Regenerates management scripts, systemd files, UFW rules, etc.
+                                  Complete refresh of all instance-related files
 
 Examples:
   $(basename "$0") --create factorio.bp --name factorio-01 --install-dir /opt
@@ -123,7 +135,7 @@ if [ -z "$KGSM_ROOT" ]; then
 fi
 
 if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/modules" -type f -name common.sh -print -quit)"
+  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
   [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
   # shellcheck disable=SC1090
   source "$module_common" || exit 1
@@ -542,6 +554,61 @@ function _list_instances_json() {
   fi
 }
 
+function _list_instances_status() {
+  local blueprint=${1:-}
+
+  shopt -s extglob nullglob
+
+  local -a instances=()
+  if [[ -z "$blueprint" ]]; then
+    instances=("$INSTANCES_SOURCE_DIR"/**/*.ini)
+  else
+    # shellcheck disable=SC2034
+    instances=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
+  fi
+
+  # Remove trailing directories from path, leave only filename
+  for i in "${!instances[@]}"; do
+    local filename
+    filename="$(basename "${instances[$i]}")"
+    local instance_name="${filename%.ini}"
+
+    echo "=== Instance: $instance_name ==="
+    _get_instance_status "$instance_name"
+    echo ""
+  done
+}
+
+function _list_instances_status_json() {
+  local blueprint=${1:-}
+
+  shopt -s extglob nullglob
+
+  local -a instances=()
+  if [[ -z "$blueprint" ]]; then
+    instances=("$INSTANCES_SOURCE_DIR"/**/*.ini)
+  else
+    # shellcheck disable=SC2034
+    instances=("$INSTANCES_SOURCE_DIR/$blueprint"/*.ini)
+  fi
+
+  filenames=("${instances[@]##*/}")  # Remove paths
+  filenames=("${filenames[@]%.ini}") # Remove extensions
+
+  # Build a JSON object with instance status information
+  jq -n --argjson instances_list \
+    "$(for instance in "${filenames[@]}"; do
+      # Get the status of an instance as JSON
+      local status_content
+      status_content=$(_get_instance_status_json "${instance##*/}")
+      # Skip instances with invalid status content
+      if [[ $? -ne 0 || -z "$status_content" ]]; then
+        continue
+      fi
+      jq -n --arg key "${instance##*/}" --argjson value "$status_content" '{"key": $key, "value": $value}'
+    done | jq -s 'from_entries')" '$instances_list'
+}
+
 # Function to check if management file supports --status command
 function _check_management_file_status_support() {
   local management_file="$1"
@@ -634,6 +701,82 @@ function _send_input_to_instance() {
   "$instance_management_file" --input "$command" $debug
 }
 
+function _regenerate_files() {
+  local operation="$1"  # "management-script" or "all"
+
+  local operation_name
+  local files_args
+
+  case "$operation" in
+    "management-script")
+      operation_name="management scripts"
+      files_args="--create --manage"
+      ;;
+    "all")
+      operation_name="all files"
+      files_args="--create"
+      ;;
+    *)
+      __print_error "Invalid regenerate operation: $operation"
+      return $EC_INVALID_ARG
+      ;;
+  esac
+
+  __print_info "Regenerating $operation_name for all instances..."
+
+  local files_module
+  files_module="$(__find_module files.sh)"
+
+  local instance_count=0
+  local success_count=0
+  local error_count=0
+
+  # Get list of all instances using existing function
+  local instances
+  instances=$(_list_instances)
+
+  if [[ -z "$instances" ]]; then
+    __print_info "No instances found to regenerate"
+    return 0
+  fi
+
+  # Process each instance
+  while IFS= read -r instance_name; do
+    [[ -z "$instance_name" ]] && continue
+
+    __print_info "Regenerating $operation_name for instance: $instance_name"
+
+    # Call files.sh module with appropriate arguments
+    # Capture both stdout and stderr to check for actual success/failure
+    local files_output
+    files_output=$("$files_module" --instance "$instance_name" $files_args $debug 2>&1)
+    local files_exit_code=$?
+
+    # Check if the command succeeded and didn't produce error messages
+    if [[ $files_exit_code -eq 0 ]] && ! echo "$files_output" | grep -q "ERROR\|Failed to"; then
+      __print_success "Successfully regenerated $operation_name for: $instance_name"
+      ((success_count++))
+    else
+      __print_error "Failed to regenerate $operation_name for: $instance_name"
+      # Log the actual error for debugging
+      if [[ -n "$files_output" ]]; then
+        __print_error "Error details: $files_output"
+      fi
+      ((error_count++))
+    fi
+
+    ((instance_count++))
+  done <<< "$instances"
+
+  __print_info "Regeneration complete: $success_count successful, $error_count failed, $instance_count total"
+
+  if [[ $error_count -gt 0 ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
 # shellcheck disable=SC2199
 if [[ $@ =~ "--json" ]]; then
   json_format=1
@@ -667,18 +810,33 @@ while [[ $# -gt 0 ]]; do
       --detailed)
         detailed=1
         ;;
+      --status)
+        status=1
+        ;;
       *)
         blueprint=$1
         ;;
       esac
       shift
     done
-    if [[ -z "$json_format" ]]; then
-      _list_instances "$blueprint" "$detailed"
-      exit $?
+    if [[ -n "$status" ]]; then
+      # Status listing
+      if [[ -z "$json_format" ]]; then
+        _list_instances_status "$blueprint"
+        exit $?
+      else
+        _list_instances_status_json "$blueprint"
+        exit $?
+      fi
     else
-      _list_instances_json "$blueprint" "$detailed"
-      exit $?
+      # Regular listing (existing functionality)
+      if [[ -z "$json_format" ]]; then
+        _list_instances "$blueprint" "$detailed"
+        exit $?
+      else
+        _list_instances_json "$blueprint" "$detailed"
+        exit $?
+      fi
     fi
     ;;
   --generate-id)
@@ -780,6 +938,37 @@ while [[ $# -gt 0 ]]; do
       _print_info_json "$instance"
     fi
     exit $?
+    ;;
+  --regenerate)
+    shift
+    [[ -z "$1" ]] && __print_error "Missing regenerate option (--management-script or --all)" && exit $EC_MISSING_ARG
+
+    # Validate that only one regenerate option is provided
+    regenerate_option="$1"
+    shift
+
+    # Check for additional regenerate options (conflicting)
+    if [[ -n "$1" ]] && [[ "$1" == "--management-script" || "$1" == "--all" ]]; then
+      __print_error "Multiple regenerate options provided: $regenerate_option and $1"
+      __print_error "Only one regenerate option allowed: --management-script or --all"
+      exit $EC_INVALID_ARG
+    fi
+
+    case "$regenerate_option" in
+    --management-script)
+      _regenerate_files "management-script"
+      exit $?
+      ;;
+    --all)
+      _regenerate_files "all"
+      exit $?
+      ;;
+    *)
+      __print_error "Invalid regenerate option: $regenerate_option"
+      __print_error "Valid options: --management-script, --all"
+      exit $EC_INVALID_ARG
+      ;;
+    esac
     ;;
   *)
     __print_error "Invalid argument $1" && exit $EC_INVALID_ARG

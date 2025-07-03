@@ -161,6 +161,8 @@ function main() {
   test_module_output_format
   test_module_status_functionality
 
+  log_test "Instances module tests completed successfully"
+
   # Print summary and determine exit code
   if print_assert_summary "$TEST_NAME"; then
     pass_test "All instances module tests completed successfully"

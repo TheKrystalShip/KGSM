@@ -34,43 +34,64 @@ fi
 # System
 if [[ -z "$KGSM_SYSTEM_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module system.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library system.sh)" || {
+    echo -e "ERROR: Failed to load system.sh library"
+    exit 1
+  }
 fi
 
 # Error codes and definitions
 if [[ ! "$KGSM_ERRORS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module errors.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library errors.sh)" || {
+    echo -e "ERROR: Failed to load errors.sh library"
+    exit 1
+  }
 fi
 
 # User config.ini
 if [[ ! "$KGSM_CONFIG_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module config.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library config.sh)" || {
+    echo -e "ERROR: Failed to load config.sh library"
+    exit $EC_FAILED_SOURCE
+  }
 fi
 
 # File logging
 if [[ ! "$KGSM_LOGGING_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module logging.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library logging.sh)" || {
+    echo -e "ERROR: Failed to load logging.sh library"
+    exit $EC_FAILED_SOURCE
+  }
 fi
 
 # KGSM Socket events
 if [[ ! "$KGSM_EVENTS_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module events.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library events.sh)" || {
+    echo -e "ERROR: Failed to load events.sh library"
+    exit $EC_FAILED_SOURCE
+  }
 fi
 
 # Parser
 if [[ -z "$KGSM_PARSER_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module parser.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library parser.sh)" || {
+    echo -e "ERROR: Failed to load parser.sh library"
+    exit $EC_FAILED_SOURCE
+  }
 fi
 
 # Validation
 if [[ -z "$KGSM_VALIDATION_LOADED" ]]; then
   # shellcheck disable=SC1090
-  source "$(__find_module validation.sh)" || exit $EC_FAILED_SOURCE
+  source "$(__find_library validation.sh)" || {
+    echo -e "ERROR: Failed to load validation.sh library"
+    exit $EC_FAILED_SOURCE
+  }
 fi
 
 # Export this to check before loading this file again

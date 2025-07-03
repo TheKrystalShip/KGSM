@@ -541,7 +541,7 @@ function _send_save_command() {
     if [[ -n "${instance_save_command}" ]]; then
       echo "${instance_save_command}" >>"${instance_socket_file}"
       # Sleep to give the server time to process the save command
-      sleep "${config_save_command_timeout_seconds:-5}"
+      sleep "${instance_save_command_timeout_seconds:-5}"
       return 0
     fi
   else
@@ -610,10 +610,19 @@ function _is_active() {
 function _exit_print_logs() {
   local tail_pid
 
+  # Check if the tail PID file exists before trying to read it
+  # This prevents shell error messages when the file doesn't exist
+  if [[ ! -f "$instance_tail_pid_file" ]]; then
+    # File doesn't exist - this is normal during instance creation and other operations
+    return 0
+  fi
+
   # Atomic read operation: attempt to read tail PID file content directly
   # This eliminates the TOCTOU vulnerability similar to _is_active()
   if ! tail_pid=$(<"$instance_tail_pid_file" 2>/dev/null); then
-    # File doesn't exist, is unreadable, or read failed
+    # File exists but is unreadable or read failed
+    __print_error "Instance tail PID file exists but is unreadable, removing"
+    rm -f "$instance_tail_pid_file"
     return 0
   fi
 
@@ -671,11 +680,48 @@ function _print_logs() {
       __print_error "inotifywait is required to follow logs, please install it"
       return 1
     fi
-    while true; do
-      latest_log_file="$(ls -t "$instance_logs_dir" | head -1)"
 
-      # This is busy waiting, but don't have a better solution atm.
+    # Circuit breaker variables to prevent infinite loops
+    local failure_count=0
+    local max_failures=5
+    local consecutive_empty_count=0
+    local max_empty_count=10
+    local backoff_time=1
+
+    while true; do
+      # Check for maximum failures to prevent infinite loops
+      if [[ $failure_count -ge $max_failures ]]; then
+        __print_error "Maximum failure count reached ($max_failures). Stopping log following to prevent infinite loop."
+        return 1
+      fi
+
+      latest_log_file="$(ls -t "$instance_logs_dir" | head -1 2>/dev/null)"
+
+      # Handle case where no log files exist
       if [[ -z "$latest_log_file" ]]; then
+        consecutive_empty_count=$((consecutive_empty_count + 1))
+        if [[ $consecutive_empty_count -ge $max_empty_count ]]; then
+          __print_error "No log files found after $max_empty_count attempts. Stopping log following."
+          return 1
+        fi
+        __print_warning "No log files found, waiting ${backoff_time}s before retry (attempt $consecutive_empty_count/$max_empty_count)"
+        sleep "$backoff_time"
+        # Exponential backoff with cap
+        backoff_time=$((backoff_time * 2))
+        if [[ $backoff_time -gt 30 ]]; then
+          backoff_time=30
+        fi
+        continue
+      fi
+
+      # Reset counters on successful log file detection
+      consecutive_empty_count=0
+      backoff_time=1
+
+      # Validate that the log file actually exists and is readable
+      if [[ ! -f "$instance_logs_dir/$latest_log_file" ]] || [[ ! -r "$instance_logs_dir/$latest_log_file" ]]; then
+        failure_count=$((failure_count + 1))
+        __print_warning "Log file '$latest_log_file' not accessible, retrying... (failure $failure_count/$max_failures)"
         sleep 2
         continue
       fi
@@ -686,10 +732,27 @@ function _print_logs() {
       tail_pid=$!
 
       # Wait for tail process to finish or the log file to be replaced
-      inotifywait -e create -e moved_to "$instance_logs_dir"
+      if ! inotifywait -e create -e moved_to "$instance_logs_dir" 2>/dev/null; then
+        # inotifywait failed, increment failure counter
+        failure_count=$((failure_count + 1))
+        __print_warning "inotifywait failed, retrying... (failure $failure_count/$max_failures)"
+
+        # Kill the tail process if it's still running
+        if kill -0 "$tail_pid" 2>/dev/null; then
+          kill "$tail_pid" 2>/dev/null
+        fi
+
+        sleep 2
+        continue
+      fi
+
+      # Reset failure counter on successful inotifywait
+      failure_count=0
 
       # New log file detected; kill current tail and loop back to follow the new file
-      kill "$tail_pid"
+      if kill -0 "$tail_pid" 2>/dev/null; then
+        kill "$tail_pid" 2>/dev/null
+      fi
       __print_info "Detected new log file. Switching to the latest log..."
       sleep 1
     done
@@ -831,22 +894,56 @@ function _restore_backup() {
     return 1
   fi
 
-  # Get version number from $source
-  IFS='-' read -ra backup_name <<<"${source#"$instance_backups_dir/"}"
-  backup_version="${backup_name[2]}"
-  unset IFS
+  # Get version number from $source with robust parsing and fallback
+  local backup_filename="${source#"$instance_backups_dir/"}"
+  local backup_version="unknown"
+
+  # Try to parse version from filename format: instance-version-datetime.backup
+  if [[ "$backup_filename" =~ ^[^-]+-([^-]+)-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.backup ]]; then
+    # Extract version from regex match
+    backup_version="${BASH_REMATCH[1]}"
+    __print_info "Parsed version from backup filename: $backup_version"
+  else
+    # Fallback: try the original array-based parsing with bounds checking
+    IFS='-' read -ra backup_name <<<"$backup_filename"
+    if [[ ${#backup_name[@]} -ge 3 ]] && [[ -n "${backup_name[2]}" ]]; then
+      backup_version="${backup_name[2]}"
+      __print_info "Parsed version using array method: $backup_version"
+    else
+      # Final fallback: try to extract any version-like pattern from filename
+      if [[ "$backup_filename" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+        backup_version="${BASH_REMATCH[1]}"
+        __print_info "Extracted version pattern from filename: $backup_version"
+      else
+        __print_warning "Could not parse version from backup filename, using 'unknown'"
+        backup_version="unknown"
+      fi
+    fi
+    unset IFS
+  fi
 
   if [ -n "$(ls -A "$instance_install_dir")" ]; then
     # $instance_install_dir is not empty, create new backup before proceeding
 
     __print_warning "Current installation directory is not empty, creating a backup first..."
 
-    _create_backup || {
-      local create_backup_exit_code=$?
-      __print_error "Failed to restore backup ${source#"$instance_backups_dir/"}"
-      return $create_backup_exit_code
-    }
+    # Create backup and verify it succeeded
+    if ! _create_backup; then
+      __print_error "Failed to create backup before restore. Aborting to prevent data loss."
+      return 1
+    fi
 
+    # Verify backup was actually created and is accessible
+    local latest_backup
+    latest_backup=$(ls -t "$instance_backups_dir" | head -1 2>/dev/null)
+    if [[ -z "$latest_backup" ]] || [[ ! -e "$instance_backups_dir/$latest_backup" ]]; then
+      __print_error "Backup creation appeared to succeed but backup file is not accessible. Aborting to prevent data loss."
+      return 1
+    fi
+
+    __print_info "Backup created successfully: $latest_backup"
+
+    # Now safe to proceed with destructive operations
     if ! rm -rf "${instance_install_dir:?}"/*; then
       __print_error "Failed to clear $instance_install_dir, exiting"
       return 1
@@ -895,10 +992,9 @@ function _get_installed_version() {
 
 function _get_latest_version() {
 
-  username=anonymous
-  auth_level=$instance_is_steam_account_required
-
-  if [[ $auth_level -ne 0 ]]; then
+  # Build login arguments based on authentication requirement
+  local login_args="anonymous"
+  if [[ "$instance_is_steam_account_required" == "true" ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
       __print_error "STEAM_USERNAME is expected but it's not set"
       return 1
@@ -909,13 +1005,14 @@ function _get_latest_version() {
       return 1
     fi
 
-    username="$STEAM_USERNAME $STEAM_PASSWORD"
+    # Authenticated login: pass username and password as separate arguments
+    login_args="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
 
   local latest_version
   latest_version=$(
     steamcmd \
-      +login $username \
+      +login $login_args \
       +app_info_update 1 \
       +app_info_print $instance_steam_app_id \
       +quit |
@@ -970,6 +1067,12 @@ function _download() {
 
   __print_info "Downloading..."
 
+  # Warn users if they specify a version for Steam games
+  if [[ -n "$version" ]] && [[ "$version" != "0" ]] && [[ "$version" != "latest" ]]; then
+    __print_warning "Version parameter '$version' will be ignored for Steam games."
+    __print_warning "Steam only supports downloading the latest version. For non-Steam games like Factorio or Minecraft, version selection may be supported."
+  fi
+
   if [[ -z "$instance_steam_app_id" ]]; then
     __print_error "'instance_steam_app_id' is expected but it's not set"
     return 1
@@ -980,7 +1083,8 @@ function _download() {
     return 1
   fi
 
-  username=anonymous
+  # Build login arguments based on authentication requirement
+  local login_args="anonymous"
   if [[ $instance_is_steam_account_required -ne 0 ]]; then
     if [[ -z "$STEAM_USERNAME" ]]; then
       __print_error "'STEAM_USERNAME' is expected but it's not set"
@@ -992,14 +1096,15 @@ function _download() {
       return 1
     fi
 
-    username="$STEAM_USERNAME $STEAM_PASSWORD"
+    # Authenticated login: pass username and password as separate arguments
+    login_args="$STEAM_USERNAME $STEAM_PASSWORD"
   fi
 
   # shellcheck disable=SC2086
   steamcmd \
     +@sSteamCmdForcePlatformType "${instance_platform:-linux}" \
     +force_install_dir "$dest" \
-    +login $username \
+    +login $login_args \
     +app_update "$app_id" \
     validate \
     +quit
@@ -1125,30 +1230,23 @@ function _get_status() {
   # Ultra-fast sequential operations (minimal overhead)
   if [[ -d "$instance_working_dir" ]]; then
     if [[ -n "$fast_mode" ]]; then
-      # Use stat for fastest possible size check (approximate)
-      local size_bytes
-      size_bytes=$(stat -c%s "$instance_working_dir" 2>/dev/null || echo "0")
-      if [[ "$size_bytes" -gt 0 ]]; then
-        # Rough approximation: assume 1KB per file/directory entry
-        local entries
-        entries=$(find "$instance_working_dir" -type f -o -type d 2>/dev/null | wc -l)
-        local estimated_kb=$((entries * 1024))
-        if [[ "$estimated_kb" -gt 1024 ]]; then
-          disk_usage="$((estimated_kb / 1024))M"
-        else
-          disk_usage="${estimated_kb}K"
-        fi
-      fi
+      # Use du with --max-depth=0 for fastest accurate size check
+      # This avoids recursive traversal and gives actual disk usage
+      disk_usage=$(du -sh --max-depth=0 "$instance_working_dir" 2>/dev/null | cut -f1)
     else
       disk_usage=$(du -sh "$instance_working_dir" 2>/dev/null | cut -f1)
     fi
   fi
 
-  # Fast backup count (just count files, no subprocess)
-  if [[ -d "$instance_backups_dir" ]]; then
-    backup_count=$(ls "$instance_backups_dir" 2>/dev/null | wc -l)
-  else
-    backup_count="0"
+  # Get backup list using existing function
+  local backup_list
+  backup_list=$(_list_backups 2>/dev/null)
+
+  # Convert backup list to JSON array
+  local backup_json_array="[]"
+  if [[ -n "$backup_list" ]]; then
+    # Convert space-separated list to JSON array
+    backup_json_array=$(printf '%s\n' $backup_list | jq -R . | jq -s .)
   fi
 
   # Fast logs (minimal processing)
@@ -1181,7 +1279,7 @@ function _get_status() {
       --arg directory "$instance_working_dir" \
       --arg ports "${instance_ports:-}" \
       --arg disk_usage "$disk_usage" \
-      --arg backup_count "$backup_count" \
+      --argjson backup_list "$backup_json_array" \
       --argjson recent_logs "$recent_logs" \
       '{
         instance_name: $instance_name,
@@ -1206,9 +1304,7 @@ function _get_status() {
         resources: {
           disk_usage: (if $disk_usage != "" then $disk_usage else null end)
         },
-        backups: {
-          count: ($backup_count | tonumber)
-        },
+        backups: $backup_list,
         recent_logs: $recent_logs
       }'
   else
@@ -1254,7 +1350,12 @@ function _get_status() {
       echo "Disk Usage: $disk_usage"
     fi
 
-    echo "Backups: $backup_count available"
+    echo "Backups:"
+    if [[ -n "$backup_list" ]]; then
+      printf '%s\n' $backup_list | sed 's/^/  /'
+    else
+      echo "  No backups available"
+    fi
 
     echo ""
     echo "Recent Activity:"
@@ -1291,6 +1392,9 @@ while [[ $# -gt 0 ]]; do
     ;;
   --stop)
     shift
+    # Initialize variables to prevent state pollution
+    no_save=0
+    no_graceful=0
     while [[ $# -gt 0 ]]; do
       case "$1" in
       --no-save)
@@ -1311,6 +1415,9 @@ while [[ $# -gt 0 ]]; do
     ;;
   --internal-stop)
     shift
+    # Initialize variables to prevent state pollution
+    no_save=0
+    no_graceful=0
     if [[ -z "$1" ]]; then
       _stop_server "\@"
       exit $?
@@ -1453,7 +1560,12 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --restore-backup)
-    _restore_backup "$@"
+    shift
+    if [[ -z "$1" ]]; then
+      __print_error "Missing argument <backup>"
+      exit 1
+    fi
+    _restore_backup "$1"
     exit $?
     ;;
   --list-backups)
