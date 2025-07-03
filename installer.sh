@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+# set -eo pipefail
 
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
@@ -478,6 +478,7 @@ function update_kgsm() {
       [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_ORANGE}WARNING${COLOR_END} Skipping downgrade. Use --force --update to override."
       return 0
     fi
+    [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Proceeding with update to $latest_version (current: $current_version)"
   else
     [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Force mode enabled. Proceeding with update regardless of version check."
   fi
