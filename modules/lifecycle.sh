@@ -4,20 +4,8 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug="--debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
 
 function usage() {
   local UNDERLINE="\e[4m"
@@ -69,25 +57,6 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
-
 function _get_lifecycle_manager() {
   local instance=$1
 
@@ -114,23 +83,23 @@ while [[ $# -gt 0 ]]; do
       if [[ "$@" =~ "--follow" ]]; then
         follow="--follow"
       fi
-      "$lifecycle_manager" --logs "$instance" $follow $debug
+      "$lifecycle_manager" --logs "$instance" $follow
       exit $?
       ;;
     --is-active)
-      "$lifecycle_manager" --is-active "$instance" $debug
+      "$lifecycle_manager" --is-active "$instance"
       exit $?
       ;;
     --start)
-      "$lifecycle_manager" --start "$instance" $debug
+      "$lifecycle_manager" --start "$instance"
       exit $?
       ;;
     --stop)
-      "$lifecycle_manager" --stop "$instance" $debug
+      "$lifecycle_manager" --stop "$instance"
       exit $?
       ;;
     --restart)
-      "$lifecycle_manager" --restart "$instance" $debug
+      "$lifecycle_manager" --restart "$instance"
       exit $?
       ;;
     esac

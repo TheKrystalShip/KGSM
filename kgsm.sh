@@ -4,36 +4,9 @@
 # the variables being used in the functions below.
 # shellcheck disable=SC2086
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug=" --debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
-# Absolute path to this script file
-KGSM_ROOT="$(dirname "$(readlink -f "$0")")"
-export KGSM_ROOT
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  if [[ -z "$module_common" ]]; then
-    echo "${0##*/} ERROR: Could not find module common.sh" >&2
-    echo "${0##*/} ERROR: Install compromised, please reinstall KGSM" >&2
-    exit 1
-  fi
-
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
+# Bootstrap the environment.
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/lib/bootstrap.sh"
 
 # Load essential modules early
 module_interactive=$(__find_module interactive.sh)
@@ -47,31 +20,28 @@ if [[ ! -f "$installer_script" ]]; then
 fi
 
 function check_for_update() {
-  "$installer_script" --check-update $debug
+  "$installer_script" --check-update
 }
 
 function update_script() {
-  "$installer_script" --update $debug
-  __merge_user_config_with_default
+  "$installer_script" --update
 }
 
 function get_version() {
-  "$installer_script" --version $debug
+  "$installer_script" --version
 }
-
-DESCRIPTION="Krystal Game Server Manager - $(get_version)
-
-Create, install, and manage game servers on Linux.
-
-If you have any problems while using KGSM, please don't hesitate to create an
-issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
 function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
   local BOLD="\e[1m"
 
-  echo -e "$DESCRIPTION"
+  echo -e "Krystal Game Server Manager - $(get_version)
+
+Create, install, and manage game servers on Linux.
+
+If you have any problems while using KGSM, please don't hesitate to create an
+issue on GitHub: https://github.com/TheKrystalShip/KGSM/issues"
 
   echo -e "
 ${UNDERLINE}Usage:${END}
@@ -90,6 +60,7 @@ ${BOLD}${UNDERLINE}General Options:${END}
 
 ${BOLD}${UNDERLINE}Configuration Management:${END}
   --config                    Manage KGSM configuration settings
+    [no subcommand]           Open configuration in editor (default behavior)
     --set KEY=VALUE           Set a configuration value
                               Example: --config --set enable_logging=true
                               Example: --config --set instance_suffix_length=3
@@ -99,7 +70,24 @@ ${BOLD}${UNDERLINE}Configuration Management:${END}
     --list --json             Output configuration in JSON format
     --reset                   Reset configuration to defaults
     --validate                Validate current configuration
-    [no subcommand]           Open configuration in editor (default behavior)
+
+${BOLD}${UNDERLINE}Event System Management:${END}
+  --events                    Manage KGSM's event broadcasting system
+    --status                  Show comprehensive event system status
+    --test-all                Test all configured event transports
+    --test-socket             Test Unix Domain Socket transport only
+    --test-webhook            Test HTTP webhook transport only
+    --socket COMMAND          Manage Unix Domain Socket transport
+      --enable                Enable socket transport
+      --disable               Disable socket transport
+      --test                  Test socket functionality
+      --status                Show socket transport status
+    --webhook COMMAND         Manage HTTP webhook transport
+      --enable                Enable webhook transport
+      --disable               Disable webhook transport
+      --configure             Interactive webhook configuration wizard
+      --test                  Test webhook functionality
+      --status                Show webhook transport status
 
 ${BOLD}${UNDERLINE}Blueprint Management:${END}
     [-h, --help]              Display help information for the blueprint creation process
@@ -190,7 +178,7 @@ while [[ "$#" -gt 0 ]]; do
     esac
     ;;
   --interactive)
-    "$module_interactive" -i $debug
+    "$module_interactive" -i
     exit $?
     ;;
   --check-update)
@@ -211,6 +199,7 @@ done
 module_blueprints=$(__find_module blueprints.sh)
 module_config=$(__find_module config.sh)
 module_directories=$(__find_module directories.sh)
+module_events=$(__find_module events.sh)
 module_files=$(__find_module files.sh)
 module_instances=$(__find_module instances.sh)
 module_lifecycle=$(__find_module lifecycle.sh)
@@ -237,15 +226,14 @@ function _create() {
     "$module_instances" \
       --create "$blueprint" \
       --install-dir "$install_dir" \
-      ${identifier:+--name $identifier} \
-      $debug
+      ${identifier:+--name $identifier}
   )"
 
   # Emit after the instance has been created, so we can use the identifier
-  __emit_instance_installation_started "${instance}" "${blueprint}"
+  "$module_events" --emit --instance-installation-started "${instance}" "${blueprint}"
 
-  "$module_directories" -i "$instance" --create $debug || return $?
-  "$module_files" -i "$instance" --create $debug || return $?
+  "$module_directories" -i "$instance" --create || return $?
+  "$module_files" -i "$instance" --create || return $?
 
   # After generating the instance and the files, we need to load the instance
   # config file so we can use the variables defined in it.
@@ -256,32 +244,32 @@ function _create() {
 
   if [[ "$version" == 0 ]]; then
     # shellcheck disable=SC2154
-    version=$("$instance_management_file" --version --latest $debug)
+    version=$("$instance_management_file" --version --latest)
   fi
 
   # The instance management file doesn't emit any events, so we need to
   # emit them manually during this process
 
   # Download the required files for the instance
-  __emit_instance_download_started "${instance}"
-  "$instance_management_file" --download "${version}" $debug || return $EC_FAILED_DOWNLOAD
-  __emit_instance_download_finished "${instance}"
-  __emit_instance_downloaded "${instance}"
+  "$module_events" --emit --instance-download-started "${instance}"
+  "$instance_management_file" --download "${version}" || return $EC_FAILED_DOWNLOAD
+  "$module_events" --emit --instance-download-finished "${instance}"
+  "$module_events" --emit --instance-downloaded "${instance}"
 
   # Deploy the instance
-  __emit_instance_deploy_started "${instance}"
-  "$instance_management_file" --deploy $debug || return $EC_FAILED_DEPLOY
-  __emit_instance_deploy_finished "${instance}"
-  __emit_instance_deployed "${instance}"
+  "$module_events" --emit --instance-deploy-started "${instance}"
+  "$instance_management_file" --deploy || return $EC_FAILED_DEPLOY
+  "$module_events" --emit --instance-deploy-finished "${instance}"
+  "$module_events" --emit --instance-deployed "${instance}"
 
   # Save the new version
-  "$instance_management_file" --version --save "$version" $debug || return $EC_FAILED_VERSION_SAVE
-  __emit_instance_version_updated "${instance}" "0" "${version}"
+  "$instance_management_file" --version --save "$version" || return $EC_FAILED_VERSION_SAVE
+  "$module_events" --emit --instance-version-updated "${instance}" "0" "${version}"
 
-  __emit_instance_installation_finished "${instance}" "${blueprint}"
+  "$module_events" --emit --instance-installation-finished "${instance}" "${blueprint}"
 
   __print_success "Instance '${instance}', version '${version}', has been created in '${install_dir}'"
-  __emit_instance_installed "${instance}" "${blueprint}"
+  "$module_events" --emit --instance-installed "${instance}" "${blueprint}"
 
   return 0
 }
@@ -289,17 +277,17 @@ function _create() {
 function _remove() {
   local instance=$1
 
-  __emit_instance_uninstall_started "${instance}"
+  "$module_events" --emit --instance-uninstall-started "${instance}"
 
-  "$module_files" -i "$instance" --remove $debug || return $?
-  "$module_directories" -i "$instance" --remove $debug || return $?
-  "$module_instances" --remove "$instance" $debug || return $?
+  "$module_files" -i "$instance" --remove || return $?
+  "$module_directories" -i "$instance" --remove || return $?
+  "$module_instances" --remove "$instance" || return $?
 
-  __emit_instance_uninstall_finished "${instance}"
+  "$module_events" --emit --instance-uninstall-finished "${instance}"
 
   __print_success "Instance ${instance} uninstalled"
 
-  __emit_instance_uninstalled "${instance}"
+  "$module_events" --emit --instance-uninstalled "${instance}"
 
   return 0
 }
@@ -307,7 +295,7 @@ function _remove() {
 # Interactive mode function moved to modules/interactive.sh
 # If it's started with no args, default to interactive mode
 if [[ "$#" -eq 0 ]]; then
-  "$module_interactive" -i $debug
+  "$module_interactive" -i
   exit $?
 fi
 
@@ -382,7 +370,7 @@ function process_create_instance() {
 function process_blueprints() {
   shift
   if [[ -z "$1" ]]; then
-    "$module_blueprints" --list $debug
+    "$module_blueprints" --list
     exit $?
   fi
 
@@ -400,7 +388,7 @@ function process_blueprints() {
     shift
   done
 
-  "$module_blueprints" --list ${detailed:+--detailed} ${json_format:+--json} $debug
+  "$module_blueprints" --list ${detailed:+--detailed} ${json_format:+--json}
   exit $?
 }
 
@@ -408,7 +396,7 @@ function process_blueprints() {
 function process_instances() {
   shift
   if [[ -z "$1" ]]; then
-    "$module_instances" --list $debug
+    "$module_instances" --list
     exit $?
   fi
 
@@ -426,11 +414,11 @@ function process_instances() {
       # Handle regenerate subcommands
       case "$1" in
       --management-script)
-        "$module_instances" --regenerate --management-script $debug
+        "$module_instances" --regenerate --management-script
         exit $?
         ;;
       --all)
-        "$module_instances" --regenerate --all $debug
+        "$module_instances" --regenerate --all
         exit $?
         ;;
       *)
@@ -449,7 +437,7 @@ function process_instances() {
     shift
   done
 
-  "$module_instances" --list ${detailed:+--detailed} ${status:+--status} ${json_format:+--json} $blueprint $debug
+  "$module_instances" --list ${detailed:+--detailed} ${status:+--status} ${json_format:+--json} $blueprint
   exit $?
 }
 
@@ -471,7 +459,7 @@ function process_instance() {
     if [[ "$1" == "-f" || "$1" == "--follow" ]]; then
       follow="--follow"
     fi
-    "$module_lifecycle" --logs "$instance" $follow $debug
+    "$module_lifecycle" --logs "$instance" $follow
     ;;
   --status)
     shift
@@ -492,51 +480,51 @@ function process_instance() {
       esac
     done
 
-    "$module_instances" --status "$instance" $additional_flags $debug
+    "$module_instances" --status "$instance" $additional_flags
     ;;
   --info)
-    "$module_instances" --info "$instance" ${json_format:+--json} $debug
+    "$module_instances" --info "$instance" ${json_format:+--json}
     ;;
   --is-active)
     # Inactive instances return exit code 1.
     __disable_error_checking
-    "$module_lifecycle" --is-active "$instance" $debug
+    "$module_lifecycle" --is-active "$instance"
     ;;
   --backups)
-    "$instance_management_file" --list-backups $debug
+    "$instance_management_file" --list-backups
     ;;
 
   # Server Control commands
   --start)
-    "$module_lifecycle" --start "$instance" $debug
+    "$module_lifecycle" --start "$instance"
     ;;
   --stop)
-    "$module_lifecycle" --stop "$instance" $debug
+    "$module_lifecycle" --stop "$instance"
     ;;
   --restart)
-    "$module_lifecycle" --restart "$instance" $debug
+    "$module_lifecycle" --restart "$instance"
     ;;
   --save)
-    "$instance_management_file" --save $debug
+    "$instance_management_file" --save
     ;;
   --input)
     shift
     require_arg "<command>" "$1"
-    "$module_instances" --input "$instance" "$1" $debug
+    "$module_instances" --input "$instance" "$1"
     ;;
 
   # Version & Updates
   -v | --version)
     shift
     if [[ -z "$1" ]]; then
-      "$instance_management_file" --version --installed $debug
+      "$instance_management_file" --version --installed
     else
       case "$1" in
       --installed)
-        "$instance_management_file" --version --installed $debug
+        "$instance_management_file" --version --installed
         ;;
       --latest)
-        "$instance_management_file" --version --latest $debug
+        "$instance_management_file" --version --latest
         ;;
       *)
         __print_error "Invalid argument $1"
@@ -546,18 +534,18 @@ function process_instance() {
     fi
     ;;
   --check-update)
-    "$instance_management_file" --version --compare $debug
+    "$instance_management_file" --version --compare
     ;;
   --update)
-    "$instance_management_file" --update $debug
+    "$instance_management_file" --update
     ;;
   --create-backup)
-    "$instance_management_file" --create-backup $debug
+    "$instance_management_file" --create-backup
     ;;
   --restore-backup)
     shift
     require_arg "<backup>" "$1"
-    "$instance_management_file" --restore-backup "$1" $debug
+    "$instance_management_file" --restore-backup "$1"
     ;;
 
   # Modification options
@@ -570,7 +558,7 @@ function process_instance() {
       require_arg "<option>" "$1"
       case "$1" in
       ufw | systemd | symlink | upnp)
-        "$module_files" -i "$instance" --create --"$1" $debug
+        "$module_files" -i "$instance" --create --"$1"
         ;;
       *)
         __print_error "Invalid argument $1"
@@ -583,7 +571,7 @@ function process_instance() {
       require_arg "<option>" "$1"
       case "$1" in
       ufw | systemd | symlink | upnp)
-        "$module_files" -i "$instance" --remove --"$1" $debug
+        "$module_files" -i "$instance" --remove --"$1"
         ;;
       *)
         __print_error "Invalid argument $1"
@@ -634,12 +622,17 @@ while [[ "$#" -gt 0 ]]; do
     "$module_config" "$@"
     exit $?
     ;;
+  --events)
+    shift
+    "$module_events" "$@"
+    exit $?
+    ;;
   --update)
     update_script "$@"
     exit $?
     ;;
   --migrate)
-    "$module_migrator" --all $debug
+    "$module_migrator" --all
     exit $?
     ;;
   # Instance commands

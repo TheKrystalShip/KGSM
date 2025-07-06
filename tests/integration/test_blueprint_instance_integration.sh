@@ -89,6 +89,9 @@ function test_instance_id_generation() {
     local instance_id
     if instance_id=$("$INSTANCES_MODULE" --generate-id "$test_blueprint" 2>/dev/null); then
       assert_not_null "$instance_id" "Should generate instance ID for blueprint '$test_blueprint'"
+
+      # Automatically generated instance IDs should contain the blueprint name
+      assert_contains "$instance_id" "${test_blueprint%.bp}" "Instance ID should contain blueprint name (without .bp extension)"
       log_test "Generated instance ID '$instance_id' for blueprint '$test_blueprint'"
     else
       log_test "ID generation failed for '$test_blueprint' - this may be expected if requirements aren't met"

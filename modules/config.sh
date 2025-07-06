@@ -4,6 +4,9 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
+
 self="$(basename "$0")"
 
 function usage() {
@@ -50,38 +53,6 @@ ${UNDERLINE}Notes:${END}
 }
 
 # shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
-
-# shellcheck disable=SC2199
 if [[ $@ =~ "--json" ]]; then
   json_format=1
   for a; do
@@ -97,15 +68,15 @@ fi
 filtered_args=()
 for arg in "$@"; do
   case "$arg" in
-    --config)
-      # do nothing
-      ;;
-    -h|--help)
-      usage && exit 0
-      ;;
-    *)
-      filtered_args+=("$arg")
-      ;;
+  --config)
+    # do nothing
+    ;;
+  -h | --help)
+    usage && exit 0
+    ;;
+  *)
+    filtered_args+=("$arg")
+    ;;
   esac
 done
 

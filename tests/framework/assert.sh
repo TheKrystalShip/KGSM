@@ -479,6 +479,66 @@ function assert_file_contains() {
   fi
 }
 
+# Assert that a socket file exists
+function assert_socket_exists() {
+  local socket_path="$1"
+  local message="${2:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if [[ -S "$socket_path" ]]; then
+    print_assert_result "PASS" "$message: socket file '$socket_path' exists" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: socket file '$socket_path' does not exist" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
+# Assert that a socket file does not exist
+function assert_socket_not_exists() {
+  local socket_path="$1"
+  local message="${2:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if [[ ! -S "$socket_path" ]]; then
+    print_assert_result "PASS" "$message: socket file '$socket_path' does not exist" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: socket file '$socket_path' should not exist" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
+# Assert that a command is available in PATH
+function assert_command_available() {
+  local command_name="$1"
+  local message="${2:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if command -v "$command_name" >/dev/null 2>&1; then
+    print_assert_result "PASS" "$message: command '$command_name' is available" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: command '$command_name' is not available" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
+# Assert that a command is not available in PATH
+function assert_command_not_available() {
+  local command_name="$1"
+  local message="${2:-Assertion failed}"
+  local caller_info="$(get_caller_info)"
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    print_assert_result "PASS" "$message: command '$command_name' is not available" "$caller_info"
+    return $ASSERT_SUCCESS
+  else
+    print_assert_result "FAIL" "$message: command '$command_name' should not be available" "$caller_info"
+    return $ASSERT_FAILURE
+  fi
+}
+
 # =============================================================================
 # COMMAND EXECUTION ASSERTIONS
 # =============================================================================
@@ -669,8 +729,9 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
   export -f assert_contains_line assert_not_contains_line assert_list_contains assert_list_not_contains
   export -f assert_numeric_equals assert_greater_than assert_less_than
   export -f assert_file_exists assert_file_not_exists assert_dir_exists assert_dir_not_exists
-  export -f assert_file_executable assert_file_contains assert_command_succeeds assert_command_fails assert_command_output
-  export -f assert_function_exists
+  export -f assert_file_executable assert_file_contains assert_socket_exists assert_socket_not_exists
+  export -f assert_command_succeeds assert_command_fails assert_command_output
+  export -f assert_function_exists assert_command_available assert_command_not_available
   export -f get_assert_stats reset_assert_stats print_assert_summary skip_test
   export -f assert_kgsm_succeeds assert_kgsm_fails assert_instance_exists assert_instance_not_exists
 fi

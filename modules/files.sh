@@ -4,18 +4,8 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
 
 function usage() {
   local UNDERLINE="\e[4m"
@@ -87,24 +77,7 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
+module_events=$(__find_module events.sh)
 
 # Load the instance configuration to determine which manager to use
 __source_instance "$instance"
@@ -135,7 +108,7 @@ function _create() {
     "$(__find_module files.symlink.sh)" --instance "$instance" --install || return $?
   fi
 
-  __emit_instance_files_created "${instance}"
+  "$module_events" --emit --instance-files-created "${instance}"
 
   return 0
 }
@@ -167,7 +140,7 @@ function _remove_for_uninstall() {
   # We don't remove the instance config file here, because it's still needed
   # for other modules to work.
 
-  __emit_instance_files_removed "${instance}"
+  "$module_events" --emit --instance-files-removed "${instance}"
 
   return 0
 }

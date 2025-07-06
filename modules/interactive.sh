@@ -4,41 +4,8 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug="--debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Absolute path to this script file
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
-
-export kgsm="$KGSM_ROOT/kgsm.sh"
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
 
 # =============================================================================
 # VISUAL CONSTANTS
@@ -63,6 +30,8 @@ readonly MENU_HELP="? Help"
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
+export kgsm="$KGSM_ROOT/kgsm.sh"
 
 function __draw_box() {
   local title="$1"
@@ -153,15 +122,15 @@ function __clear_screen() {
 # =============================================================================
 
 function __get_kgsm_version() {
-  "$KGSM_ROOT/installer.sh" --version $debug 2>/dev/null || echo "Unknown"
+  "$KGSM_ROOT/installer.sh" --version  2>/dev/null || echo "Unknown"
 }
 
 function __get_system_overview() {
   local instances_count blueprints_count
 
   # Get counts safely
-  instances_count=$("$kgsm" --instances $debug 2>/dev/null | wc -l)
-  blueprints_count=$("$kgsm" --blueprints $debug 2>/dev/null | wc -l)
+  instances_count=$("$kgsm" --instances  2>/dev/null | wc -l)
+  blueprints_count=$("$kgsm" --blueprints  2>/dev/null | wc -l)
 
   echo "instances:$instances_count"
   echo "blueprints:$blueprints_count"
@@ -186,7 +155,7 @@ function __display_system_status() {
   if [[ $instances_count -gt 0 ]]; then
     __print_box_line "Recent Instance Activity:" "$COLOR_WARNING"
     local instances
-    instances=$("$kgsm" --instances $debug 2>/dev/null | head -3)
+    instances=$("$kgsm" --instances  2>/dev/null | head -3)
     if [[ -n "$instances" ]]; then
       while IFS= read -r instance; do
         [[ -n "$instance" ]] && __print_box_line "  • $instance"
@@ -371,7 +340,7 @@ function __action_install_server() {
   local instance_name
 
   # Get available blueprints
-  mapfile -t blueprints < <("$kgsm" --blueprints $debug 2>/dev/null)
+  mapfile -t blueprints < <("$kgsm" --blueprints  2>/dev/null)
 
   if [[ ${#blueprints[@]} -eq 0 ]]; then
     echo -e "${COLOR_ERROR}No blueprints available.${COLOR_RESET}" >&2
@@ -426,7 +395,7 @@ function __action_install_server() {
   local cmd_args=("$kgsm" --create "$selected_blueprint" --install-dir "$install_dir")
   [[ -n "$version" ]] && cmd_args+=(--version "$version")
   [[ -n "$instance_name" ]] && cmd_args+=(--name "$instance_name")
-  [[ -n "$debug" ]] && cmd_args+=("$debug")
+  [[ -n "" ]] && cmd_args+=("")
 
   if "${cmd_args[@]}"; then
     echo -e "${COLOR_SUCCESS}Installation completed successfully!${COLOR_RESET}" >&2
@@ -444,7 +413,7 @@ function __action_server_operation() {
   local selected_instance
 
   # Get available instances
-  mapfile -t instances < <("$kgsm" --instances $debug 2>/dev/null)
+  mapfile -t instances < <("$kgsm" --instances  2>/dev/null)
 
   if [[ ${#instances[@]} -eq 0 ]]; then
     echo -e "${COLOR_WARNING}No server instances found.${COLOR_RESET}" >&2
@@ -473,9 +442,9 @@ function __action_server_operation() {
   echo -e "${COLOR_INFO}${operation_name^} server instance...${COLOR_RESET}" >&2
 
   if [[ "$operation" == "--uninstall" ]]; then
-    "$kgsm" --uninstall "$selected_instance" $debug
+    "$kgsm" --uninstall "$selected_instance"
   else
-    "$kgsm" --instance "$selected_instance" "$operation" $debug
+    "$kgsm" --instance "$selected_instance" "$operation"
   fi
 
   local result=$?
@@ -493,7 +462,7 @@ function __action_modify_server() {
   local selected_instance
 
   # Get available instances
-  mapfile -t instances < <("$kgsm" --instances $debug 2>/dev/null)
+  mapfile -t instances < <("$kgsm" --instances  2>/dev/null)
 
   if [[ ${#instances[@]} -eq 0 ]]; then
     echo -e "${COLOR_WARNING}No server instances found.${COLOR_RESET}" >&2
@@ -579,7 +548,7 @@ function __action_modify_server() {
   # Execute modification
   echo -e "${COLOR_INFO}Modifying server instance...${COLOR_RESET}" >&2
 
-  if "$kgsm" --instance "$selected_instance" --modify $selected_command $debug; then
+  if "$kgsm" --instance "$selected_instance" --modify $selected_command ; then
     echo -e "${COLOR_SUCCESS}Modification completed successfully!${COLOR_RESET}" >&2
   else
     echo -e "${COLOR_ERROR}Modification failed. Check the output above for details.${COLOR_RESET}" >&2
@@ -597,9 +566,9 @@ function __action_list_items() {
   __print_empty_line
 
   if [[ "$list_type" == "--blueprints" ]]; then
-    "$kgsm" --blueprints $debug
+    "$kgsm" --blueprints
   else
-    "$kgsm" --instances $debug
+    "$kgsm" --instances
   fi
 
   __print_empty_line
@@ -614,7 +583,7 @@ function __action_restore_backup() {
   local selected_backup
 
   # Get available instances
-  mapfile -t instances < <("$kgsm" --instances $debug 2>/dev/null)
+  mapfile -t instances < <("$kgsm" --instances  2>/dev/null)
 
   if [[ ${#instances[@]} -eq 0 ]]; then
     echo -e "${COLOR_WARNING}No server instances found.${COLOR_RESET}" >&2
@@ -637,7 +606,7 @@ function __action_restore_backup() {
   }
 
   # Get available backups
-  mapfile -t backups < <("$instance_management_file" --list-backups $debug 2>/dev/null)
+  mapfile -t backups < <("$instance_management_file" --list-backups  2>/dev/null)
 
   if [[ ${#backups[@]} -eq 0 ]]; then
     echo -e "${COLOR_WARNING}No backups found for instance '$selected_instance'.${COLOR_RESET}" >&2
@@ -663,7 +632,7 @@ function __action_restore_backup() {
   # Execute restoration
   echo -e "${COLOR_INFO}Restoring backup...${COLOR_RESET}" >&2
 
-  if "$kgsm" --instance "$selected_instance" --restore-backup "$selected_backup" $debug; then
+  if "$kgsm" --instance "$selected_instance" --restore-backup "$selected_backup" ; then
     echo -e "${COLOR_SUCCESS}Backup restored successfully!${COLOR_RESET}" >&2
   else
     echo -e "${COLOR_ERROR}Backup restoration failed.${COLOR_RESET}" >&2
@@ -849,7 +818,7 @@ function __handle_system_tools_menu() {
         ;;
       3)
         echo -e "${COLOR_INFO}Updating KGSM...${COLOR_RESET}" >&2
-        "$kgsm" --update $debug
+        "$kgsm" --update
         __wait_for_key
         ;;
       b | m) return 0 ;;

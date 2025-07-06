@@ -4,6 +4,9 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
+
 function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
@@ -93,21 +96,6 @@ Examples:
 "
 }
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug="--debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
-
 [[ $# -eq 0 ]] && usage && exit 1
 
 # Read the argument values
@@ -122,24 +110,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
+module_events=$(__find_module events.sh)
 
 function _generate_unique_instance_name() {
   # VALIDATION: Ensure blueprint exists and is valid before generating ID
@@ -423,7 +394,7 @@ function _create_instance() {
   __create_base_instance "$instance_config_file" "$instance_name" "$blueprint_abs_path" "$install_dir"
 
   # All done
-  __emit_instance_created "$instance_name" "$blueprint"
+  "$module_events" --emit --instance-created "$instance_name" "$blueprint"
 
   echo "$instance_name"
 }
@@ -458,7 +429,7 @@ function _remove() {
     fi
   fi
 
-  __emit_instance_removed "${instance}"
+  "$module_events" --emit --instance-removed "${instance}"
   return 0
 }
 
@@ -641,7 +612,7 @@ function _get_instance_status() {
       status_args="$status_args --fast"
     fi
 
-    "$instance_management_file" --status $status_args $debug
+    "$instance_management_file" --status $status_args
   else
     # Fallback for older management files that don't support --status
     __print_warning "Instance '$instance' uses an older management file that doesn't support the --status command."
@@ -672,7 +643,7 @@ function _get_instance_status_json() {
       status_args="$status_args --fast"
     fi
 
-    "$instance_management_file" --status $status_args $debug
+    "$instance_management_file" --status $status_args
   else
     # Fallback for older management files that don't support --status
     __print_warning "Instance '$instance' uses an older management file that doesn't support the --status command."
@@ -689,7 +660,7 @@ function _send_save_to_instance() {
 
   __source_instance "$instance"
 
-  "$instance_management_file" --save $debug
+  "$instance_management_file" --save
 }
 
 function _send_input_to_instance() {
@@ -698,7 +669,7 @@ function _send_input_to_instance() {
 
   __source_instance "$instance"
 
-  "$instance_management_file" --input "$command" $debug
+  "$instance_management_file" --input "$command"
 }
 
 function _regenerate_files() {
@@ -749,7 +720,7 @@ function _regenerate_files() {
     # Call files.sh module with appropriate arguments
     # Capture both stdout and stderr to check for actual success/failure
     local files_output
-    files_output=$("$files_module" --instance "$instance_name" $files_args $debug 2>&1)
+    files_output=$("$files_module" --instance "$instance_name" $files_args  2>&1)
     local files_exit_code=$?
 
     # Check if the command succeeded and didn't produce error messages

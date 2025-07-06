@@ -1,19 +1,7 @@
 #!/usr/bin/env bash
 
-debug=
-# shellcheck disable=SC2199
-if [[ $@ =~ "--debug" ]]; then
-  debug="--debug"
-  export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-  set -x
-  for a; do
-    shift
-    case $a in
-    --debug) continue ;;
-    *) set -- "$@" "$a" ;;
-    esac
-  done
-fi
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
 
 function usage() {
   local UNDERLINE="\e[4m"
@@ -64,41 +52,24 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-SELF_PATH="$(dirname "$(readlink -f "$0")")"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
+module_events=$(__find_module events.sh)
 
 function _start_instance() {
   local instance=$1
 
   __source_instance "$instance"
-  "$instance_management_file" --start --background $debug
+  "$instance_management_file" --start --background
 
-  __emit_instance_started "${instance%.ini}" "$instance_lifecycle_manager"
+  "$module_events" --emit --instance-started "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _stop_instance() {
   local instance=$1
 
   __source_instance "$instance"
-  "$instance_management_file" --stop $debug
+  "$instance_management_file" --stop
 
-  __emit_instance_stopped "${instance%.ini}" "$instance_lifecycle_manager"
+  "$module_events" --emit --instance-stopped "${instance%.ini}" "$instance_lifecycle_manager"
 }
 
 function _restart_instance() {
@@ -120,7 +91,7 @@ function _get_logs() {
   local follow=$2
 
   __source_instance "$instance"
-  "$instance_management_file" --logs $follow $debug
+  "$instance_management_file" --logs $follow
 }
 
 while [[ $# -gt 0 ]]; do

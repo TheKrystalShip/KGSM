@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "$0")")/../lib/bootstrap.sh"
+
 function usage() {
   local UNDERLINE="\e[4m"
   local END="\e[0m"
@@ -60,25 +63,6 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-SELF_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Check for KGSM_ROOT
-if [ -z "$KGSM_ROOT" ]; then
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "Error: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-  export KGSM_ROOT
-fi
-
-if [[ ! "$KGSM_COMMON_LOADED" ]]; then
-  module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
-  [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Failed to load module common.sh" >&2 && exit 1
-  # shellcheck disable=SC1090
-  source "$module_common" || exit 1
-fi
-
 instance_config_file=$(__find_instance_config "$instance")
 # Use __source_instance to load the config with proper prefixing
 __source_instance "$instance"
@@ -94,6 +78,8 @@ if [[ ! "$instance_working_dir" = /* ]]; then
   __print_error "instance_working_dir must be an absolute path, got: $instance_working_dir"
   exit $EC_INVALID_CONFIG
 fi
+
+module_events=$(__find_module events.sh)
 
 declare -A DIR_ARRAY=(
   ["working_dir"]="$instance_working_dir"
@@ -121,7 +107,7 @@ function _create() {
     }
   done
 
-  __emit_instance_directories_created "${instance%.ini}"
+  "$module_events" --emit --instance-directories-created "${instance%.ini}"
 
   __print_success "Directories created successfully for instance ${instance_name}"
 
@@ -136,7 +122,7 @@ function _remove() {
     return $EC_FAILED_RM
   fi
 
-  __emit_instance_directories_removed "${instance%.ini}"
+  "$module_events" --emit --instance-directories-removed "${instance%.ini}"
 
   return 0
 }

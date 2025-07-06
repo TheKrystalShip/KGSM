@@ -336,9 +336,23 @@ function __validate_config_value() {
     min_value="1"
     max_value="10"
     ;;
+  webhook_timeout_seconds)
+    expected_type="integer"
+    min_value="1"
+    max_value="300"
+    ;;
+  webhook_retry_count)
+    expected_type="integer"
+    min_value="0"
+    max_value="5"
+    ;;
   log_max_size_kb | instance_save_command_timeout_seconds | instance_stop_command_timeout_seconds)
     expected_type="integer"
     min_value="1"
+    ;;
+  # URL validation
+  webhook_url | webhook_secondary_url)
+    expected_type="url"
     ;;
   # String values (default)
   *)
@@ -364,8 +378,8 @@ function __validate_config_value() {
       __print_error "Expected: positive integer"
       return $EC_INVALID_ARG
     fi
-    # Explicitly reject zero for positive-only fields
-    if [[ "$value" -eq 0 ]]; then
+    # Allow zero for retry count, reject for other fields
+    if [[ "$key" != "webhook_retry_count" && "$value" -eq 0 ]]; then
       __print_error "Value for '$key' cannot be zero, got: $value"
       return $EC_INVALID_ARG
     fi
@@ -379,9 +393,19 @@ function __validate_config_value() {
       return $EC_INVALID_ARG
     fi
     ;;
+  url)
+    # URL validation - allow empty for optional URLs
+    if [[ -n "$value" ]]; then
+      if ! [[ "$value" =~ ^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9]+(:[0-9]+)?(/.*)?$ ]]; then
+        __print_error "Invalid URL for '$key': '$value'"
+        __print_error "Expected: valid HTTP or HTTPS URL"
+        return $EC_INVALID_ARG
+      fi
+    fi
+    ;;
   string)
     # For strings, check if it's not empty (unless explicitly allowed)
-    if [[ -z "$value" && "$key" != "default_install_directory" && "$key" != "STEAM_USERNAME" && "$key" != "STEAM_PASSWORD" ]]; then
+    if [[ -z "$value" && "$key" != "default_install_directory" && "$key" != "STEAM_USERNAME" && "$key" != "STEAM_PASSWORD" && "$key" != "webhook_url" && "$key" != "webhook_secondary_url" && "$key" != "webhook_secret" ]]; then
       __print_error "Value for '$key' cannot be empty"
       return $EC_INVALID_ARG
     fi

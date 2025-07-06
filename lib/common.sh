@@ -4,19 +4,6 @@
 # Exit code variables are guaranteed to be numeric and safe for unquoted use.
 # shellcheck disable=SC2086
 
-# Check for KGSM_ROOT
-if [[ -z "$KGSM_ROOT" ]]; then
-  # Absolute path to this script file
-  SELF_PATH="$(dirname "$(readlink -f "$0")")"
-  while [[ "$SELF_PATH" != "/" ]]; do
-    [[ -f "$SELF_PATH/kgsm.sh" ]] && KGSM_ROOT="$SELF_PATH" && break
-    SELF_PATH="$(dirname "$SELF_PATH")"
-  done
-  [[ -z "$KGSM_ROOT" ]] && echo "${0##*/} ERROR: Could not locate kgsm.sh. Ensure the directory structure is intact." && exit 1
-
-  export KGSM_ROOT
-fi
-
 # Module loader
 if [[ ! $KGSM_LOADER_LOADED ]]; then
   # Provides nice wrappers for locating and loading other modules and files
@@ -63,15 +50,6 @@ if [[ ! "$KGSM_LOGGING_LOADED" ]]; then
   # shellcheck disable=SC1090
   source "$(__find_library logging.sh)" || {
     echo -e "ERROR: Failed to load logging.sh library"
-    exit $EC_FAILED_SOURCE
-  }
-fi
-
-# KGSM Socket events
-if [[ ! "$KGSM_EVENTS_LOADED" ]]; then
-  # shellcheck disable=SC1090
-  source "$(__find_library events.sh)" || {
-    echo -e "ERROR: Failed to load events.sh library"
     exit $EC_FAILED_SOURCE
   }
 fi

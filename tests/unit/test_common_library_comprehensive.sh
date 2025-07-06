@@ -63,7 +63,6 @@ function test_library_files_existence() {
     "errors.sh"
     "config.sh"
     "logging.sh"
-    "events.sh"
     "parser.sh"
     "validation.sh"
     "system.sh"
@@ -154,37 +153,6 @@ function test_logging_library_functions() {
   assert_function_exists "__log_message" "Logging function __log_message should be available"
 }
 
-function test_events_library_functions() {
-  log_step "Testing events library functions are available"
-
-  # Test event functions (only those that actually exist)
-  assert_function_exists "__emit_event" "Events function __emit_event should be available"
-  assert_function_exists "__emit_instance_created" "Events function __emit_instance_created should be available"
-  assert_function_exists "__emit_instance_removed" "Events function __emit_instance_removed should be available"
-  assert_function_exists "__emit_instance_installed" "Events function __emit_instance_installed should be available"
-  assert_function_exists "__emit_instance_uninstalled" "Events function __emit_instance_uninstalled should be available"
-  assert_function_exists "__emit_instance_started" "Events function __emit_instance_started should be available"
-  assert_function_exists "__emit_instance_stopped" "Events function __emit_instance_stopped should be available"
-  assert_function_exists "__emit_instance_backup_created" "Events function __emit_instance_backup_created should be available"
-  assert_function_exists "__emit_instance_backup_restored" "Events function __emit_instance_backup_restored should be available"
-  assert_function_exists "__emit_instance_updated" "Events function __emit_instance_updated should be available"
-  assert_function_exists "__emit_instance_version_updated" "Events function __emit_instance_version_updated should be available"
-  assert_function_exists "__emit_instance_installation_started" "Events function __emit_instance_installation_started should be available"
-  assert_function_exists "__emit_instance_installation_finished" "Events function __emit_instance_installation_finished should be available"
-  assert_function_exists "__emit_instance_uninstall_started" "Events function __emit_instance_uninstall_started should be available"
-  assert_function_exists "__emit_instance_uninstall_finished" "Events function __emit_instance_uninstall_finished should be available"
-  assert_function_exists "__emit_instance_download_started" "Events function __emit_instance_download_started should be available"
-  assert_function_exists "__emit_instance_download_finished" "Events function __emit_instance_download_finished should be available"
-  assert_function_exists "__emit_instance_downloaded" "Events function __emit_instance_downloaded should be available"
-  assert_function_exists "__emit_instance_deploy_started" "Events function __emit_instance_deploy_started should be available"
-  assert_function_exists "__emit_instance_deploy_finished" "Events function __emit_instance_deploy_finished should be available"
-  assert_function_exists "__emit_instance_deployed" "Events function __emit_instance_deployed should be available"
-  assert_function_exists "__emit_instance_directories_created" "Events function __emit_instance_directories_created should be available"
-  assert_function_exists "__emit_instance_files_created" "Events function __emit_instance_files_created should be available"
-  assert_function_exists "__emit_instance_files_removed" "Events function __emit_instance_files_removed should be available"
-  assert_function_exists "__emit_instance_directories_removed" "Events function __emit_instance_directories_removed should be available"
-}
-
 function test_parser_library_functions() {
   log_step "Testing parser library functions are available"
 
@@ -273,7 +241,6 @@ function test_common_library_environment_variables() {
   assert_not_null "$KGSM_ERRORS_LOADED" "KGSM_ERRORS_LOADED should be set"
   assert_not_null "$KGSM_CONFIG_LOADED" "KGSM_CONFIG_LOADED should be set"
   assert_not_null "$KGSM_LOGGING_LOADED" "KGSM_LOGGING_LOADED should be set"
-  assert_not_null "$KGSM_EVENTS_LOADED" "KGSM_EVENTS_LOADED should be set"
   assert_not_null "$KGSM_PARSER_LOADED" "KGSM_PARSER_LOADED should be set"
   assert_not_null "$KGSM_VALIDATION_LOADED" "KGSM_VALIDATION_LOADED should be set"
 
@@ -284,7 +251,6 @@ function test_common_library_environment_variables() {
   assert_equals "$KGSM_ERRORS_LOADED" "1" "KGSM_ERRORS_LOADED should be 1"
   assert_equals "$KGSM_CONFIG_LOADED" "1" "KGSM_CONFIG_LOADED should be 1"
   assert_equals "$KGSM_LOGGING_LOADED" "1" "KGSM_LOGGING_LOADED should be 1"
-  assert_equals "$KGSM_EVENTS_LOADED" "1" "KGSM_EVENTS_LOADED should be 1"
   assert_equals "$KGSM_PARSER_LOADED" "1" "KGSM_PARSER_LOADED should be 1"
   assert_equals "$KGSM_VALIDATION_LOADED" "1" "KGSM_VALIDATION_LOADED should be 1"
 }
@@ -296,7 +262,6 @@ function test_common_library_function_availability() {
   assert_function_exists "__print_error" "Error printing function should be available"
   assert_function_exists "__get_config_value" "Config function should be available"
   assert_function_exists "__print_info" "Logging function should be available"
-  assert_function_exists "__emit_event" "Event function should be available"
   assert_function_exists "validate_blueprint" "Validation function should be available"
   assert_function_exists "__create_dir" "System function should be available"
   assert_function_exists "__find_library" "Loader function should be available"
@@ -322,7 +287,6 @@ function main() {
   test_errors_library_functions
   test_config_library_functions
   test_logging_library_functions
-  test_events_library_functions
   test_parser_library_functions
   test_validation_library_functions
   test_system_library_functions
