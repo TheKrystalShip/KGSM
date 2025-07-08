@@ -91,10 +91,17 @@ function __source_instance_config() {
 # Source the instance configuration file
 INSTANCE_NAME="$(basename "$SCRIPT_DIR")"
 CONFIG_FILE="$SCRIPT_DIR/${INSTANCE_NAME}.config.ini"
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  __print_error "Configuration file not found: $CONFIG_FILE"
+  exit 1
+fi
+
 __source_instance_config "$CONFIG_FILE"
 
 # UPnP state tracking
 UPNP_STATE_FILE="$SCRIPT_DIR/.upnp_enabled"
+LATEST_LOG_FILE="$instance_logs_dir/latest.log"
 
 self=$(basename "$0")
 
@@ -207,6 +214,31 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
+function _rotate_log_file() {
+  local log_file="$1"
+
+  # Do nothing if the log file doesn't exist or is empty
+  if [[ ! -s "$log_file" ]]; then
+    return
+  fi
+
+  # Create a timestamp for the new log file
+  local timestamp
+  timestamp=$(date +"%Y-%m-%dT%H:%M:%S")
+
+  # Construct the new filename
+  local rotated_log_file="${log_file%.log}.${timestamp}.log"
+
+  if mv "$log_file" "$rotated_log_file"; then
+    __print_success "Rotated log file $log_file to $rotated_log_file"
+  else
+    __print_error "Failed to rotate log file $log_file to $rotated_log_file"
+    return 1
+  fi
+
+  return 0
+}
+
 function _enable_upnp() {
   local output
 
@@ -221,7 +253,7 @@ function _enable_upnp() {
 
   if ! output=$(upnpc -e "$instance_name" -r "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to enable UPnP ports"
-    __print_info "To stop these message, set 'enable_port_forwarding' to 0 in $0"
+    __print_error "To stop these messages, set 'enable_port_forwarding' to 'false' in $CONFIG_FILE"
     __print_error "${output}"
     return 1
   fi
@@ -245,7 +277,7 @@ function _disable_upnp() {
 
   if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
     __print_error "Failed to disable UPnP ports"
-    __print_info "To stop these message, set 'instance_enable_port_forwarding' to 'false' in $0"
+    __print_error "To stop these messages, set 'enable_port_forwarding' to 'false' in $CONFIG_FILE"
     __print_error "${output}"
     return 1
   fi
@@ -260,45 +292,25 @@ function _is_upnp_enabled() {
   [[ -f "$UPNP_STATE_FILE" ]]
 }
 
-# Manual UPnP disable that works regardless of state
-function _manual_disable_upnp() {
-  local output
-
-  __print_info "Manually disabling UPnP..."
-
-  # Check if UPnP ports array is set and not empty
-  # This prevents command failures when the array is unset or empty
-  if [[ -z "${instance_upnp_ports[*]:-}" ]]; then
-    __print_error "No UPnP ports configured (instance_upnp_ports is empty or unset)"
-    return 1
-  fi
-
-  if ! output=$(upnpc -f "${instance_upnp_ports[@]}" 2>&1); then
-    __print_error "Failed to disable UPnP ports"
-    __print_error "${output}"
-    return 1
-  fi
-
-  # Mark UPnP as disabled
-  rm -f "$UPNP_STATE_FILE"
-  __print_success "UPnP manually disabled"
-}
-
+# This function is called when the script is interrupted
+# It will disable UPnP if it was enabled and the instance is not running
 function _term_cleanup() {
-  # Only disable UPnP if it was actually enabled AND the instance is not running
-  if [[ -f "$UPNP_STATE_FILE" ]] && [[ "${instance_enable_port_forwarding:-false}" == "true" ]]; then
-    # Check if instance is still running before disabling UPnP
-    if ! _is_active &>/dev/null; then
-      _disable_upnp
-    fi
+  # We only disable UPnP if ALL of the following conditions are true:
+  # 1. A UPnP state file exists, indicating we enabled it at some point.
+  # 2. The instance is configured to use port forwarding.
+  # 3. The instance is confirmed to be NOT RUNNING.
+  if [[ -f "$UPNP_STATE_FILE" ]] && \
+     [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && \
+     ! _is_active &>/dev/null; then
+
+    # All conditions met, it's safe to disable UPnP.
+    _disable_upnp
   fi
+
   _exit_print_logs
 }
 
-# Make sure to disable UPnP if it was enabled
-# This is done to prevent leaving UPnP ports open
-# when the script is interrupted
-trap '_term_cleanup' INT TERM EXIT
+trap _term_cleanup INT TERM EXIT
 
 # Start the server in the current terminal
 function _start() {
@@ -331,6 +343,12 @@ function _start() {
 # and redirect logs to a file. Fixed to eliminate race condition in PID tracking
 function _start_background() {
   __print_info "Starting $self in the background"
+
+  # Rotate the latest log file
+  if ! _rotate_log_file "$LATEST_LOG_FILE"; then
+    __print_error "Failed to rotate latest log file. Aborting to prevent data loss."
+    return 1
+  fi
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     if ! _enable_upnp; then
@@ -658,104 +676,20 @@ function _exit_print_logs() {
 }
 
 function _print_logs() {
-  local follow=${1:-}
+  local follow=${1:-false}
   local line_count=${2:-10}
-  local latest_log_file
 
-  # Without follow, just print the last few lines of the latest file
-  if [[ "$follow" != "--follow" ]]; then
-    latest_log_file="$(ls -t "$instance_logs_dir" | head -1)"
+  local log_file_to_follow="$LATEST_LOG_FILE"
 
-    if [[ -z "$latest_log_file" ]]; then
-      __print_info "No log files found"
-      return 0
-    fi
+  if [[ ! -f "$log_file_to_follow" ]]; then
+    __print_info "No log file found at '$log_file_to_follow'"
+    return 0
+  fi
 
-    tail -n "$line_count" "$instance_logs_dir/$latest_log_file"
-    return $?
-
-  # With follow, keep the logs live even through file changes
+  if [[ "$follow" == "true" ]]; then
+    tail -n "$line_count" -F "$log_file_to_follow"
   else
-    if ! command -v inotifywait &>/dev/null; then
-      __print_error "inotifywait is required to follow logs, please install it"
-      return 1
-    fi
-
-    # Circuit breaker variables to prevent infinite loops
-    local failure_count=0
-    local max_failures=5
-    local consecutive_empty_count=0
-    local max_empty_count=10
-    local backoff_time=1
-
-    while true; do
-      # Check for maximum failures to prevent infinite loops
-      if [[ $failure_count -ge $max_failures ]]; then
-        __print_error "Maximum failure count reached ($max_failures). Stopping log following to prevent infinite loop."
-        return 1
-      fi
-
-      latest_log_file="$(ls -t "$instance_logs_dir" | head -1 2>/dev/null)"
-
-      # Handle case where no log files exist
-      if [[ -z "$latest_log_file" ]]; then
-        consecutive_empty_count=$((consecutive_empty_count + 1))
-        if [[ $consecutive_empty_count -ge $max_empty_count ]]; then
-          __print_error "No log files found after $max_empty_count attempts. Stopping log following."
-          return 1
-        fi
-        __print_warning "No log files found, waiting ${backoff_time}s before retry (attempt $consecutive_empty_count/$max_empty_count)"
-        sleep "$backoff_time"
-        # Exponential backoff with cap
-        backoff_time=$((backoff_time * 2))
-        if [[ $backoff_time -gt 30 ]]; then
-          backoff_time=30
-        fi
-        continue
-      fi
-
-      # Reset counters on successful log file detection
-      consecutive_empty_count=0
-      backoff_time=1
-
-      # Validate that the log file actually exists and is readable
-      if [[ ! -f "$instance_logs_dir/$latest_log_file" ]] || [[ ! -r "$instance_logs_dir/$latest_log_file" ]]; then
-        failure_count=$((failure_count + 1))
-        __print_warning "Log file '$latest_log_file' not accessible, retrying... (failure $failure_count/$max_failures)"
-        sleep 2
-        continue
-      fi
-
-      __print_info "Following logs from $latest_log_file"
-
-      tail -n "$line_count" -F "$instance_logs_dir/$latest_log_file" &
-      tail_pid=$!
-
-      # Wait for tail process to finish or the log file to be replaced
-      if ! inotifywait -e create -e moved_to "$instance_logs_dir" 2>/dev/null; then
-        # inotifywait failed, increment failure counter
-        failure_count=$((failure_count + 1))
-        __print_warning "inotifywait failed, retrying... (failure $failure_count/$max_failures)"
-
-        # Kill the tail process if it's still running
-        if kill -0 "$tail_pid" 2>/dev/null; then
-          kill "$tail_pid" 2>/dev/null
-        fi
-
-        sleep 2
-        continue
-      fi
-
-      # Reset failure counter on successful inotifywait
-      failure_count=0
-
-      # New log file detected; kill current tail and loop back to follow the new file
-      if kill -0 "$tail_pid" 2>/dev/null; then
-        kill "$tail_pid" 2>/dev/null
-      fi
-      __print_info "Detected new log file. Switching to the latest log..."
-      sleep 1
-    done
+    tail -n "$line_count" "$log_file_to_follow"
   fi
 }
 
@@ -1489,13 +1423,13 @@ while [[ $# -gt 0 ]]; do
     ;;
   --logs)
     shift
-    follow=""
+    follow="false"
     line_count=10
 
     while [[ $# -gt 0 ]]; do
       case "$1" in
       -f | --follow)
-        follow="--follow"
+        follow="true"
         shift
         ;;
       --tail | --lines)
@@ -1594,7 +1528,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   --disable-upnp)
-    _manual_disable_upnp
+    _disable_upnp
     exit $?
     ;;
   *)
