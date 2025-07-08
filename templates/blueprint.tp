@@ -171,3 +171,9 @@ stop_command=
 
 # (Optional) Save command sent to the input socket
 save_command=
+
+# (Optional) Regex to match the startup success message
+# This is used to determine if the instance is ready
+# If not set, KGSM will wait for the instance to listen on the ports
+# and then consider it ready
+startup_success_regex=
