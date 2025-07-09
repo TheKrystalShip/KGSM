@@ -233,7 +233,7 @@ function __create_base_instance() {
   export instance_pid_file="${instance_working_dir}/.${instance_name}.pid"
   export instance_tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
   export instance_socket_file="${instance_working_dir}/.${instance_name}.stdin"
-  export instance_logs_redirect="\$instance_logs_dir/\$instance_name-\$(date +\"%Y-%m-%dT%H:%M:%S\").log"
+  export instance_startup_success_regex="${blueprint_startup_success_regex:-}"
 
   export instance_launch_dir="$install_dir"
   if [[ -n "$instance_install_subdir" ]]; then

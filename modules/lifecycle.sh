@@ -57,15 +57,56 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
+# Get the watcher module
+module_watcher="$(__find_module watcher.sh)"
+
 function _get_lifecycle_manager() {
   local instance=$1
 
   __source_instance "$instance"
 
+  if [[ -z "$instance_lifecycle_manager" ]]; then
+    __print_error "No lifecycle manager configured for '$instance'."
+    return 1
+  fi
+
   local lifecycle_manager
   lifecycle_manager="$(__find_module "lifecycle.${instance_lifecycle_manager}.sh")"
 
   echo "$lifecycle_manager"
+}
+
+function _start_instance() {
+  local instance=$1
+
+  "$lifecycle_manager" --start "$instance"
+
+  "$module_watcher" --start-watch "$instance"
+}
+
+function _stop_instance() {
+  local instance=$1
+
+  "$lifecycle_manager" --stop "$instance"
+}
+
+function _restart_instance() {
+  local instance=$1
+
+  "$lifecycle_manager" --restart "$instance"
+}
+
+function _is_instance_active() {
+  local instance=$1
+
+  "$lifecycle_manager" --is-active "$instance"
+}
+
+function _get_logs() {
+  local instance=$1
+  local follow=${2:-false}
+
+  "$lifecycle_manager" --logs "$instance" $follow
 }
 
 while [[ $# -gt 0 ]]; do
@@ -78,29 +119,33 @@ while [[ $# -gt 0 ]]; do
     lifecycle_manager="$(_get_lifecycle_manager "$instance")"
     case "$command" in
     --logs)
-      follow=""
-      # shellcheck disable=SC2199
-      if [[ "$@" =~ "--follow" ]]; then
-        follow="--follow"
+      shift
+      follow="false"
+      if [[ "$1" == "--follow" || "$1" == "-f" ]]; then
+        follow="true"
+        shift
       fi
-      "$lifecycle_manager" --logs "$instance" $follow
+      _get_logs "$instance" "$follow"
       exit $?
       ;;
     --is-active)
-      "$lifecycle_manager" --is-active "$instance"
+      _is_instance_active "$instance"
       exit $?
       ;;
     --start)
-      "$lifecycle_manager" --start "$instance"
+      _start_instance "$instance"
       exit $?
       ;;
     --stop)
-      "$lifecycle_manager" --stop "$instance"
+      _stop_instance "$instance"
       exit $?
       ;;
     --restart)
-      "$lifecycle_manager" --restart "$instance"
+      _restart_instance "$instance"
       exit $?
+      ;;
+    *)
+      __print_error "Invalid argument $1" && exit $EC_INVALID_ARG
       ;;
     esac
     exit $?

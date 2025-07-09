@@ -85,14 +85,14 @@ function _is_instance_active() {
   local is_active
   is_active=$(systemctl is-active "${instance%.ini}" --no-pager)
   [[ "$is_active" == "active" ]] && return 0
-  return $EC_GENERAL
+  return 1
 }
 
 function _get_logs() {
   local instance=$1
-  local follow=$2
+  local follow=${2:-false}
 
-  if [[ "$follow" == "--follow" ]]; then
+  if [[ "$follow" == "true" ]]; then
     journalctl -fu "${instance%.ini}"
   else
     journalctl -n 10 -u "${instance%.ini}" --no-pager
@@ -109,9 +109,9 @@ while [[ $# -gt 0 ]]; do
     case "$command" in
     --logs)
       shift
-      follow=""
+      follow="false"
       if [[ "$1" == "--follow" || "$1" == "-f" ]]; then
-        follow="--follow"
+        follow="true"
         shift
       fi
       _get_logs "$instance" "$follow"

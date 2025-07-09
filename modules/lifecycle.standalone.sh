@@ -88,10 +88,15 @@ function _is_instance_active() {
 
 function _get_logs() {
   local instance=$1
-  local follow=$2
+  local follow=${2:-false}
 
   __source_instance "$instance"
-  "$instance_management_file" --logs $follow
+
+  if [[ "$follow" == "true" ]]; then
+    "$instance_management_file" --logs --follow
+  else
+    "$instance_management_file" --logs
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -104,9 +109,9 @@ while [[ $# -gt 0 ]]; do
     case "$command" in
     --logs)
       shift
-      follow=""
+      follow="false"
       if [[ "$1" == "--follow" || "$1" == "-f" ]]; then
-        follow="--follow"
+        follow="true"
         shift
       fi
       _get_logs "$instance" "$follow"

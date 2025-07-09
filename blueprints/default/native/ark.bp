@@ -35,7 +35,7 @@ name=ark
 # Port(s), used by UFW
 # Wrap in single quotes (')
 # Example: '1111:2222/tcp|1111:2222/udp'
-ports='27015/udp|7777/udp|7778/udp|27020/tcp'
+ports='7777/udp|7778/udp|27020/tcp|27015/udp'
 
 # Steam APP_ID
 # Values: 0 if not applicable, Valid Steam app id otherwise

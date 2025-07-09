@@ -63,6 +63,8 @@ export EVENT_INSTANCE_STARTED="instance_started"
 declare -g -r EVENT_INSTANCE_STARTED
 export EVENT_INSTANCE_STOPPED="instance_stopped"
 declare -g -r EVENT_INSTANCE_STOPPED
+export EVENT_INSTANCE_READY="instance_ready"
+declare -g -r EVENT_INSTANCE_READY
 export EVENT_INSTANCE_BACKUP_CREATED="instance_backup_created"
 declare -g -r EVENT_INSTANCE_BACKUP_CREATED
 export EVENT_INSTANCE_BACKUP_RESTORED="instance_backup_restored"
@@ -282,6 +284,7 @@ declare -A EVENT_CONFIGS=(
   ["$EVENT_INSTANCE_INSTALLED"]="instance blueprint"
   ["$EVENT_INSTANCE_STARTED"]="instance"
   ["$EVENT_INSTANCE_STOPPED"]="instance"
+  ["$EVENT_INSTANCE_READY"]="instance"
   ["$EVENT_INSTANCE_BACKUP_CREATED"]="instance source version"
   ["$EVENT_INSTANCE_BACKUP_RESTORED"]="instance source version"
   ["$EVENT_INSTANCE_FILES_REMOVED"]="instance"
@@ -382,11 +385,11 @@ function _emit_event() {
 
   # Delegate to transport modules
   if [[ "$config_enable_event_broadcasting" == "true" ]]; then
-    "$module_events_socket" --emit "$payload"  &
+    "$module_events_socket" --emit "$payload" &
   fi
 
   if [[ "$config_enable_webhook_events" == "true" ]]; then
-    "$module_events_webhook" --emit "$payload"  &
+    "$module_events_webhook" --emit "$payload" &
   fi
 
   wait
@@ -463,6 +466,10 @@ function _emit_instance_started() {
 
 function _emit_instance_stopped() {
   _emit_event "$EVENT_INSTANCE_STOPPED" "$@"
+}
+
+function _emit_instance_ready() {
+  _emit_event "$EVENT_INSTANCE_READY" "$@"
 }
 
 function _emit_instance_backup_created() {
@@ -619,6 +626,11 @@ while [[ $# -gt 0 ]]; do
       --instance-stopped)
         shift
         _emit_instance_stopped "$1"
+        shift
+        ;;
+      --instance-ready)
+        shift
+        _emit_instance_ready "$1"
         shift
         ;;
       --instance-backup-created)
