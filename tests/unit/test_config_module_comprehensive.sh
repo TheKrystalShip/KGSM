@@ -408,7 +408,7 @@ function test_edge_cases() {
 
   # Test with special characters in values
   assert_command_succeeds "$CONFIG_MODULE --set systemd_files_dir=/path/with/spaces" "Should handle paths with spaces"
-  assert_command_succeeds "$CONFIG_MODULE --set event_socket_filename=my-socket.sock" "Should handle filenames with special chars"
+  assert_command_succeeds "$CONFIG_MODULE --set event_socket_filenames=my-socket.sock,my-socket2.sock" "Should handle filenames with special chars"
 
   # Test boundary values for integers
   assert_command_succeeds "$CONFIG_MODULE --set instance_suffix_length=1" "Should accept minimum value"

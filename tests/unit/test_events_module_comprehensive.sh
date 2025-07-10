@@ -59,8 +59,7 @@ function cleanup_events_test() {
   rm -f "$KGSM_ROOT/test-socket" 2>/dev/null || true
 
   # Reset webhook configuration
-  run_kgsm "config --set webhook_url=" >/dev/null 2>&1 || true
-  run_kgsm "config --set webhook_secondary_url=" >/dev/null 2>&1 || true
+  run_kgsm "config --set webhook_urls=" >/dev/null 2>&1 || true
   run_kgsm "config --set webhook_secret=" >/dev/null 2>&1 || true
   run_kgsm "config --set webhook_timeout_seconds=" >/dev/null 2>&1 || true
   run_kgsm "config --set webhook_retry_count=" >/dev/null 2>&1 || true
@@ -319,11 +318,10 @@ function test_webhook_transport_with_public_endpoint() {
 
   # Configure a public webhook testing endpoint
   # Using httpbin.org which accepts any HTTP requests and returns useful info
-  local webhook_url="https://httpbin.org/post"
+  local webhook_urls="https://httpbin.org/post,https://postman-echo.com/post"
 
-  # Set webhook URL using KGSM config module
-  assert_command_succeeds "run_kgsm '--config --set webhook_url=$webhook_url'" "Should be able to set webhook URL"
-  assert_command_succeeds "run_kgsm '--config --set webhook_secondary_url=$webhook_url'" "Should be able to set webhook secondary URL"
+  # Set webhook URLs using KGSM config module
+  assert_command_succeeds "run_kgsm '--config --set webhook_urls=$webhook_urls'" "Should be able to set webhook URLs"
 
   # Test webhook test command (should succeed with configured URL)
   if command -v wget >/dev/null 2>&1; then
@@ -340,11 +338,11 @@ function test_webhook_transport_with_public_endpoint() {
   # Test webhook status to verify configuration
   local status_output
   status_output=$("$EVENTS_MODULE" --webhook --status 2>&1)
-  assert_contains "$status_output" "Primary URL: $webhook_url" "Status should show configured webhook URL"
+  assert_contains "$status_output" "Webhook URLs:" "Status should show configured webhook URLs"
 
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Webhook transport with public endpoint validated"
 }
@@ -367,17 +365,17 @@ function test_webhook_transport_status() {
   assert_contains "$webhook_status_output" "Dependencies:" "Webhook status should show dependencies section"
   assert_contains "$webhook_status_output" "Connectivity:" "Webhook status should show connectivity section"
 
-  # Test status with configured webhook URL
-  local webhook_url="https://httpbin.org/post"
-  assert_command_succeeds "run_kgsm '--config --set webhook_url=$webhook_url'" "Should be able to set webhook URL"
+  # Test status with configured webhook URLs
+  local webhook_urls="https://httpbin.org/post"
+  assert_command_succeeds "run_kgsm '--config --set webhook_urls=$webhook_urls'" "Should be able to set webhook URLs"
 
-  # Verify status shows configured URL
+  # Verify status shows configured URLs
   webhook_status_output=$("$EVENTS_MODULE" --webhook --status 2>&1)
-  assert_contains "$webhook_status_output" "Primary URL: $webhook_url" "Status should show configured webhook URL"
+  assert_contains "$webhook_status_output" "Webhook URL: $webhook_urls" "Status should show configured webhook URL"
 
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Webhook transport status functionality validated"
 }
@@ -394,11 +392,11 @@ function test_webhook_transport_test() {
   # Verify error message
   local test_output
   test_output=$("$EVENTS_MODULE" --webhook --test 2>&1 || true)
-  assert_contains "$test_output" "No webhook URL configured" "Should indicate missing webhook URL"
+  assert_contains "$test_output" "No webhook URLs configured" "Should indicate missing webhook URLs"
 
-  # Test with a configured webhook URL
-  local webhook_url="https://httpbin.org/post"
-  assert_command_succeeds "run_kgsm '--config --set webhook_url=$webhook_url'" "Should be able to set webhook URL"
+  # Test with a configured webhook URLs
+  local webhook_urls="https://httpbin.org/post"
+  assert_command_succeeds "run_kgsm '--config --set webhook_urls=$webhook_urls'" "Should be able to set webhook URLs"
 
   # Test webhook test command with configured URL (may succeed or fail depending on wget availability)
   if command -v wget >/dev/null 2>&1; then
@@ -413,7 +411,7 @@ function test_webhook_transport_test() {
 
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Webhook transport test functionality validated"
 }
@@ -442,7 +440,7 @@ function test_test_all_command() {
 
   # Test with webhook transport enabled and configured
   assert_command_succeeds "$EVENTS_MODULE --webhook --enable" "Webhook transport enable should work"
-  assert_command_succeeds "run_kgsm '--config --set webhook_url=https://httpbin.org/post'" "Should be able to set webhook URL"
+  assert_command_succeeds "run_kgsm '--config --set webhook_urls=https://httpbin.org/post'" "Should be able to set webhook URLs"
 
   # Test test-all command with both transports (may succeed or fail depending on dependencies)
   if "$EVENTS_MODULE" --test-all >/dev/null 2>&1; then
@@ -454,7 +452,7 @@ function test_test_all_command() {
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --socket --disable" "Socket transport disable should work"
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Test-all command functionality validated"
 }
@@ -497,9 +495,9 @@ function test_test_webhook_command() {
   # Test test-webhook command (will fail without configured URL)
   assert_command_fails "$EVENTS_MODULE --test-webhook" "Test-webhook should fail without configured URL"
 
-  # Test with configured webhook URL
-  local webhook_url="https://httpbin.org/post"
-  assert_command_succeeds "run_kgsm '--config --set webhook_url=$webhook_url'" "Should be able to set webhook URL"
+  # Test with configured webhook URLs
+  local webhook_urls="https://httpbin.org/post"
+  assert_command_succeeds "run_kgsm '--config --set webhook_urls=$webhook_urls'" "Should be able to set webhook URLs"
 
   # Test test-webhook command with configured URL (may succeed or fail depending on wget availability)
   if command -v wget >/dev/null 2>&1; then
@@ -514,7 +512,7 @@ function test_test_webhook_command() {
 
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Test-webhook command functionality validated"
 }
@@ -579,8 +577,8 @@ function test_dependency_error_handling() {
 
     # Test webhook test without wget
   if ! command -v wget >/dev/null 2>&1; then
-    # Set a webhook URL to trigger the wget dependency check
-    run_kgsm "--config --set webhook_url=https://httpbin.org/post" >/dev/null 2>&1 || true
+    # Set a webhook URLs to trigger the wget dependency check
+    run_kgsm "--config --set webhook_urls=https://httpbin.org/post" >/dev/null 2>&1 || true
 
     assert_command_fails "$EVENTS_MODULE --webhook --test" "Webhook test should fail without wget"
 
@@ -593,7 +591,7 @@ function test_dependency_error_handling() {
   # Clean up
   assert_command_succeeds "$EVENTS_MODULE --socket --disable" "Socket transport disable should work"
   assert_command_succeeds "$EVENTS_MODULE --webhook --disable" "Webhook transport disable should work"
-  run_kgsm "--config --set webhook_url=" >/dev/null 2>&1 || true
+  run_kgsm "--config --set webhook_urls=" >/dev/null 2>&1 || true
 
   log_test "Dependency error handling validated"
 }
