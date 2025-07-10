@@ -351,8 +351,8 @@ function __validate_config_value() {
     min_value="1"
     ;;
   # URL validation
-  webhook_url | webhook_secondary_url)
-    expected_type="url"
+  webhook_urls)
+    expected_type="url_list"
     ;;
   # String values (default)
   *)
@@ -403,9 +403,26 @@ function __validate_config_value() {
       fi
     fi
     ;;
+  url_list)
+    # URL list validation - allow empty for optional URLs, validate each URL in comma-separated list
+    if [[ -n "$value" ]]; then
+      IFS=',' read -ra url_list <<< "$value"
+      for url in "${url_list[@]}"; do
+        # Trim whitespace
+        url=$(echo "$url" | xargs)
+        if [[ -n "$url" ]]; then
+          if ! [[ "$url" =~ ^https?://[a-zA-Z0-9.-]+[a-zA-Z0-9]+(:[0-9]+)?(/.*)?$ ]]; then
+            __print_error "Invalid URL in list for '$key': '$url'"
+            __print_error "Expected: valid HTTP or HTTPS URL"
+            return $EC_INVALID_ARG
+          fi
+        fi
+      done
+    fi
+    ;;
   string)
     # For strings, check if it's not empty (unless explicitly allowed)
-    if [[ -z "$value" && "$key" != "default_install_directory" && "$key" != "STEAM_USERNAME" && "$key" != "STEAM_PASSWORD" && "$key" != "webhook_url" && "$key" != "webhook_secondary_url" && "$key" != "webhook_secret" ]]; then
+    if [[ -z "$value" && "$key" != "default_install_directory" && "$key" != "STEAM_USERNAME" && "$key" != "STEAM_PASSWORD" && "$key" != "webhook_urls" && "$key" != "webhook_secret" ]]; then
       __print_error "Value for '$key' cannot be empty"
       return $EC_INVALID_ARG
     fi

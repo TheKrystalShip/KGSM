@@ -282,8 +282,8 @@ declare -A EVENT_CONFIGS=(
   ["$EVENT_INSTANCE_INSTALLATION_STARTED"]="instance blueprint"
   ["$EVENT_INSTANCE_INSTALLATION_FINISHED"]="instance blueprint"
   ["$EVENT_INSTANCE_INSTALLED"]="instance blueprint"
-  ["$EVENT_INSTANCE_STARTED"]="instance"
-  ["$EVENT_INSTANCE_STOPPED"]="instance"
+  ["$EVENT_INSTANCE_STARTED"]="instance lifecycle_manager"
+  ["$EVENT_INSTANCE_STOPPED"]="instance lifecycle_manager"
   ["$EVENT_INSTANCE_READY"]="instance"
   ["$EVENT_INSTANCE_BACKUP_CREATED"]="instance source version"
   ["$EVENT_INSTANCE_BACKUP_RESTORED"]="instance source version"
@@ -365,6 +365,12 @@ function _emit_event() {
         InstanceName: $instance,
         Source: $source,
         Version: $version
+      }'
+    ;;
+  "$EVENT_INSTANCE_STARTED" | "$EVENT_INSTANCE_STOPPED")
+    data_object='{
+        InstanceName: $instance,
+        LifecycleManager: $lifecycle_manager
       }'
     ;;
   *)
@@ -620,13 +626,13 @@ while [[ $# -gt 0 ]]; do
         ;;
       --instance-started)
         shift
-        _emit_instance_started "$1"
-        shift
+        _emit_instance_started "$1" "$2"
+        shift 2
         ;;
       --instance-stopped)
         shift
-        _emit_instance_stopped "$1"
-        shift
+        _emit_instance_stopped "$1" "$2"
+        shift 2
         ;;
       --instance-ready)
         shift
@@ -674,7 +680,7 @@ while [[ $# -gt 0 ]]; do
         shift
         ;;
       *)
-        __print_error "Invalid argument $1"
+        __print_error "Invalid argument '$1'"
         exit $EC_INVALID_ARG
         ;;
       esac
@@ -682,7 +688,7 @@ while [[ $# -gt 0 ]]; do
     exit $?
     ;;
   *)
-    __print_error "Invalid argument $1"
+    __print_error "Invalid argument '$1'"
     exit $EC_INVALID_ARG
     ;;
   esac

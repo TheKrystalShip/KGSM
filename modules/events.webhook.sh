@@ -157,31 +157,40 @@ function __webhook_emit_event() {
     return 1
   fi
 
-  local overall_result=0
-
-  # Send to primary webhook
-  if [[ -n "$config_webhook_url" ]]; then
-    __webhook_send "$config_webhook_url" "$payload" 0 false &
-    local primary_pid=$!
-
-    # Send to secondary webhook if primary fails and secondary is configured
-    if [[ -n "$config_webhook_secondary_url" ]]; then
-      # Wait for primary webhook to complete
-      wait $primary_pid
-      if [[ $? -ne 0 ]]; then
-        __print_info "Primary webhook failed, trying secondary webhook"
-        __webhook_send "$config_webhook_secondary_url" "$payload" 0 true &
-        wait
-        overall_result=$?
-      fi
-    else
-      wait $primary_pid
-      overall_result=$?
-    fi
-  else
-    __print_error "No webhook URL configured"
+  if [[ -z "$config_webhook_urls" ]]; then
+    __print_error "No webhook URLs configured"
     return 1
   fi
+
+  # Convert comma-separated list to array
+  IFS=',' read -ra webhook_list <<<"$config_webhook_urls"
+
+  if [[ ${#webhook_list[@]} -eq 0 ]]; then
+    __print_error "No webhook URLs configured"
+    return 1
+  fi
+
+  local overall_result=0
+  local pids=()
+
+  # Send to all webhooks in parallel
+  for webhook_url in "${webhook_list[@]}"; do
+    # Trim whitespace
+    webhook_url=$(echo "$webhook_url" | xargs)
+    if [[ -n "$webhook_url" ]]; then
+      __webhook_send "$webhook_url" "$payload" 0 false &
+      pids+=($!)
+    fi
+  done
+
+  # Wait for all webhooks to complete
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+    local result=$?
+    if [[ $result -ne 0 ]]; then
+      overall_result=$result
+    fi
+  done
 
   return $overall_result
 }
@@ -199,11 +208,11 @@ function _webhook_enable() {
     return $EC_MISSING_DEPENDENCY
   fi
 
-  # Check if webhook URL is configured
-  if [[ -z "$config_webhook_url" ]]; then
-    __print_warning "No webhook URL configured"
+  # Check if webhook URLs are configured
+  if [[ -z "$config_webhook_urls" ]]; then
+    __print_warning "No webhook URLs configured"
     __print_info "Use --configure to set up webhook endpoints"
-    __print_info "Or manually set webhook_url in configuration"
+    __print_info "Or manually set webhook_urls in configuration"
   fi
 
   # Enable in configuration
@@ -211,8 +220,19 @@ function _webhook_enable() {
   local result=$?
   if [[ $result -eq 0 ]]; then
     __print_success "HTTP webhook event transport enabled"
-    if [[ -n "$config_webhook_url" ]]; then
-      __print_info "Primary webhook: $config_webhook_url"
+    if [[ -n "$config_webhook_urls" ]]; then
+      # Convert comma-separated list to array
+      IFS=',' read -ra webhook_list <<<"$config_webhook_urls"
+
+      if [[ ${#webhook_list[@]} -eq 1 ]]; then
+        __print_info "Webhook URL: ${webhook_list[0]// /}"
+      else
+        __print_info "Webhook URLs:"
+        for webhook_url in "${webhook_list[@]}"; do
+          webhook_url=$(echo "$webhook_url" | xargs)
+          __print_info "  - $webhook_url"
+        done
+      fi
       __print_info "Use --test to verify functionality"
     fi
   fi
@@ -240,28 +260,19 @@ function _webhook_configure() {
   echo "============================"
   echo ""
 
-  # Primary webhook URL
-  echo "Primary Webhook URL:"
-  echo "Enter the HTTP/HTTPS endpoint that will receive KGSM events"
-  echo "Example: https://your-server.com/webhook"
+  # Webhook URLs
+  echo "Webhook URLs:"
+  echo "Enter HTTP/HTTPS endpoints that will receive KGSM events"
+  echo "You can enter multiple URLs separated by commas"
+  echo "Examples: https://your-server.com/webhook"
+  echo "         https://primary.com/webhook,https://backup.com/webhook"
   echo ""
-  read -p "Primary webhook URL: " primary_url
+  read -p "Webhook URLs: " webhook_urls
 
-  if [[ -n "$primary_url" ]]; then
-    __set_config_value "webhook_url" "$primary_url" || return $?
+  if [[ -n "$webhook_urls" ]]; then
+    __set_config_value "webhook_urls" "$webhook_urls" || return $?
     echo ""
   fi
-
-  # Secondary webhook URL
-  echo "Secondary Webhook URL (optional):"
-  echo "Enter a backup endpoint for redundancy (leave empty to skip)"
-  echo ""
-  read -p "Secondary webhook URL: " secondary_url
-
-  if [[ -n "$secondary_url" ]]; then
-    __set_config_value "webhook_secondary_url" "$secondary_url" || return $?
-  fi
-  echo ""
 
   # Timeout configuration
   echo "Request Timeout:"
@@ -321,9 +332,9 @@ function _webhook_test() {
     return 1
   fi
 
-  # Check if URL is configured
-  if [[ -z "$config_webhook_url" ]]; then
-    __print_error "No webhook URL configured"
+  # Check if webhook URLs are configured
+  if [[ -z "$config_webhook_urls" ]]; then
+    __print_error "No webhook URLs configured"
     __print_error "Use --configure to set up webhook endpoints"
     return 1
   fi
@@ -334,9 +345,17 @@ function _webhook_test() {
     return $EC_MISSING_DEPENDENCY
   fi
 
-  __print_info "Primary webhook URL: $config_webhook_url"
-  if [[ -n "$config_webhook_secondary_url" ]]; then
-    __print_info "Secondary webhook URL: $config_webhook_secondary_url"
+  # Convert comma-separated list to array and display
+  IFS=',' read -ra webhook_list <<<"$config_webhook_urls"
+
+  if [[ ${#webhook_list[@]} -eq 1 ]]; then
+    __print_info "Webhook URL: ${webhook_list[0]// /}"
+  else
+    __print_info "Webhook URLs:"
+    for webhook_url in "${webhook_list[@]}"; do
+      webhook_url=$(echo "$webhook_url" | xargs)
+      __print_info "  - $webhook_url"
+    done
   fi
 
   # Create test event payload
@@ -358,28 +377,30 @@ function _webhook_test() {
       }'
   )
 
-  # Send test webhook
-  __webhook_send "$config_webhook_url" "$test_payload" 0 false
-  local result=$?
+  # Test all webhook URLs
+  local overall_success=true
 
-  if [[ $result -eq 0 ]]; then
-    __print_success "Webhook test completed successfully!"
+  for webhook_url in "${webhook_list[@]}"; do
+    webhook_url=$(echo "$webhook_url" | xargs)
+    if [[ -n "$webhook_url" ]]; then
+      __print_info "Testing webhook: $webhook_url"
+      __webhook_send "$webhook_url" "$test_payload" 0 false
+      local result=$?
 
-    # Test secondary webhook if configured
-    if [[ -n "$config_webhook_secondary_url" ]]; then
-      __print_info "Testing secondary webhook..."
-      __webhook_send "$config_webhook_secondary_url" "$test_payload" 0 true
-      local secondary_result=$?
-      if [[ $secondary_result -eq 0 ]]; then
-        __print_success "Secondary webhook test completed successfully!"
+      if [[ $result -eq 0 ]]; then
+        __print_success "Webhook test successful for: $webhook_url"
       else
-        __print_warning "Secondary webhook test failed, but primary succeeded"
+        __print_error "Webhook test failed for: $webhook_url"
+        overall_success=false
       fi
     fi
+  done
 
+  if [[ "$overall_success" == "true" ]]; then
+    __print_success "All webhook tests completed successfully!"
     return 0
   else
-    __print_error "Webhook test failed. Check your webhook URL and network connectivity."
+    __print_error "Some webhook tests failed. Check your webhook URLs and network connectivity."
     return 1
   fi
 }
@@ -404,16 +425,21 @@ function _webhook_status() {
     echo -e "  Status: ${RED}Disabled${END}"
   fi
 
-  if [[ -n "$config_webhook_url" ]]; then
-    echo "  Primary URL: $config_webhook_url"
-  else
-    echo -e "  Primary URL: ${RED}Not configured${END}"
-  fi
+  if [[ -n "$config_webhook_urls" ]]; then
+    # Convert comma-separated list to array
+    IFS=',' read -ra webhook_list <<<"$config_webhook_urls"
 
-  if [[ -n "$config_webhook_secondary_url" ]]; then
-    echo "  Secondary URL: $config_webhook_secondary_url"
+    if [[ ${#webhook_list[@]} -eq 1 ]]; then
+      echo "  Webhook URL: ${webhook_list[0]// /}"
+    else
+      echo "  Webhook URLs:"
+      for webhook_url in "${webhook_list[@]}"; do
+        webhook_url=$(echo "$webhook_url" | xargs)
+        echo "    - $webhook_url"
+      done
+    fi
   else
-    echo "  Secondary URL: Not configured"
+    echo -e "  Webhook URLs: ${RED}Not configured${END}"
   fi
 
   echo "  Timeout: ${config_webhook_timeout_seconds:-10} seconds"
@@ -447,24 +473,20 @@ function _webhook_status() {
 
   # Connectivity status
   echo -e "${BOLD}Connectivity:${END}"
-  if [[ -n "$config_webhook_url" ]] && command -v wget >/dev/null 2>&1; then
-    echo "  Testing primary webhook connectivity..."
-    if wget --quiet --timeout 5 --spider "$config_webhook_url" >/dev/null 2>&1; then
-      echo -e "  Primary endpoint: ${GREEN}Reachable${END}"
-    else
-      echo -e "  Primary endpoint: ${YELLOW}Unreachable or non-responsive${END}"
-    fi
-
-    if [[ -n "$config_webhook_secondary_url" ]]; then
-      echo "  Testing secondary webhook connectivity..."
-      if wget --quiet --timeout 5 --spider "$config_webhook_secondary_url" >/dev/null 2>&1; then
-        echo -e "  Secondary endpoint: ${GREEN}Reachable${END}"
-      else
-        echo -e "  Secondary endpoint: ${YELLOW}Unreachable or non-responsive${END}"
+  if [[ -n "$config_webhook_urls" ]] && command -v wget >/dev/null 2>&1; then
+    echo "  Testing webhook connectivity..."
+    for webhook_url in "${webhook_list[@]}"; do
+      webhook_url=$(echo "$webhook_url" | xargs)
+      if [[ -n "$webhook_url" ]]; then
+        if wget --quiet --timeout 5 --spider "$webhook_url" >/dev/null 2>&1; then
+          echo -e "  $webhook_url: ${GREEN}Reachable${END}"
+        else
+          echo -e "  $webhook_url: ${YELLOW}Unreachable or non-responsive${END}"
+        fi
       fi
-    fi
+    done
   else
-    echo "  Cannot test connectivity (missing URL or wget)"
+    echo "  Cannot test connectivity (missing URLs or wget)"
   fi
 }
 

@@ -67,16 +67,10 @@ fi
 # Core function: Send event to socket (used by lib/events.sh)
 function __socket_emit_event() {
   local payload="$1"
-  local socket_file="$KGSM_ROOT/$config_event_socket_filename"
 
   if [[ -z "$payload" ]]; then
     __print_error "Event payload is required"
     return 1
-  fi
-
-  if [[ ! -e "$socket_file" ]]; then
-    # Socket doesn't exist, but this is not an error for background emission
-    return 0
   fi
 
   # Check if socat is available
@@ -85,13 +79,53 @@ function __socket_emit_event() {
     return 1
   fi
 
-  # Send event to socket
-  set +eo pipefail
-  echo "$payload" | socat - UNIX-CONNECT:"$socket_file",reuseaddr
-  local result=$?
-  set -eo pipefail
+  # Get socket filenames (with backward compatibility)
+  local socket_filenames
+  if [[ -n "$config_event_socket_filenames" ]]; then
+    socket_filenames="$config_event_socket_filenames"
+  elif [[ -n "$config_event_socket_filename" ]]; then
+    # Backward compatibility
+    socket_filenames="$config_event_socket_filename"
+  else
+    socket_filenames="kgsm.sock"
+  fi
 
-  return $result
+  # Convert comma-separated list to array
+  IFS=',' read -ra socket_list <<<"$socket_filenames"
+
+  local overall_result=0
+  local sent_to_any=false
+
+  # Send to each socket
+  for socket_name in "${socket_list[@]}"; do
+    # Trim whitespace
+    socket_name=$(echo "$socket_name" | xargs)
+    local socket_file="$KGSM_ROOT/$socket_name"
+
+    if [[ ! -e "$socket_file" ]]; then
+      # Socket doesn't exist, but this is not an error for background emission
+      continue
+    fi
+
+    # Send event to socket
+    set +eo pipefail
+    echo "$payload" | socat - UNIX-CONNECT:"$socket_file",reuseaddr
+    local result=$?
+    set -eo pipefail
+
+    if [[ $result -eq 0 ]]; then
+      sent_to_any=true
+    else
+      overall_result=$result
+    fi
+  done
+
+  # Return success if we sent to at least one socket, or if no sockets exist
+  if [[ "$sent_to_any" == "true" ]]; then
+    return 0
+  else
+    return $overall_result
+  fi
 }
 
 export -f __socket_emit_event
@@ -112,7 +146,30 @@ function _socket_enable() {
   local result=$?
   if [[ $result -eq 0 ]]; then
     __print_success "Unix Domain Socket event transport enabled"
-    __print_info "Socket file will be created at: $KGSM_ROOT/${config_event_socket_filename:-kgsm.sock}"
+
+    # Get socket filenames (with backward compatibility)
+    local socket_filenames
+    if [[ -n "$config_event_socket_filenames" ]]; then
+      socket_filenames="$config_event_socket_filenames"
+    elif [[ -n "$config_event_socket_filename" ]]; then
+      socket_filenames="$config_event_socket_filename"
+    else
+      socket_filenames="kgsm.sock"
+    fi
+
+    # Convert comma-separated list to array
+    IFS=',' read -ra socket_list <<<"$socket_filenames"
+
+    if [[ ${#socket_list[@]} -eq 1 ]]; then
+      __print_info "Socket file will be created at: $KGSM_ROOT/${socket_list[0]// /}"
+    else
+      __print_info "Socket files will be created at:"
+      for socket_name in "${socket_list[@]}"; do
+        socket_name=$(echo "$socket_name" | xargs)
+        __print_info "  - $KGSM_ROOT/$socket_name"
+      done
+    fi
+
     __print_info "Use --test to verify functionality"
   fi
 
@@ -129,12 +186,28 @@ function _socket_disable() {
   if [[ $result -eq 0 ]]; then
     __print_success "Unix Domain Socket event transport disabled"
 
-    # Clean up socket file if it exists
-    local socket_file="$KGSM_ROOT/${config_event_socket_filename:-kgsm.sock}"
-    if [[ -e "$socket_file" ]]; then
-      __print_info "Removing existing socket file: $socket_file"
-      rm -f "$socket_file" || __print_warning "Could not remove socket file"
+    # Get socket filenames (with backward compatibility)
+    local socket_filenames
+    if [[ -n "$config_event_socket_filenames" ]]; then
+      socket_filenames="$config_event_socket_filenames"
+    elif [[ -n "$config_event_socket_filename" ]]; then
+      socket_filenames="$config_event_socket_filename"
+    else
+      socket_filenames="kgsm.sock"
     fi
+
+    # Convert comma-separated list to array
+    IFS=',' read -ra socket_list <<<"$socket_filenames"
+
+    # Clean up socket files if they exist
+    for socket_name in "${socket_list[@]}"; do
+      socket_name=$(echo "$socket_name" | xargs)
+      local socket_file="$KGSM_ROOT/$socket_name"
+      if [[ -e "$socket_file" ]]; then
+        __print_info "Removing existing socket file: $socket_file"
+        rm -f "$socket_file" || __print_warning "Could not remove socket file: $socket_file"
+      fi
+    done
   fi
 
   return $result
@@ -157,14 +230,37 @@ function _socket_test() {
     return $EC_MISSING_DEPENDENCY
   fi
 
-  local socket_file="$KGSM_ROOT/$config_event_socket_filename"
-
-  __print_info "Socket file: $socket_file"
-
-  # Clean up any existing socket file
-  if [[ -e "$socket_file" ]]; then
-    rm -f "$socket_file"
+  # Get socket filenames (with backward compatibility)
+  local socket_filenames
+  if [[ -n "$config_event_socket_filenames" ]]; then
+    socket_filenames="$config_event_socket_filenames"
+  elif [[ -n "$config_event_socket_filename" ]]; then
+    socket_filenames="$config_event_socket_filename"
+  else
+    socket_filenames="kgsm.sock"
   fi
+
+  # Convert comma-separated list to array
+  IFS=',' read -ra socket_list <<<"$socket_filenames"
+
+  if [[ ${#socket_list[@]} -eq 1 ]]; then
+    __print_info "Socket file: $KGSM_ROOT/${socket_list[0]// /}"
+  else
+    __print_info "Socket files:"
+    for socket_name in "${socket_list[@]}"; do
+      socket_name=$(echo "$socket_name" | xargs)
+      __print_info "  - $KGSM_ROOT/$socket_name"
+    done
+  fi
+
+  # Clean up any existing socket files
+  for socket_name in "${socket_list[@]}"; do
+    socket_name=$(echo "$socket_name" | xargs)
+    local socket_file="$KGSM_ROOT/$socket_name"
+    if [[ -e "$socket_file" ]]; then
+      rm -f "$socket_file"
+    fi
+  done
 
   # Create a simple test by using the actual emit function
   local test_payload
@@ -185,54 +281,89 @@ function _socket_test() {
       }'
   )
 
-  # Start a listener in the background to capture one message
-  local test_output="/tmp/kgsm-socket-test-$$"
+  # Test each socket
+  local overall_success=true
+  local listeners=()
+  local test_outputs=()
 
-  # Start listener that will capture one message and exit
-  timeout 5 socat UNIX-LISTEN:"$socket_file",fork - >"$test_output" &
-  local listener_pid=$!
+  # Start listeners for each socket
+  for i in "${!socket_list[@]}"; do
+    local socket_name=$(echo "${socket_list[$i]}" | xargs)
+    local socket_file="$KGSM_ROOT/$socket_name"
+    local test_output="/tmp/kgsm-socket-test-$$-$i"
 
-  # Give listener time to start
+    # Start listener that will capture one message and exit
+    timeout 5 socat UNIX-LISTEN:"$socket_file",fork - >"$test_output" &
+    local listener_pid=$!
+
+    listeners+=("$listener_pid")
+    test_outputs+=("$test_output")
+
+    __print_info "Started listener for socket: $socket_name (PID: $listener_pid)"
+  done
+
+  # Give listeners time to start
   sleep 1
 
-  # Send test event
-  if echo "$test_payload" | socat - UNIX-CONNECT:"$socket_file" 2>/dev/null; then
-    # Give time for message to be received
+  # Send test event using the actual emit function
+  if __socket_emit_event "$test_payload"; then
+    # Give time for messages to be received
     sleep 1
 
-    # Stop listener
-    kill $listener_pid 2>/dev/null || true
-    wait $listener_pid 2>/dev/null || true
+    # Stop all listeners
+    for listener_pid in "${listeners[@]}"; do
+      kill "$listener_pid" 2>/dev/null || true
+      wait "$listener_pid" 2>/dev/null || true
+    done
 
-    # Check if we received the test message
-    if [[ -f "$test_output" ]] && [[ -s "$test_output" ]]; then
-      local received_event
-      received_event=$(cat "$test_output")
+    # Check results for each socket
+    for i in "${!socket_list[@]}"; do
+      local socket_name=$(echo "${socket_list[$i]}" | xargs)
+      local test_output="${test_outputs[$i]}"
 
-      if echo "$received_event" | jq -e '.EventType == "socket_test"' >/dev/null 2>&1; then
-        __print_success "Socket test completed successfully!"
-        __print_info "Test event received and validated"
-        rm -f "$test_output"
-        rm -f "$socket_file"
-        return 0
+      if [[ -f "$test_output" ]] && [[ -s "$test_output" ]]; then
+        local received_event
+        received_event=$(cat "$test_output")
+
+        if echo "$received_event" | jq -e '.EventType == "socket_test"' >/dev/null 2>&1; then
+          __print_success "Socket test successful for: $socket_name"
+        else
+          __print_error "Socket test failed for $socket_name: Invalid event format received"
+          __print_error "Received: $received_event"
+          overall_success=false
+        fi
       else
-        __print_error "Socket test failed: Invalid event format received"
-        __print_error "Received: $received_event"
+        __print_error "Socket test failed for $socket_name: No event received"
+        overall_success=false
       fi
-    else
-      __print_error "Socket test failed: No event received"
-    fi
+    done
   else
     __print_error "Socket test failed: Could not send test event"
+    overall_success=false
   fi
 
   # Clean up
-  kill $listener_pid 2>/dev/null || true
-  wait $listener_pid 2>/dev/null || true
-  rm -f "$test_output"
-  rm -f "$socket_file"
+  for listener_pid in "${listeners[@]}"; do
+    kill "$listener_pid" 2>/dev/null || true
+    wait "$listener_pid" 2>/dev/null || true
+  done
 
-  return 1
+  for test_output in "${test_outputs[@]}"; do
+    rm -f "$test_output"
+  done
+
+  for socket_name in "${socket_list[@]}"; do
+    socket_name=$(echo "$socket_name" | xargs)
+    local socket_file="$KGSM_ROOT/$socket_name"
+    rm -f "$socket_file"
+  done
+
+  if [[ "$overall_success" == "true" ]]; then
+    __print_success "All socket tests completed successfully!"
+    return 0
+  else
+    return 1
+  fi
 }
 
 # Show socket status
@@ -254,7 +385,28 @@ function _socket_status() {
   else
     echo -e "  Status: ${RED}Disabled${END}"
   fi
-  echo "  Socket file: $KGSM_ROOT/${config_event_socket_filename:-kgsm.sock}"
+  # Get socket filenames (with backward compatibility)
+  local socket_filenames
+  if [[ -n "$config_event_socket_filenames" ]]; then
+    socket_filenames="$config_event_socket_filenames"
+  elif [[ -n "$config_event_socket_filename" ]]; then
+    socket_filenames="$config_event_socket_filename"
+  else
+    socket_filenames="kgsm.sock"
+  fi
+
+  # Convert comma-separated list to array
+  IFS=',' read -ra socket_list <<<"$socket_filenames"
+
+  if [[ ${#socket_list[@]} -eq 1 ]]; then
+    echo "  Socket file: $KGSM_ROOT/${socket_list[0]// /}"
+  else
+    echo "  Socket files:"
+    for socket_name in "${socket_list[@]}"; do
+      socket_name=$(echo "$socket_name" | xargs)
+      echo "    - $KGSM_ROOT/$socket_name"
+    done
+  fi
   echo ""
 
   # Dependencies
@@ -270,13 +422,21 @@ function _socket_status() {
 
   # Runtime status
   echo -e "${BOLD}Runtime Status:${END}"
-  local socket_file="$KGSM_ROOT/${config_event_socket_filename:-kgsm.sock}"
-  if [[ -e "$socket_file" ]]; then
-    echo -e "  Socket file: ${GREEN}Exists${END}"
-    echo "  Socket type: $(file "$socket_file" 2>/dev/null || echo 'Unknown')"
-  else
-    echo -e "  Socket file: ${YELLOW}Not present${END}"
-    echo "    Socket will be created when first event is emitted"
+  local any_exist=false
+  for socket_name in "${socket_list[@]}"; do
+    socket_name=$(echo "$socket_name" | xargs)
+    local socket_file="$KGSM_ROOT/$socket_name"
+    if [[ -e "$socket_file" ]]; then
+      echo -e "  $socket_name: ${GREEN}Exists${END}"
+      echo "    Type: $(file "$socket_file" 2>/dev/null || echo 'Unknown')"
+      any_exist=true
+    else
+      echo -e "  $socket_name: ${YELLOW}Not present${END}"
+    fi
+  done
+
+  if [[ "$any_exist" == "false" ]]; then
+    echo "    Sockets will be created when first event is emitted"
   fi
 }
 
