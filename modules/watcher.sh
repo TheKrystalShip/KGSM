@@ -142,6 +142,7 @@ function _start_watch() {
   fi
 
   __print_info "Starting readiness watcher for '$instance' using $strategy strategy"
+  __print_info "Output will be written to $LOGS_SOURCE_DIR/watcher-${instance%.ini}.log"
 
   # Launch the watcher in a detached background process
   case "$strategy" in

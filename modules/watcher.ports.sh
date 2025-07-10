@@ -104,9 +104,10 @@ function _execute_port_watch() {
   local server_pid="$2"
   local port_to_check="$3"
   local timeout_seconds="${4:-600}"
+  local watcher_log_file="$5"
 
-  __print_info "Watching for port '$port_to_check' to become active"
-  __print_info "Instance: '$instance', PID: $server_pid, Timeout: ${timeout_seconds}s"
+  __print_info_file_only "$watcher_log_file" "Watching for port '$port_to_check' to become active"
+  __print_info_file_only "$watcher_log_file" "Instance: '$instance', PID: $server_pid, Timeout: ${timeout_seconds}s"
 
   # Use timeout to enforce global timeout with port checking loop
   if timeout "${timeout_seconds}s" bash -c '
@@ -130,17 +131,17 @@ function _execute_port_watch() {
       sleep 5
     done
   ' -- "$instance" "$server_pid" "$port_to_check"; then
-    __print_success "Instance '$instance' is ready. Port '$port_to_check' is active."
+    __print_success_file_only "$watcher_log_file" "Instance '$instance' is ready. Port '$port_to_check' is active."
     "$module_events" --emit --instance-ready "${instance%.ini}"
     return 0
   else
     local exit_code=$?
     if [[ $exit_code -eq 124 ]]; then
-      __print_warning "Port watch for '$instance' timed out after ${timeout_seconds}s"
+      __print_warning_file_only "$watcher_log_file" "Port watch for '$instance' timed out after ${timeout_seconds}s"
     elif [[ $exit_code -eq 1 ]]; then
-      __print_info "Server process for '$instance' stopped. Aborting port watch."
+      __print_info_file_only "$watcher_log_file" "Server process for '$instance' stopped. Aborting port watch."
     else
-      __print_error "Port watch for '$instance' failed with exit code $exit_code"
+      __print_error_file_only "$watcher_log_file" "Port watch for '$instance' failed with exit code $exit_code"
     fi
     return $exit_code
   fi
@@ -159,21 +160,24 @@ function _watch_instance() {
   # Source the instance configuration
   __source_instance "$instance"
 
+  # Create watcher log file path
+  local watcher_log_file="$LOGS_SOURCE_DIR/watcher-${instance%.ini}.log"
+
   # Validate ports are configured
   local all_ports="$instance_ports"
   if [[ -z "$all_ports" ]]; then
-    __print_error "No ports configured for '$instance'"
-    __print_error "Set 'ports' in the instance configuration"
+    __print_error_file_only "$watcher_log_file" "No ports configured for '$instance'"
+    __print_error_file_only "$watcher_log_file" "Set 'ports' in the instance configuration"
     return 1
   fi
 
-    # Get the first port for monitoring
+  # Get the first port for monitoring
   local first_port
   first_port=$(_extract_first_port "$all_ports")
   local extract_result=$?
 
   if [[ $extract_result -ne 0 || -z "$first_port" ]]; then
-    __print_error "Failed to extract first port from configuration: '$all_ports'"
+    __print_error_file_only "$watcher_log_file" "Failed to extract first port from configuration: '$all_ports'"
     return 1
   fi
 
@@ -182,27 +186,27 @@ function _watch_instance() {
   local pid_file="$instance_pid_file"
   local pid_wait_timeout=10
 
-  __print_info "Waiting for PID file: $pid_file"
+  __print_info_file_only "$watcher_log_file" "Waiting for PID file: $pid_file"
   while [[ ! -f "$pid_file" && $pid_wait_timeout -gt 0 ]]; do
     sleep 1
     ((pid_wait_timeout--))
   done
 
   if [[ ! -f "$pid_file" ]]; then
-    __print_error "PID file '$pid_file' was not created within timeout"
+    __print_error_file_only "$watcher_log_file" "PID file '$pid_file' was not created within timeout"
     return 1
   fi
 
   if ! server_pid=$(<"$pid_file" 2>/dev/null); then
-    __print_error "Failed to read server PID from '$pid_file'"
+    __print_error_file_only "$watcher_log_file" "Failed to read server PID from '$pid_file'"
     return 1
   fi
 
-  __print_info "Server PID: $server_pid"
-  __print_info "Monitoring port: $first_port"
+  __print_info_file_only "$watcher_log_file" "Server PID: $server_pid"
+  __print_info_file_only "$watcher_log_file" "Monitoring port: $first_port"
 
   # Execute the port watch
-  _execute_port_watch "$instance" "$server_pid" "$first_port" "$timeout_seconds"
+  _execute_port_watch "$instance" "$server_pid" "$first_port" "$timeout_seconds" "$watcher_log_file"
   return $?
 }
 

@@ -78,25 +78,26 @@ function _execute_log_watch() {
   local ready_pattern="$3"
   local log_file="$4"
   local timeout_seconds="${5:-600}"
+  local watcher_log_file="$6"
 
-  __print_info "Watching log file '$log_file' for pattern '$ready_pattern'"
-  __print_info "Instance: '$instance', PID: $server_pid, Timeout: ${timeout_seconds}s"
+  __print_info_file_only "$watcher_log_file" "Watching log file '$log_file' for pattern '$ready_pattern'"
+  __print_info_file_only "$watcher_log_file" "Instance: '$instance', PID: $server_pid, Timeout: ${timeout_seconds}s"
 
   # Use timeout to enforce global timeout and tail to follow the log
   if timeout "${timeout_seconds}s" bash -c '
-    tail -n 0 -f --pid="$1" "$2" | grep --line-buffered -q -m 1 -e "$3"
+    tail -n 50 -f --pid="$1" "$2" | grep --line-buffered -q -m 1 -e "$3"
   ' -- "$server_pid" "$log_file" "$ready_pattern"; then
-    __print_success "Instance '$instance' is ready. Log pattern matched: '$ready_pattern'"
+    __print_success_file_only "$watcher_log_file" "Instance '$instance' is ready. Log pattern matched: '$ready_pattern'"
     "$module_events" --emit --instance-ready "${instance%.ini}"
     return 0
   else
     local exit_code=$?
     if [[ $exit_code -eq 124 ]]; then
-      __print_warning "Log watch for '$instance' timed out after ${timeout_seconds}s"
+      __print_warning_file_only "$watcher_log_file" "Log watch for '$instance' timed out after ${timeout_seconds}s"
     elif [[ $exit_code -eq 1 ]]; then
-      __print_info "Server process for '$instance' stopped. Aborting log watch."
+      __print_info_file_only "$watcher_log_file" "Server process for '$instance' stopped. Aborting log watch."
     else
-      __print_error "Log watch for '$instance' failed with exit code $exit_code"
+      __print_error_file_only "$watcher_log_file" "Log watch for '$instance' failed with exit code $exit_code"
     fi
     return $exit_code
   fi
@@ -115,19 +116,21 @@ function _watch_instance() {
   # Source the instance configuration
   __source_instance "$instance"
 
+  # Create watcher log file path
+  local watcher_log_file="$LOGS_SOURCE_DIR/watcher-${instance%.ini}.log"
+
   # Validate log pattern is configured
   local ready_pattern="$instance_startup_success_regex"
   if [[ -z "$ready_pattern" ]]; then
-    __print_error "No log pattern configured for '$instance'"
-    __print_error "Set 'startup_success_regex' in the instance configuration"
+    __print_error_file_only "$watcher_log_file" "No log pattern configured for '$instance'"
+    __print_error_file_only "$watcher_log_file" "Set 'startup_success_regex' in the instance configuration"
     return 1
   fi
 
   # Validate log file exists
-  local log_file="${instance_logs_dir}/latest.log"
-  if [[ ! -f "$log_file" ]]; then
-    __print_error "Log file not found: $log_file"
-    __print_error "Instance may not be running or logs directory not configured"
+  if [[ ! -f "$instance_log_file" ]]; then
+    __print_error_file_only "$watcher_log_file" "Log file not found: $instance_log_file"
+    __print_error_file_only "$watcher_log_file" "Instance may not be running or logs directory not configured"
     return 1
   fi
 
@@ -136,26 +139,34 @@ function _watch_instance() {
   local pid_file="$instance_pid_file"
   local pid_wait_timeout=10
 
-  __print_info "Waiting for PID file: $pid_file"
+  __print_info_file_only "$watcher_log_file" "Waiting for PID file: $pid_file"
   while [[ ! -f "$pid_file" && $pid_wait_timeout -gt 0 ]]; do
     sleep 1
     ((pid_wait_timeout--))
   done
 
   if [[ ! -f "$pid_file" ]]; then
-    __print_error "PID file '$pid_file' was not created within timeout"
+    __print_error_file_only "$watcher_log_file" "PID file '$pid_file' was not created within timeout"
     return 1
   fi
 
-  if ! server_pid=$(<"$pid_file" 2>/dev/null); then
-    __print_error "Failed to read server PID from '$pid_file'"
+  # Wait a couple of seconds to make sure the server stores the PID
+  sleep 2
+
+  if ! server_pid=$(cat "$pid_file" 2>/dev/null); then
+    __print_error_file_only "$watcher_log_file" "Failed to read server PID from '$pid_file'"
     return 1
   fi
 
-  __print_info "Server PID: $server_pid"
+  if [[ -z "$server_pid" ]]; then
+    __print_error_file_only "$watcher_log_file" "Server PID is empty"
+    return 1
+  fi
+
+  __print_info_file_only "$watcher_log_file" "Server PID: $server_pid"
 
   # Execute the log watch
-  _execute_log_watch "$instance" "$server_pid" "$ready_pattern" "$log_file" "$timeout_seconds"
+  _execute_log_watch "$instance" "$server_pid" "$ready_pattern" "$instance_log_file" "$timeout_seconds" "$watcher_log_file"
   return $?
 }
 
@@ -177,18 +188,17 @@ function _test_log_watch() {
     return 1
   fi
 
-  local log_file="${instance_logs_dir}/latest.log"
-  if [[ ! -f "$log_file" ]]; then
-    __print_error "Log file not found: $log_file"
+  if [[ ! -f "$instance_log_file" ]]; then
+    __print_error "Log file not found: $instance_log_file"
     return 1
   fi
 
   __print_info "Testing log pattern matching for '$instance'"
   __print_info "Pattern: '$ready_pattern'"
-  __print_info "Log file: '$log_file'"
+  __print_info "Log file: '$instance_log_file'"
 
   # Check if pattern exists in current log
-  if grep -q "$ready_pattern" "$log_file"; then
+  if grep -q "$ready_pattern" "$instance_log_file"; then
     __print_success "Pattern found in log file!"
     return 0
   else
@@ -229,11 +239,10 @@ function _show_status() {
     echo "    Configure 'startup_success_regex' in instance configuration"
   fi
 
-  local log_file="${instance_logs_dir}/latest.log"
-  echo "  Log file: $log_file"
-  if [[ -f "$log_file" ]]; then
+  echo "  Log file: $instance_log_file"
+  if [[ -f "$instance_log_file" ]]; then
     echo -e "  Log file status: ${GREEN}Exists${END}"
-    echo "  Log file size: $(du -h "$log_file" | cut -f1)"
+    echo "  Log file size: $(du -h "$instance_log_file" | cut -f1)"
   else
     echo -e "  Log file status: ${RED}Missing${END}"
   fi
@@ -242,9 +251,9 @@ function _show_status() {
   echo ""
 
   # Test current state
-  if [[ -n "$ready_pattern" && -f "$log_file" ]]; then
+  if [[ -n "$ready_pattern" && -f "$instance_log_file" ]]; then
     echo -e "${BOLD}Current State:${END}"
-    if grep -q "$ready_pattern" "$log_file"; then
+    if grep -q "$ready_pattern" "$instance_log_file"; then
       echo -e "  Pattern in log: ${GREEN}Found${END}"
     else
       echo -e "  Pattern in log: ${YELLOW}Not found${END}"

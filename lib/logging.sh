@@ -148,7 +148,97 @@ function __log_message() {
   fi
 }
 
+# File-only logging function that writes to a custom log file without terminal output
+function __log_message_file_only() {
+  local log_level="$1"
+  local message="$2"
+  local custom_log_file="$3"
+
+  # Input validation
+  if [[ -z "$log_level" ]]; then
+    echo "ERROR: Log level is required" >&2
+    return $EC_INVALID_ARG
+  fi
+
+  if [[ -z "$message" ]]; then
+    echo "ERROR: Log message is required" >&2
+    return $EC_INVALID_ARG
+  fi
+
+  if [[ -z "$custom_log_file" ]]; then
+    echo "ERROR: Custom log file path is required" >&2
+    return $EC_INVALID_ARG
+  fi
+
+  # Validate log level
+  case "$log_level" in
+    "$LOG_LEVEL_SUCCESS"|"$LOG_LEVEL_INFO"|"$LOG_LEVEL_WARNING"|"$LOG_LEVEL_ERROR")
+      ;;
+    *)
+      echo "ERROR: Invalid log level: $log_level" >&2
+      return $EC_INVALID_ARG
+      ;;
+  esac
+
+  # Initialize logging paths if not set
+  if [[ -z "$LOGS_SOURCE_DIR" ]]; then
+    # KGSM_ROOT is guaranteed to be set by common.sh before this module loads
+    export LOGS_SOURCE_DIR="$KGSM_ROOT/logs"
+  fi
+
+  # Sanitize message to prevent injection
+  message=$(printf '%s' "$message" | sed 's/[[:cntrl:]]//g')
+
+  # Get caller information
+  local caller_info=""
+  if [[ ${#BASH_SOURCE[@]} -gt 1 ]]; then
+    local caller_file="${BASH_SOURCE[-1]##*/}"
+    local caller_line="${BASH_LINENO[1]}"
+    caller_info="${caller_file}:${caller_line}"
+  else
+    caller_info="unknown:0"
+  fi
+
+  local full_message="${caller_info} $message"
+
+  local timestamp
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo 'unknown-time')"
+
+  local log_entry="[$timestamp] [$log_level] $full_message"
+
+  # Ensure log directory exists (__create_dir is provided by system.sh)
+  if ! __create_dir "$LOGS_SOURCE_DIR" 2>/dev/null; then
+    echo "ERROR: Failed to create log directory: $LOGS_SOURCE_DIR" >&2
+    return 1
+  fi
+
+  # Rotate log file if it reaches the size limit
+  local max_size_kb="${config_log_max_size_kb:-1024}"  # Default 1MB
+  if [[ -f "$custom_log_file" ]]; then
+    local file_size
+    if file_size=$(stat --format=%s "$custom_log_file" 2>/dev/null); then
+      if [[ "$file_size" -ge $((max_size_kb * 1024)) ]]; then
+        local backup_file="$custom_log_file.$(date '+%Y%m%d%H%M%S' 2>/dev/null || echo 'backup')"
+        if ! mv "$custom_log_file" "$backup_file" 2>/dev/null; then
+          echo "WARNING: Failed to rotate log file" >&2
+        fi
+      fi
+    fi
+  fi
+
+  # Write to custom log file if enabled
+  if [[ "${config_enable_logging:-true}" == "true" ]]; then
+    if ! echo "$log_entry" >>"$custom_log_file" 2>/dev/null; then
+      echo "WARNING: Failed to write to log file: $custom_log_file" >&2
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
 export -f __log_message
+export -f __log_message_file_only
 
 function __print_error() {
   if [[ $# -eq 0 ]]; then
@@ -189,5 +279,54 @@ function __print_info() {
 }
 
 export -f __print_info
+
+# File-only logging functions that write to custom log files without terminal output
+function __print_error_file_only() {
+  local custom_log_file="$1"
+  shift
+  if [[ -z "$custom_log_file" ]] || [[ $# -eq 0 ]]; then
+    echo "ERROR: __print_error_file_only requires log file path and message arguments" >&2
+    return $EC_INVALID_ARG
+  fi
+  __log_message_file_only "$LOG_LEVEL_ERROR" "$*" "$custom_log_file"
+}
+
+export -f __print_error_file_only
+
+function __print_success_file_only() {
+  local custom_log_file="$1"
+  shift
+  if [[ -z "$custom_log_file" ]] || [[ $# -eq 0 ]]; then
+    echo "ERROR: __print_success_file_only requires log file path and message arguments" >&2
+    return $EC_INVALID_ARG
+  fi
+  __log_message_file_only "$LOG_LEVEL_SUCCESS" "$*" "$custom_log_file"
+}
+
+export -f __print_success_file_only
+
+function __print_warning_file_only() {
+  local custom_log_file="$1"
+  shift
+  if [[ -z "$custom_log_file" ]] || [[ $# -eq 0 ]]; then
+    echo "ERROR: __print_warning_file_only requires log file path and message arguments" >&2
+    return $EC_INVALID_ARG
+  fi
+  __log_message_file_only "$LOG_LEVEL_WARNING" "$*" "$custom_log_file"
+}
+
+export -f __print_warning_file_only
+
+function __print_info_file_only() {
+  local custom_log_file="$1"
+  shift
+  if [[ -z "$custom_log_file" ]] || [[ $# -eq 0 ]]; then
+    echo "ERROR: __print_info_file_only requires log file path and message arguments" >&2
+    return $EC_INVALID_ARG
+  fi
+  __log_message_file_only "$LOG_LEVEL_INFO" "$*" "$custom_log_file"
+}
+
+export -f __print_info_file_only
 
 export KGSM_LOGGING_LOADED=1
