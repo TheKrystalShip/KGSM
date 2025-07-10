@@ -99,10 +99,6 @@ fi
 
 __source_instance_config "$CONFIG_FILE"
 
-# UPnP state tracking
-UPNP_STATE_FILE="$SCRIPT_DIR/.upnp_enabled"
-LATEST_LOG_FILE="$instance_logs_dir/latest.log"
-
 self=$(basename "$0")
 
 function usage() {
@@ -227,7 +223,7 @@ function _rotate_log_file() {
   timestamp=$(date +"%Y-%m-%dT%H:%M:%S")
 
   # Construct the new filename
-  local rotated_log_file="${log_file%.log}.${timestamp}.log"
+  local rotated_log_file="${instance_logs_dir}/${instance_name}.${timestamp}.log"
 
   if mv "$log_file" "$rotated_log_file"; then
     __print_success "Rotated log file $log_file to $rotated_log_file"
@@ -259,7 +255,7 @@ function _enable_upnp() {
   fi
 
   # Mark UPnP as enabled
-  touch "$UPNP_STATE_FILE"
+  touch "$instance_port_forwarding_state_file"
   __print_success "UPnP enabled"
 }
 
@@ -283,23 +279,23 @@ function _disable_upnp() {
   fi
 
   # Mark UPnP as disabled
-  rm -f "$UPNP_STATE_FILE"
+  rm -f "$instance_port_forwarding_state_file"
   __print_success "UPnP disabled"
 }
 
 # Helper function to check if UPnP is currently enabled
 function _is_upnp_enabled() {
-  [[ -f "$UPNP_STATE_FILE" ]]
+  [[ -f "$instance_port_forwarding_state_file" ]]
 }
 
 # This function is called when the script is interrupted
 # It will disable UPnP if it was enabled and the instance is not running
-function _term_cleanup() {
+function _disable_upnp_on_exit() {
   # We only disable UPnP if ALL of the following conditions are true:
   # 1. A UPnP state file exists, indicating we enabled it at some point.
   # 2. The instance is configured to use port forwarding.
   # 3. The instance is confirmed to be NOT RUNNING.
-  if [[ -f "$UPNP_STATE_FILE" ]] && \
+  if [[ -f "$instance_port_forwarding_state_file" ]] && \
      [[ "${instance_enable_port_forwarding:-false}" == "true" ]] && \
      ! _is_active &>/dev/null; then
 
@@ -307,10 +303,22 @@ function _term_cleanup() {
     _disable_upnp
   fi
 
-  _exit_print_logs
+  # Note: tail processes no longer need manual cleanup since they use --pid
+  # and automatically exit when the server process dies
 }
 
-trap _term_cleanup INT TERM EXIT
+trap _disable_upnp_on_exit INT TERM EXIT
+
+# Cleanup function for foreground start mode
+function _cleanup_foreground_start() {
+  # Clean up PID file
+  [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
+
+  # Disable UPnP if enabled
+  if [[ "$instance_enable_port_forwarding" == "true" ]]; then
+    _disable_upnp
+  fi
+}
 
 # Start the server in the current terminal
 function _start() {
@@ -334,8 +342,28 @@ function _start() {
     return 1
   }
 
+  # Rotate the log file before starting
+  if ! _rotate_log_file "$instance_log_file"; then
+    __print_warning "Failed to rotate log file, continuing"
+  fi
+
+  # Save the current shell PID
+  echo "$$" >"$instance_pid_file"
+  __print_success "Instance $instance_name PID saved to $instance_pid_file"
+
+  # Setup signal handlers for cleanup
+  trap '_cleanup_foreground_start' INT TERM EXIT
+
+  # Start the server with output going to both terminal and log file
+  # stdin remains connected to terminal for direct user interaction
+  # This ensures logs are always written regardless of start mode
+  # Safely expand variables within executable_arguments before execution
+  local expanded_args
+  expanded_args=$(echo "$instance_executable_arguments" | envsubst)
+
+  # Don't use exec here, we want to keep the current shell running
   # shellcheck disable=SC2086
-  exec $instance_executable_file $instance_executable_arguments
+  $instance_executable_file $expanded_args > >(tee -a "$instance_log_file") 2>&1
 }
 
 # Start the server in the background
@@ -345,7 +373,7 @@ function _start_background() {
   __print_info "Starting $self in the background"
 
   # Rotate the latest log file
-  if ! _rotate_log_file "$LATEST_LOG_FILE"; then
+  if ! _rotate_log_file "$instance_log_file"; then
     __print_error "Failed to rotate latest log file. Aborting to prevent data loss."
     return 1
   fi
@@ -375,14 +403,15 @@ function _start_background() {
   # Create named pipe for command input
   mkfifo "$instance_socket_file"
 
-  # Start the server directly with proper I/O redirection
-  # This eliminates the subshell race condition while maintaining socket functionality
   # stdin: redirected from socket for command input
   # stdout/stderr: redirected to logs
+  # Safely expand variables within executable_arguments before execution
+  local expanded_args
+  expanded_args=$(echo "$instance_executable_arguments" | envsubst)
   # shellcheck disable=SC2086
-  $instance_executable_file $instance_executable_arguments \
+  $instance_executable_file $expanded_args \
     <"$instance_socket_file" \
-    &>"$instance_logs_redirect" &
+    &>"$instance_log_file" &
 
   # Capture the actual server process PID (not a subshell)
   local server_pid=$!
@@ -406,43 +435,25 @@ function _start_background() {
   __print_success "Instance $instance_name started with PID $server_pid, saved to $instance_pid_file"
 
   # Prevent EOF on fifo by keeping the named pipe open with a dummy writer
-  # This ensures the server doesn't exit when no input is being sent
-  tail -f /dev/null >"$instance_socket_file" &
-  local tail_pid=$!
+  # Using --pid ensures tail automatically exits when the server process dies
+  # This eliminates the need to track and manually kill the tail process
+  tail -f /dev/null --pid="$server_pid" >"$instance_socket_file" &
 
-  # Validate tail process started successfully
-  if [[ -z "$tail_pid" ]] || [[ ! "$tail_pid" =~ ^[0-9]+$ ]] || ! kill -0 "$tail_pid" 2>/dev/null; then
-    __print_error "Failed to start socket keepalive process"
-    # Try to clean up the server process we just started
-    kill -TERM "$server_pid" 2>/dev/null
-    [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
-    [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
-    return 1
-  fi
-
-  echo "$tail_pid" >"$instance_tail_pid_file"
+  # No need to save or track the tail PID anymore since it will auto-exit
+  __print_success "Socket keepalive process started (auto-exit when server dies)"
 }
 
 # Kill the server process and all its children
 # This function will also remove the PID file and the named pipe
 # Fixed to prevent race conditions and properly handle child process arrays
 function _kill_all_processes() {
-  local tail_pid
   local server_pid
   local output
   local child_pids_string
   local child_pids_array
 
-  # Kill the tail process using atomic read to avoid TOCTOU
-  if tail_pid=$(<"$instance_tail_pid_file" 2>/dev/null) && [[ -n "${tail_pid// /}" ]] && [[ "$tail_pid" =~ ^[0-9]+$ ]]; then
-    if kill -0 "$tail_pid" 2>/dev/null; then
-      kill -TERM "$tail_pid"
-      rm -f "$instance_tail_pid_file"
-    fi
-  fi
-
   # Atomic read of PID file to avoid TOCTOU vulnerability
-  if ! server_pid=$(<"$instance_pid_file" 2>/dev/null); then
+  if ! server_pid=$(cat "$instance_pid_file" 2>/dev/null); then
     __print_error "No PID file found for $instance_name."
     __print_error "If this is unexpected, check running processes to ensure the instance is not running uncontrolled"
     return 1
@@ -528,7 +539,6 @@ function _stop_server() {
 
   [[ -f "$instance_pid_file" ]] && rm -f "$instance_pid_file"
   [[ -p "$instance_socket_file" ]] && rm -f "$instance_socket_file"
-  [[ -f "$instance_tail_pid_file" ]] && rm -f "$instance_tail_pid_file"
 
   if [[ "$instance_enable_port_forwarding" == "true" ]]; then
     _disable_upnp
@@ -588,7 +598,7 @@ function _is_active() {
   # Atomic read operation: attempt to read PID file content directly
   # This eliminates the TOCTOU (Time of Check, Time of Use) vulnerability
   # where the file could be modified between checking existence and reading
-  if ! server_pid=$(<"$instance_pid_file" 2>/dev/null); then
+  if ! server_pid=$(cat "$instance_pid_file" 2>/dev/null); then
     # File doesn't exist, is unreadable, or read failed
     __print_info "Inactive" && return 1
   fi
@@ -622,74 +632,19 @@ function _is_active() {
   fi
 }
 
-# For closing the log reader background process
-# Fixed to prevent race conditions using atomic file operations
-# shellcheck disable=SC2317
-function _exit_print_logs() {
-  local tail_pid
-
-  # Check if the tail PID file exists before trying to read it
-  # This prevents shell error messages when the file doesn't exist
-  if [[ ! -f "$instance_tail_pid_file" ]]; then
-    # File doesn't exist - this is normal during instance creation and other operations
-    return 0
-  fi
-
-  # Atomic read operation: attempt to read tail PID file content directly
-  # This eliminates the TOCTOU vulnerability similar to _is_active()
-  if ! tail_pid=$(<"$instance_tail_pid_file" 2>/dev/null); then
-    # File exists but is unreadable or read failed
-    __print_error "Instance tail PID file exists but is unreadable, removing"
-    rm -f "$instance_tail_pid_file"
-    return 0
-  fi
-
-  # Check if tail PID file content is empty or contains only whitespace
-  if [[ -z "${tail_pid// /}" ]]; then
-    __print_error "Instance tail PID file present but empty, removing"
-    # Safe removal: only remove if file still exists and is empty
-    if [[ -f "$instance_tail_pid_file" ]] && [[ ! -s "$instance_tail_pid_file" ]]; then
-      rm -f "$instance_tail_pid_file"
-    fi
-    return 0
-  fi
-
-  # Validate that PID is numeric to prevent injection attacks
-  if [[ ! "$tail_pid" =~ ^[0-9]+$ ]]; then
-    __print_error "Instance tail PID file contains invalid PID: '$tail_pid', removing"
-    rm -f "$instance_tail_pid_file"
-    return 0
-  fi
-
-  # Check if the tail process is still running and kill it if so
-  if kill -0 "$tail_pid" 2>/dev/null; then
-    __print_info "Stopping log reader..."
-    kill "$tail_pid"
-    rm -f "$instance_tail_pid_file"
-    return 0
-  fi
-
-  # Process is not running anymore, remove stale PID file
-  __print_error "Instance tail PID file references non-existent process (PID: $tail_pid), removing"
-  rm -f "$instance_tail_pid_file"
-  return 0
-}
-
 function _print_logs() {
   local follow=${1:-false}
   local line_count=${2:-10}
 
-  local log_file_to_follow="$LATEST_LOG_FILE"
-
-  if [[ ! -f "$log_file_to_follow" ]]; then
-    __print_info "No log file found at '$log_file_to_follow'"
+  if [[ ! -f "$instance_log_file" ]]; then
+    __print_info "No log file found at '$instance_log_file'"
     return 0
   fi
 
   if [[ "$follow" == "true" ]]; then
-    tail -n "$line_count" -F "$log_file_to_follow"
+    tail -n "$line_count" -F "$instance_log_file"
   else
-    tail -n "$line_count" "$log_file_to_follow"
+    tail -n "$line_count" "$instance_log_file"
   fi
 }
 
@@ -921,7 +876,7 @@ function _list_backups() {
 }
 
 function _get_installed_version() {
-  echo "$(<"$instance_version_file")"
+  cat "$instance_version_file" 2>/dev/null || echo "unknown"
 }
 
 function _get_latest_version() {

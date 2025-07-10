@@ -230,18 +230,22 @@ function __create_base_instance() {
   export instance_lifecycle_manager="standalone"
   export instance_manage_file="${instance_working_dir}/${instance_name}.manage.sh"
   export instance_auto_update_before_start="${config_instance_auto_update_before_start:-false}"
-  export instance_pid_file="${instance_working_dir}/.${instance_name}.pid"
-  export instance_tail_pid_file="${instance_working_dir}/.${instance_name}.tail.pid"
-  export instance_socket_file="${instance_working_dir}/.${instance_name}.stdin"
-  export instance_startup_success_regex="${blueprint_startup_success_regex:-}"
 
-  export instance_launch_dir="$install_dir"
-  if [[ -n "$instance_install_subdir" ]]; then
-    instance_launch_dir="$install_dir/$instance_install_subdir"
-  fi
+  # Process management files
+  export instance_pid_file="${instance_working_dir}/.${instance_name}.pid"
+  export instance_socket_file="${instance_working_dir}/.${instance_name}.sock"
+  export instance_log_file="${instance_working_dir}/${instance_name}.log"
+  export instance_port_forwarding_state_file="${instance_working_dir}/.${instance_name}.upnp_enabled"
+
+  export instance_startup_success_regex="${blueprint_startup_success_regex:-}"
 
   export instance_install_subdir
   instance_install_subdir=$(grep "executable_subdirectory=" <"$blueprint_abs_path" | cut -d "=" -f2 | tr -d '"')
+
+  export instance_launch_dir="${instance_working_dir}/install"
+  if [[ -n "$instance_install_subdir" ]]; then
+    instance_launch_dir="${instance_launch_dir}/${instance_install_subdir}"
+  fi
 
   export instance_ports="${blueprint_ports:-}"
   export instance_stop_command="${blueprint_stop_command:-}"
@@ -673,24 +677,24 @@ function _send_input_to_instance() {
 }
 
 function _regenerate_files() {
-  local operation="$1"  # "management-script" or "all"
+  local operation="$1" # "management-script" or "all"
 
   local operation_name
   local files_args
 
   case "$operation" in
-    "management-script")
-      operation_name="management scripts"
-      files_args="--create --manage"
-      ;;
-    "all")
-      operation_name="all files"
-      files_args="--create"
-      ;;
-    *)
-      __print_error "Invalid regenerate operation: $operation"
-      return $EC_INVALID_ARG
-      ;;
+  "management-script")
+    operation_name="management scripts"
+    files_args="--create --manage"
+    ;;
+  "all")
+    operation_name="all files"
+    files_args="--create"
+    ;;
+  *)
+    __print_error "Invalid regenerate operation: $operation"
+    return $EC_INVALID_ARG
+    ;;
   esac
 
   __print_info "Regenerating $operation_name for all instances..."
@@ -720,7 +724,7 @@ function _regenerate_files() {
     # Call files.sh module with appropriate arguments
     # Capture both stdout and stderr to check for actual success/failure
     local files_output
-    files_output=$("$files_module" --instance "$instance_name" $files_args  2>&1)
+    files_output=$("$files_module" --instance "$instance_name" $files_args 2>&1)
     local files_exit_code=$?
 
     # Check if the command succeeded and didn't produce error messages
@@ -737,7 +741,7 @@ function _regenerate_files() {
     fi
 
     ((instance_count++))
-  done <<< "$instances"
+  done <<<"$instances"
 
   __print_info "Regeneration complete: $success_count successful, $error_count failed, $instance_count total"
 

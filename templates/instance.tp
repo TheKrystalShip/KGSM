@@ -66,11 +66,14 @@ version_file="${instance_version_file}"
 # File that stores the PID of the running server process
 pid_file="${instance_pid_file}"
 
-# File that stores the PID of the tail process for log following
-tail_pid_file="${instance_tail_pid_file}"
-
 # Named pipe used for sending commands to the server
 socket_file="${instance_socket_file}"
+
+# File that stores the log of the running server process
+log_file="${instance_log_file}"
+
+# Port forwarding state file
+port_forwarding_state_file="${instance_port_forwarding_state_file}"
 
 #=============================================================================
 # RUNTIME CONFIGURATION
