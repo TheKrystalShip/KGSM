@@ -517,12 +517,9 @@ function process_instance() {
   -v | --version)
     shift
     if [[ -z "$1" ]]; then
-      "$instance_management_file" --version --installed
+      "$instance_management_file" --version
     else
       case "$1" in
-      --installed)
-        "$instance_management_file" --version --installed
-        ;;
       --latest)
         "$instance_management_file" --version --latest
         ;;
