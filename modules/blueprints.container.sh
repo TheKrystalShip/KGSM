@@ -45,11 +45,19 @@ function _list_custom_container_blueprints() {
 
   # Strip file extensions (.docker-compose.yml)
   local -a stripped_bps=()
-  for bp in "${custom_bps[@]}"; do
-    local base_name
-    base_name="${bp%.docker-compose.yml}"
-    stripped_bps+=("$base_name")
-  done
+
+  # Only process if there are actually files found
+  if [[ ${#custom_bps[@]} -gt 0 ]]; then
+    for bp in "${custom_bps[@]}"; do
+      local base_name
+      base_name="${bp%.docker-compose.yml}"
+
+      # Only add non-empty blueprint names
+      if [[ -n "$base_name" ]]; then
+        stripped_bps+=("$base_name")
+      fi
+    done
+  fi
 
   if [[ -z "$json_format" ]]; then
     printf "%s\n" "${stripped_bps[@]}"
@@ -66,11 +74,19 @@ function _list_default_container_blueprints() {
 
   # Strip file extensions (.docker-compose.yml)
   local -a stripped_bps=()
-  for bp in "${default_bps[@]}"; do
-    local base_name
-    base_name="${bp%.docker-compose.yml}"
-    stripped_bps+=("$base_name")
-  done
+
+  # Only process if there are actually files found
+  if [[ ${#default_bps[@]} -gt 0 ]]; then
+    for bp in "${default_bps[@]}"; do
+      local base_name
+      base_name="${bp%.docker-compose.yml}"
+
+      # Only add non-empty blueprint names
+      if [[ -n "$base_name" ]]; then
+        stripped_bps+=("$base_name")
+      fi
+    done
+  fi
 
   if [[ -z "$json_format" ]]; then
     printf "%s\n" "${stripped_bps[@]}"
@@ -118,6 +134,11 @@ function _list_detailed_container_blueprints() {
   # Build a JSON object with blueprint contents
   jq -n --argjson blueprints \
     "$(for blueprint in "${blueprint_list[@]}"; do
+      # Skip empty blueprint names
+      if [[ -z "$blueprint" ]]; then
+        continue
+      fi
+
       # Get the content of the blueprint as JSON
       local content
       content=$(_print_container_blueprint "$blueprint")

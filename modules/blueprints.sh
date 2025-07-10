@@ -219,12 +219,14 @@ function _list_detailed_blueprints() {
 
     # Combine the JSON results (this assumes the outputs are valid JSON objects)
     if [[ $native_exit -eq 0 && $container_exit -eq 0 && -n "$native_json" && -n "$container_json" ]]; then
-      # Merge both JSON objects
-      jq -s '.[0] * .[1]' <(echo "$native_json") <(echo "$container_json")
+      # Merge both JSON objects and filter out any empty key entries
+      jq -s '.[0] * .[1] | with_entries(select(.key != ""))' <(echo "$native_json") <(echo "$container_json")
     elif [[ $native_exit -eq 0 && -n "$native_json" ]]; then
-      echo "$native_json"
+      # Filter out any empty key entries from native JSON
+      jq 'with_entries(select(.key != ""))' <(echo "$native_json")
     elif [[ $container_exit -eq 0 && -n "$container_json" ]]; then
-      echo "$container_json"
+      # Filter out any empty key entries from container JSON
+      jq 'with_entries(select(.key != ""))' <(echo "$container_json")
     else
       # Return empty object if no results
       echo "{}"
