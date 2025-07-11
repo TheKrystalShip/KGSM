@@ -3,6 +3,8 @@ Description=$instance_name Dedicated Server
 Requires=$instance_name.socket
 
 [Service]
+Type=exec
+PIDFile=$instance_pid_file
 User=$INSTANCE_USER
 WorkingDirectory=$instance_working_dir
 ExecStart=$instance_management_file --start
@@ -15,8 +17,6 @@ StartLimitBurst=1
 
 Sockets=$instance_name.socket
 StandardInput=socket
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

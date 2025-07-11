@@ -5,3 +5,6 @@ PartOf=$instance_name.service
 [Socket]
 ListenFIFO=$instance_socket_file
 RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target
