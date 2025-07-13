@@ -105,21 +105,32 @@ function _execute_port_watch() {
   local port_to_check="$3"
   local timeout_seconds="${4:-600}"
   local watcher_log_file="$5"
+  local check_interval="${config_watcher_ports_check_interval_seconds:-1}"
 
   __print_info_file_only "$watcher_log_file" "Watching for port '$port_to_check' to become active"
   __print_info_file_only "$watcher_log_file" "Instance: '$instance', PID: $server_pid, Timeout: ${timeout_seconds}s"
 
   # Use timeout to enforce global timeout with port checking loop
   if timeout "${timeout_seconds}s" bash -c '
-    local instance="$1"
-    local server_pid="$2"
-    local port_to_check="$3"
+    instance="$1"
+    server_pid="$2"
+    port_to_check="$3"
+    check_interval="$4"
 
     while true; do
-      # Check if server process is still running
-      if ! kill -0 "$server_pid" 2>/dev/null; then
-        echo "Server process stopped"
-        exit 1
+      # Check if server process/container is still running
+      if [[ "$server_pid" =~ ^[0-9]+$ ]]; then
+        # Regular PID - check if process is running
+        if ! kill -0 "$server_pid" 2>/dev/null; then
+          echo "Server process stopped"
+          exit 1
+        fi
+      else
+        # Docker container ID - check container status
+        if ! docker inspect "$server_pid" --format="{{.State.Status}}" 2>/dev/null | grep -q "running"; then
+          echo "Server container stopped"
+          exit 1
+        fi
       fi
 
       # Check if port is active
@@ -128,9 +139,9 @@ function _execute_port_watch() {
         exit 0
       fi
 
-      sleep 5
+      sleep "$check_interval"
     done
-  ' -- "$instance" "$server_pid" "$port_to_check"; then
+  ' -- "$instance" "$server_pid" "$port_to_check" "$check_interval"; then
     __print_success_file_only "$watcher_log_file" "Instance '$instance' is ready. Port '$port_to_check' is active."
     "$module_events" --emit --instance-ready "${instance%.ini}"
     return 0
@@ -150,7 +161,7 @@ function _execute_port_watch() {
 # Watch for instance readiness using port monitoring
 function _watch_instance() {
   local instance="$1"
-  local timeout_seconds="${config_watcher_timeout_seconds:-600}"
+  local timeout_seconds="${config_watcher_global_timeout_seconds:-600}"
 
   if [[ -z "$instance" ]]; then
     __print_error "Instance name is required"
@@ -314,7 +325,7 @@ function _show_status() {
   fi
 
   echo "  Check interval: 5 seconds"
-  echo "  Timeout: ${config_watcher_timeout_seconds:-600} seconds"
+  echo "  Timeout: ${config_watcher_global_timeout_seconds:-600} seconds"
   echo ""
 
   # Dependencies

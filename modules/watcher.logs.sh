@@ -106,7 +106,7 @@ function _execute_log_watch() {
 # Watch for instance readiness using log pattern matching
 function _watch_instance() {
   local instance="$1"
-  local timeout_seconds="${config_watcher_timeout_seconds:-600}"
+  local timeout_seconds="${config_watcher_global_timeout_seconds:-600}"
 
   if [[ -z "$instance" ]]; then
     __print_error "Instance name is required"
@@ -247,7 +247,7 @@ function _show_status() {
     echo -e "  Log file status: ${RED}Missing${END}"
   fi
 
-  echo "  Timeout: ${config_watcher_timeout_seconds:-600} seconds"
+  echo "  Timeout: ${config_watcher_global_timeout_seconds:-600} seconds"
   echo ""
 
   # Test current state

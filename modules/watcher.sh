@@ -47,7 +47,7 @@ ${UNDERLINE}Detection Strategies:${END}
     • Used when no log pattern is configured
 
 ${UNDERLINE}Timeout and Monitoring:${END}
-  • Global timeout: ${config_watcher_timeout_seconds:-600} seconds (configurable)
+  • Global timeout: ${config_watcher_global_timeout_seconds:-600} seconds (configurable)
   • Runs as detached background process
   • Automatically cleans up if server process terminates
   • Emits instance-ready event when detection succeeds
@@ -257,7 +257,7 @@ function _show_status() {
 
   # Global configuration
   echo -e "${BOLD}Global Configuration:${END}"
-  echo "  Timeout: ${config_watcher_timeout_seconds:-600} seconds"
+  echo "  Timeout: ${config_watcher_global_timeout_seconds:-600} seconds"
 
   echo ""
 
