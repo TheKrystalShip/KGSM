@@ -236,8 +236,16 @@ function __find_override() {
   fi
 
   # Extract the blueprint name from the blueprint file's "name" variable
+  # This works for native blueprints, but not for container blueprints
   local blueprint_name
   blueprint_name=$(grep -E '^name\s*=' "$instance_blueprint_file" | cut -d'=' -f2 | tr -d '"' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+  # For container blueprints, we need to extract the blueprint name from the first service name
+  # found right after the "services:" line in the docker-compose.yml file
+  # This is a workaround for the fact that the blueprint name is not stored in the blueprint file.
+  if [[ "$instance_blueprint_file" == *.docker-compose.yml ]]; then
+    blueprint_name=$(grep -C 1 -E '^services:' "$instance_blueprint_file" | tail -n1 | cut -d ':' -f1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  fi
 
   if [[ -z "$blueprint_name" ]]; then
     __print_error "No 'name' variable found in blueprint file '$instance_blueprint_file'."
