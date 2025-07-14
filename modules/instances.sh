@@ -265,7 +265,7 @@ function __create_base_instance() {
   # The executable file needs "./" appended to it if it's not a global bin
   # like java, python, wine64, etc.
   case "${blueprint_executable_file:-}" in
-  java | python | wine64 | wine32 | wine | mono | mono64 | mono-wine | mono-wine64 | mono-wine32 | mono-wine-wine64 | mono-wine-wine32 | mono-wine-wine | mono-wine-wine64 | mono-wine-wine32 | mono-wine-wine)
+  java | python | wine64 | wine32 | wine | mono | mono64 | mono-wine | mono-wine64 | mono-wine32 | mono-wine-wine64 | mono-wine-wine32 | mono-wine-wine)
     instance_executable_file="${blueprint_executable_file}"
     ;;
   *)

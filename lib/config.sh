@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Disabling SC2086 globally
+# shellcheck disable=SC2086
+
 # Check for KGSM_ROOT
 if [[ -z "$KGSM_ROOT" ]]; then
   # Absolute path to this script file
@@ -228,13 +231,6 @@ function __remove_config() {
   if ! sed -i "/^$key=/d" "$target_file" >/dev/null; then
     __print_error "Failed to remove key '$key' from '$target_file'."
     return $EC_FAILED_SED
-  fi
-
-  # Note: This is an instance config file
-  if [[ "$config_file" == *"/instances/"* ]] && [[ "$config_file" == *".ini" ]]; then
-    local instance_name
-    instance_name=$(basename "$config_file" .ini)
-    # Instance config file updated
   fi
 
   return 0
@@ -570,7 +566,7 @@ function __reset_config() {
   fi
 
   # Create backup
-  local backup_file="${CONFIG_FILE}.$(date +%Y%m%d_%H%M%S).bak"
+  local backup_file; backup_file="${CONFIG_FILE}.$(date +%Y%m%d_%H%M%S).bak"
   cp "$CONFIG_FILE" "$backup_file"
 
   # Copy default config

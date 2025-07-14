@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Disabling SC2086 globally
+# shellcheck disable=SC2086
+
 ## Colored output
 # Check if stdout is tty
 if test -t 1; then
@@ -117,7 +120,7 @@ function __log_message() {
       local file_size
       if file_size=$(stat --format=%s "$LOG_FILE" 2>/dev/null); then
         if [[ "$file_size" -ge $((max_size_kb * 1024)) ]]; then
-          local backup_file="$LOG_FILE.$(date '+%Y%m%d%H%M%S' 2>/dev/null || echo 'backup')"
+          local backup_file; backup_file="$LOG_FILE.$(date '+%Y%m%d%H%M%S' 2>/dev/null || echo 'backup')"
           if ! mv "$LOG_FILE" "$backup_file" 2>/dev/null; then
             echo "WARNING: Failed to rotate log file" >&2
           fi
@@ -218,7 +221,7 @@ function __log_message_file_only() {
     local file_size
     if file_size=$(stat --format=%s "$custom_log_file" 2>/dev/null); then
       if [[ "$file_size" -ge $((max_size_kb * 1024)) ]]; then
-        local backup_file="$custom_log_file.$(date '+%Y%m%d%H%M%S' 2>/dev/null || echo 'backup')"
+        local backup_file; backup_file="$custom_log_file.$(date '+%Y%m%d%H%M%S' 2>/dev/null || echo 'backup')"
         if ! mv "$custom_log_file" "$backup_file" 2>/dev/null; then
           echo "WARNING: Failed to rotate log file" >&2
         fi

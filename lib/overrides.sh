@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Disabling SC2086 globally
+# shellcheck disable=SC2086
+
 # Params
 if [ $# -eq 0 ]; then
   echo "${0##*/} ERROR: Sourcing error, blueprint name not specified" >&2 && exit $EC_MISSING_ARGS
@@ -20,7 +23,7 @@ fi
 
 instance=$1
 
-module_common="$(find "$KGSM_ROOT" -type f -name common.sh -print -quit)"
+module_common="$(find "$KGSM_ROOT/lib" -type f -name common.sh -print -quit)"
 [[ -z "$module_common" ]] && echo "${0##*/} ERROR: Could not find module common.sh" >&2 && exit $EC_FILE_NOT_FOUND
 
 # shellcheck disable=SC1090

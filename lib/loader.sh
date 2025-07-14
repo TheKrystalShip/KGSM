@@ -268,7 +268,6 @@ export -f __find_override
 function __source_blueprint() {
   local blueprint_file="$1"
   local prefix="${2:-blueprint_}"
-  local force_reload="$3"
 
   if [[ -z "$blueprint_file" ]]; then
     __print_error "No blueprint file specified."
@@ -314,7 +313,6 @@ export -f __source_blueprint
 # The instance ID can be either an absolute path or just the instance name.
 function __source_instance() {
   local instance_name="$1"
-  local force_reload="$2"
 
   if [[ -z "$instance_name" ]]; then
     __print_error "No 'instance_name' specified."
@@ -358,7 +356,7 @@ function __source_instance() {
     # Check if the key already starts with "instance_"
     if [[ "$key" =~ ^instance_ ]]; then
       # If it already has the prefix, set it in the current shell
-      declare -g "${key}=${value}" && export "${key}"
+      declare -g "${key}=${value}" && export "${key?}"
     else
       # Otherwise, add the "instance_" prefix and set it in the current shell
       declare -g "instance_${key}=${value}" && export "instance_${key}"
