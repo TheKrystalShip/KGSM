@@ -232,7 +232,7 @@ function _create() {
   # Emit after the instance has been created, so we can use the identifier
   "$module_events" --emit --instance-installation-started "${instance}" "${blueprint}"
 
-  "$module_directories" -i "$instance" --create || return $?
+  "$module_directories" create --instance "$instance" || return $?
   "$module_files" -i "$instance" --create || return $?
 
   # After generating the instance and the files, we need to load the instance
@@ -280,7 +280,7 @@ function _remove() {
   "$module_events" --emit --instance-uninstall-started "${instance}"
 
   "$module_files" -i "$instance" --remove || return $?
-  "$module_directories" -i "$instance" --remove || return $?
+  "$module_directories" remove --instance "$instance" || return $?
   "$module_instances" --remove "$instance" || return $?
 
   "$module_events" --emit --instance-uninstall-finished "${instance}"

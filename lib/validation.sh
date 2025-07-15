@@ -312,6 +312,92 @@ function validate_directory_writable() {
 export -f validate_directory_writable
 
 # =============================================================================
+# INSTANCE VALIDATION FUNCTIONS
+# =============================================================================
+
+# Validates instance name and returns config file path
+# Usage: validate_instance_name <instance_name>
+# Returns: 0 on success, error code on failure
+# Outputs: instance_config_file path to stdout
+function validate_instance_name() {
+  local instance_name="$1"
+
+  if [[ -z "$instance_name" ]]; then
+    __print_error "validate_instance_name: Instance name cannot be empty"
+    return $EC_INVALID_ARG
+  fi
+
+  # Try to find the instance config file
+  local instance_config_file
+  if ! instance_config_file=$(__find_instance_config "$instance_name" 2>/dev/null); then
+    __print_error "Instance '$instance_name' not found"
+    __print_error "Available instances can be found in: $INSTANCES_SOURCE_DIR"
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Check if the config file is readable
+  if [[ ! -r "$instance_config_file" ]]; then
+    __print_error "Instance config file is not readable: $instance_config_file"
+    __print_error "Check file permissions and ownership"
+    return $EC_PERMISSION
+  fi
+
+  # Output the config file path
+  echo "$instance_config_file"
+  return 0
+}
+
+export -f validate_instance_name
+
+# Validates that working directory is properly configured
+# Usage: validate_working_directory <instance_config_file>
+# Returns: 0 on success, error code on failure
+# Outputs: instance_working_dir path to stdout
+function validate_working_directory() {
+  local instance_config_file="$1"
+
+  if [[ -z "$instance_config_file" ]]; then
+    __print_error "validate_working_directory: Instance config file path cannot be empty"
+    return $EC_INVALID_ARG
+  fi
+
+  # Check if the config file exists
+  if [[ ! -f "$instance_config_file" ]]; then
+    __print_error "Instance config file does not exist: $instance_config_file"
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Extract the working directory from the config file
+  local instance_working_dir
+  instance_working_dir=$(__get_config_value "$instance_config_file" "working_dir" 2>/dev/null)
+  local result=$?
+
+  if [[ $result -ne 0 ]]; then
+    __print_error "Failed to read working_dir from config file: $instance_config_file"
+    return $result
+  fi
+
+  # Check if working_dir is set
+  if [[ -z "$instance_working_dir" ]]; then
+    __print_error "working_dir is not set in the instance config file: $instance_config_file"
+    return $EC_INVALID_CONFIG
+  fi
+
+  # Ensure working_dir is an absolute path
+  if [[ ! "$instance_working_dir" = /* ]]; then
+    __print_error "working_dir must be an absolute path, got: $instance_working_dir"
+    __print_error "Config file: $instance_config_file"
+    return $EC_INVALID_CONFIG
+  fi
+
+  # Output the working directory path
+  echo "$instance_working_dir"
+  return 0
+}
+
+export -f validate_working_directory
+
+# =============================================================================
 # VALIDATION REPORTING
 # =============================================================================
 

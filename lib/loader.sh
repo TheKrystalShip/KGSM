@@ -192,6 +192,14 @@ function __find_library() {
 
 export -f __find_library
 
+function __find_logic_library() {
+  local library=$1
+  [[ "$library" != *.sh ]] && library="${library}.sh"
+  __find_or_fail "$library" "$LIBRARY_SOURCE_DIR/logic"
+}
+
+export -f __find_logic_library
+
 function __find_instance_config() {
   local instance=$1
   [[ "$instance" != *.ini ]] && instance="${instance}.ini"

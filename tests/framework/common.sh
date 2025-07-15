@@ -212,7 +212,7 @@ function create_test_instance() {
     # Create the complete directory structure for the instance
     # This follows the same pattern as the main kgsm.sh script
     log_test "Creating directory structure for instance: $instance_name"
-    if "$KGSM_ROOT/modules/directories.sh" --instance "$instance_name" --create >/dev/null 2>&1; then
+    if "$KGSM_ROOT/modules/directories.sh" create --instance "$instance_name" >/dev/null 2>&1; then
       log_test "Directory structure created successfully for: $instance_name"
     else
       log_test "Warning: Failed to create directory structure for: $instance_name (may be expected in test environment)"
