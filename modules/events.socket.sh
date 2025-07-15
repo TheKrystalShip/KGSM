@@ -108,10 +108,8 @@ function __socket_emit_event() {
     fi
 
     # Send event to socket
-    set +eo pipefail
     echo "$payload" | socat - UNIX-CONNECT:"$socket_file",reuseaddr
     local result=$?
-    set -eo pipefail
 
     if [[ $result -eq 0 ]]; then
       sent_to_any=true

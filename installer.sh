@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# set -eo pipefail
-
 # shellcheck disable=SC2199
 if [[ $@ =~ "--debug" ]]; then
   export PS4='+(\033[0;33m${BASH_SOURCE}:${LINENO}\033[0m): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -418,10 +416,8 @@ function check_for_update() {
   [[ $SILENT_MODE -eq 0 ]] && echo -e "${0##*/} ${COLOR_BLUE}INFO${COLOR_END} Latest version: $latest_version"
 
   local compare_result
-  set +euo pipefail
   compare_versions "$current_version" "$latest_version"
   compare_result=$?
-  set -euo pipefail
 
   case $compare_result in
   0)
