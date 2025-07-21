@@ -3,6 +3,7 @@
 - [Changelog](#changelog)
   - [Ideas for the future](#ideas-for-the-future)
   - [Work in progress](#work-in-progress)
+  - [2.2.0](#220)
   - [2.1.0](#210)
   - [2.0.1](#201)
   - [2.0](#20)
@@ -48,6 +49,40 @@ Features that I'd like to consider implementing in order to make KGSM more versa
 ## Work in progress
 
 - Bug fixing after version 2.0
+
+## 2.2.0
+
+**New stuff**
+- New `watcher.sh` module responsible for detecting when an instance logs the `startup_success_regex`, emitting a new event `instance_ready`.
+  This is used to determine when an instance is finished starting up and can be considered ready to connect to.
+
+- Webhooks for the event system: Events can now be emitted to webhooks, configured in the `config.ini` file.
+- Event sockets: Support for multiple sockets has also been added, configured in the `config.ini` file.
+- New command for instance management files: `--status` has been added which outputs runtime information about the instance. Additional `--json` flag is also supported for machine readable output.
+
+**Changes**
+- Added support for multiple event sockets and webhooks, allowing KGSM to communicate with multiple external processes simultaneously.
+- New standalone `config.sh` CLI module for handling KGSM configuration independently.
+- Refactored watcher configuration variables to support container images and improved port monitoring.
+- Added `--fast` flag for instance status output to skip version checks for quicker responses.
+- Updated instance management files to be more standalone when using systemd as lifecycle manager.
+- Moved `modules/include` to `lib/` directory for better code organization.
+- Created `bootstrap.sh` library script to reduce redundant code across modules.
+- Updated all modules to use the new `lib/common.sh` location.
+- Enhanced blueprints with better comments and improved structure.
+- Modified `watcher.sh` modules to write to log file instead of terminal output.
+- Changed log rotation behavior in `manage.native.sh` for better performance.
+
+**Bug fixes**
+- Fixed failed blueprint name resolution for container blueprints.
+- Fixed empty entries in `blueprints --detailed --json` output.
+- Fixed bug in `kgsm.sh` when requesting instance version information.
+- Fixed exit codes availability across modules.
+- Modified systemd templates to properly account for instance PID files.
+- Fixed bug where UPnP was disabled every time the management script exited.
+- Fixed tests for multiple event sockets and webhooks functionality.
+- Fixed `installer.sh` not updating version information correctly.
+- Fixed various shellcheck warnings for better code quality.
 
 ## 2.1.0
 
