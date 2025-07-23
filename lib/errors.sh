@@ -160,6 +160,16 @@ export EC_SUCCESS_BACKUP_CREATED
 declare -g -r EC_SUCCESS_BACKUP_RESTORED=231
 export EC_SUCCESS_BACKUP_RESTORED
 
+# Configuration management events
+declare -g -r EC_SUCCESS_CONFIG_SET=240
+export EC_SUCCESS_CONFIG_SET
+
+declare -g -r EC_SUCCESS_CONFIG_RESET=241
+export EC_SUCCESS_CONFIG_RESET
+
+declare -g -r EC_SUCCESS_CONFIG_VALIDATED=242
+export EC_SUCCESS_CONFIG_VALIDATED
+
 declare -A EXIT_CODES=(
   [$EC_OKAY]="No error"
   [$EC_GENERAL]="General error"
@@ -205,6 +215,14 @@ function __print_error_code() {
   local script="${BASH_SOURCE[1]}" # The script where the error occurred
   local func="${FUNCNAME[1]}"      # The function where the error occurred
   local line="${BASH_LINENO[0]}"   # The line number where the error occurred
+
+  # Exit codes >200 represent success codes mapped to specific events used
+  # but the events.sh library to be emitted when needed.
+  # We don't need the events to bubble all the way to the top so we can declare
+  # them as a generic success exit code 0.
+  if [[ $code -gt 200 ]]; then
+    exit 0
+  fi
 
   echo "Error $code: ${EXIT_CODES[$code]:-Unknown error}" >&2
   echo "Occurred in script: $script, function: $func, line: $line" >&2

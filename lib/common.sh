@@ -72,5 +72,13 @@ if [[ -z "$KGSM_VALIDATION_LOADED" ]]; then
   }
 fi
 
+if [[ -z "$KGSM_EVENTS_LIBRARY_LOADED" ]]; then
+  # shellcheck disable=SC1090
+  source "$(__find_library events.sh)" || {
+    echo -e "ERROR: Failed to load events.sh library"
+    exit $EC_FAILED_SOURCE
+  }
+fi
+
 # Export this to check before loading this file again
 export KGSM_COMMON_LOADED=1

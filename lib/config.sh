@@ -497,7 +497,6 @@ function __set_config_value() {
   local value="$2"
 
   if [[ -z "$key" ]]; then
-    __print_error "Config key must be provided."
     return $EC_INVALID_ARG
   fi
 
@@ -522,8 +521,8 @@ function __set_config_value() {
     return $exit_code
   fi
 
-  __print_success "Configuration updated: $key = $value"
-  return 0
+  # Return success event code to signal that an event should be emitted
+  return $EC_SUCCESS_CONFIG_SET
 }
 
 export -f __set_config_value
@@ -561,7 +560,6 @@ export -f __get_config_value_safe
 # Reset config to defaults
 function __reset_config() {
   if [[ ! -f "$DEFAULT_CONFIG_FILE" ]]; then
-    __print_error "Default config file not found: $DEFAULT_CONFIG_FILE"
     return $EC_FILE_NOT_FOUND
   fi
 
@@ -572,9 +570,8 @@ function __reset_config() {
   # Copy default config
   cp "$DEFAULT_CONFIG_FILE" "$CONFIG_FILE"
 
-  __print_success "Configuration reset to defaults"
-  __print_info "Backup saved as: $backup_file"
-  return 0
+  # Return success event code to signal that an event should be emitted
+  return $EC_SUCCESS_CONFIG_RESET
 }
 
 export -f __reset_config
@@ -584,8 +581,6 @@ function __validate_current_config() {
   local errors=0
   local warnings=0
 
-  __print_info "Validating current configuration..."
-
   while IFS= read -r key; do
     [[ -z "$key" ]] && continue
 
@@ -594,28 +589,76 @@ function __validate_current_config() {
     result=$?
 
     if [[ $result -ne 0 ]]; then
-      __print_warning "Key '$key' not set in current config (using default)"
       ((warnings++))
       continue
     fi
 
     # Validate the current value
     if ! __validate_config_value "$key" "$value"; then
-      __print_error "Invalid value for '$key': '$value'"
       ((errors++))
     fi
   done < <(__get_all_config_keys)
 
   if [[ $errors -eq 0 && $warnings -eq 0 ]]; then
-    __print_success "Configuration validation passed"
-    return 0
+    # Return success event code to signal that an event should be emitted
+    return $EC_SUCCESS_CONFIG_VALIDATED
   elif [[ $errors -eq 0 ]]; then
-    __print_warning "Configuration validation completed with $warnings warnings"
-    return 0
+    # Success with warnings - still return success event code
+    return $EC_SUCCESS_CONFIG_VALIDATED
   else
-    __print_error "Configuration validation failed with $errors errors and $warnings warnings"
+    # Validation failed with errors
     return 1
   fi
 }
+
+# Open configuration file in editor
+function __open_config_editor() {
+  # Validate that CONFIG_FILE is set and exists
+  if [[ -z "$CONFIG_FILE" ]]; then
+    return $EC_INVALID_CONFIG
+  fi
+
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    return $EC_FILE_NOT_FOUND
+  fi
+
+  # Check if config file is readable and writable
+  if [[ ! -r "$CONFIG_FILE" ]]; then
+    return $EC_PERMISSION
+  fi
+
+  if [[ ! -w "$CONFIG_FILE" ]]; then
+    return $EC_PERMISSION
+  fi
+
+  # Determine editor to use (EDITOR environment variable or vim as fallback)
+  local editor="${EDITOR:-vim}"
+
+  # Check if the editor command exists
+  if ! command -v "$editor" >/dev/null 2>&1; then
+    # If EDITOR is set but not found, try vim
+    if [[ -n "$EDITOR" ]]; then
+      editor="vim"
+      if ! command -v "$editor" >/dev/null 2>&1; then
+        return $EC_MISSING_DEPENDENCY
+      fi
+    else
+      return $EC_MISSING_DEPENDENCY
+    fi
+  fi
+
+  # Open the config file in the editor
+  "$editor" "$CONFIG_FILE"
+  local editor_exit_code=$?
+
+  # Return appropriate exit code based on editor result
+  if [[ $editor_exit_code -eq 0 ]]; then
+    return 0
+  else
+    return $EC_GENERAL
+  fi
+}
+
+export -f __open_config_editor
 
 export -f __validate_current_config

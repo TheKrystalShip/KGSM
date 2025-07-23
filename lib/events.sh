@@ -48,6 +48,21 @@ function __dispatch_event_from_exit_code() {
       "$module_events" --emit --instance-directories-removed "$instance_name"
       return $?
       ;;
+    $EC_SUCCESS_CONFIG_SET)
+      # TODO: Implement global config events when global event infrastructure is ready
+      # "$module_events" --emit --config-set "$key" "$value"
+      return 0
+      ;;
+    $EC_SUCCESS_CONFIG_RESET)
+      # TODO: Implement global config events when global event infrastructure is ready
+      # "$module_events" --emit --config-reset
+      return 0
+      ;;
+    $EC_SUCCESS_CONFIG_VALIDATED)
+      # TODO: Implement global config events when global event infrastructure is ready
+      # "$module_events" --emit --config-validated
+      return 0
+      ;;
     *)
       # No event needed for other exit codes
       return 0

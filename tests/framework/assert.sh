@@ -558,7 +558,9 @@ function assert_command_succeeds() {
     exit_code=$?
   fi
 
-  if [[ $exit_code -eq 0 ]]; then
+  # Exit codes higher than 200 are used as success codes that represent events to be emitted
+  # Treat them as success
+  if [[ $exit_code -eq 0 || $exit_code -gt 200 ]]; then
     print_assert_result "PASS" "$message: command '$command' succeeded" "$caller_info"
     return $ASSERT_SUCCESS
   else

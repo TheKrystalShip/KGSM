@@ -59,17 +59,17 @@ ${BOLD}${UNDERLINE}General Options:${END}
   --ip                        Display this server's external IP address
 
 ${BOLD}${UNDERLINE}Configuration Management:${END}
-  --config                    Manage KGSM configuration settings
+  config                      Manage KGSM configuration settings
     [no subcommand]           Open configuration in editor (default behavior)
-    --set KEY=VALUE           Set a configuration value
-                              Example: --config --set enable_logging=true
-                              Example: --config --set instance_suffix_length=3
-    --get KEY                 Get a configuration value
-                              Example: --config --get enable_systemd
-    --list                    List all configuration values
-    --list --json             Output configuration in JSON format
-    --reset                   Reset configuration to defaults
-    --validate                Validate current configuration
+    set KEY=VALUE             Set a configuration value
+                              Example: config set enable_logging=true
+                              Example: config set instance_suffix_length=3
+    get KEY                   Get a configuration value
+                              Example: config get enable_systemd
+    list                      List all configuration values
+    list --json               Output configuration in JSON format
+    reset                     Reset configuration to defaults
+    validate                  Validate current configuration
 
 ${BOLD}${UNDERLINE}Event System Management:${END}
   --events                    Manage KGSM's event broadcasting system
@@ -615,7 +615,8 @@ while [[ "$#" -gt 0 ]]; do
     fi
     exit $?
     ;;
-  --config)
+  config)
+    shift
     "$module_config" "$@"
     exit $?
     ;;

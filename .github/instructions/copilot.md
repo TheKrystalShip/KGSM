@@ -15,7 +15,6 @@ Coding standards, domain knowledge, and preferences that AI should follow.
 
 ### Best Practices
 - Always include a proper shebang line: `#!/usr/bin/env bash`
-- Use `set -euo pipefail` for safer script execution
 - Quote all variables: `"$variable"` not `$variable`
 - Prefer `[[` over `[` for conditional testing
 - Exit with meaningful exit codes
